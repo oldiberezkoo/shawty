@@ -185,9 +185,21 @@ async function main() {
     const hello = await device.waitFor('hello.ok')
     console.log('→ экран на связи:', hello.screenId.slice(0, 8) + '…')
 
-    // 5. Публикация. Ожидаем кадр с манифестом либо состояние через HTTP.
+    // 5. Публикация. Ключевая проверка: манифест должен прийти ПО КАНАЛУ,
+    // а не только по опросу состояния.
     const publish = await api('/api/dashboard/releases', 'POST', { reason: 'смоук-тест' })
     if (publish.status !== 200) throw new Error(`публикация не выполнена: ${publish.text.slice(0, 300)}`)
+
+    const assignment = await device.waitFor('assignment', 10_000).catch(() => null)
+
+    if (!assignment) {
+      throw new Error('манифест не пришёл по каналу: насос доставки не отработал')
+    }
+
+    console.log(
+      `→ манифест доставлен по каналу: версия ${assignment.releaseVersion}, ` +
+        `материалов ${assignment.manifest?.items?.length ?? 0}`,
+    )
 
     const summary = publish.data.summary
     console.log(
@@ -195,7 +207,7 @@ async function main() {
         `грузят ${summary.downloading}, нет связи ${summary.noContact}, всего ${summary.total}`,
     )
 
-    // 6. Состояние публикации для устройства: то, что реально получает ТВ.
+    // 7. Состояние публикации для устройства: то, что реально получает ТВ.
     const state = await req('/api/player/state', {
       headers: { authorization: `Bearer ${token.data.accessToken}` },
     })
@@ -203,13 +215,21 @@ async function main() {
 
     const manifest = state.data.manifest
     console.log(
-      `→ манифест: версия ${manifest?.version}, материалов ${manifest?.items?.length ?? 0}, ` +
+      `→ по опросу состояния: версия ${manifest?.version}, материалов ${manifest?.items?.length ?? 0}, ` +
         `хеш ${String(manifest?.manifestHash).slice(0, 12)}…`,
     )
 
     if (!manifest || !manifest.items || manifest.items.length === 0) {
       throw new Error('манифест пуст — телевизору нечего показывать')
     }
+
+    // Манифест из канала и из опроса должны совпадать по содержимому:
+    // иначе экран при перезагрузке получил бы другую программу.
+    const channelHash = assignment.manifest?.manifestHash
+    if (channelHash !== manifest.manifestHash) {
+      throw new Error(`манифест по каналу и по опросу различаются: ${channelHash} != ${manifest.manifestHash}`)
+    }
+    console.log('→ манифесты по каналу и по опросу совпадают')
 
     // 7. Файл из манифеста должен реально отдаваться по пропуску.
     const item = manifest.items[0]

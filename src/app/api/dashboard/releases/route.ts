@@ -107,63 +107,10 @@ export const POST = route(async (request: Request) => {
 
   const result = publishCompany(companyId, session.userId, reason ?? undefined)
 
-  const delivered = deliverManifests(companyId, result.version, result.releaseId)
-
-  logger.info({ ...result, delivered }, 'публикация выполнена')
+  logger.info(result, 'публикация выполнена')
 
   return jsonResponse({
     ...result,
-    delivered,
     summary: deliverySummary(companyId, result.releaseId),
-    notice:
-      delivered === 0
-        ? 'Манифест сохранён. Экраны заберут его при следующем обращении к серверу.'
-        : null,
   })
 })
-
-/**
- * Доставка манифестов подключённым экранам.
- *
- * Состояние receipts обновляется здесь, а не в обработчике канала: обработчик
- * и маршрут живут в разных изоляциях процесса и не разделяют память, поэтому
- * общий источник истины — база.
- */
-function deliverManifests(companyId: string, version: number, releaseId: string): number {
-  const targets = db
-    .select({ screenId: screenPublications.screenId })
-    .from(screenPublications)
-    .where(eq(screenPublications.desiredReleaseId, releaseId))
-    .all()
-
-  const now = new Date()
-  let delivered = 0
-
-  for (const target of targets) {
-    const manifest = buildScreenManifest(companyId, target.screenId, version)
-    if (!manifest) continue
-
-    const sent = deviceHub.sendToScreens([target.screenId], {
-      type: 'assignment',
-      releaseVersion: version,
-      manifest,
-    })
-
-    delivered += sent
-
-    // Отмечаем состояние по факту: экран без связи останется в `queued`
-    // и попадёт в число «нет связи», а не в «отправлено».
-    db.transaction((tx) => {
-      tx.update(deliveryReceipts)
-        .set({
-          state: sent > 0 ? 'sent' : 'queued',
-          sentAt: sent > 0 ? now : null,
-          updatedAt: now,
-        })
-        .where(and(eq(deliveryReceipts.releaseId, releaseId), eq(deliveryReceipts.screenId, target.screenId)))
-        .run()
-    })
-  }
-
-  return delivered
-}

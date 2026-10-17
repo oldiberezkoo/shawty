@@ -13,6 +13,7 @@ import { WebSocketServer } from 'ws'
 import { serverConfig } from '../src/config/server'
 import { handleDeviceConnection } from '../src/server/ws/device'
 import { deviceHub } from '../src/server/ws/hub'
+import { startDeliveryPump, stopDeliveryPump } from '../src/server/ws/delivery-pump'
 import { expireStaleSessions } from '../src/server/services/pairing-service'
 import { pruneRateLimitBuckets } from '../src/server/http/rate-limit'
 import { logger } from '../src/lib/logger'
@@ -103,6 +104,11 @@ async function main(): Promise<void> {
   }, 30_000)
 
   // Закрытие протухших сессий привязки и счётчиков ограничения частоты.
+  // Доставка публикаций по каналу. Живёт здесь, в процессе канала, потому
+  // что обработчики маршрутов Next к реестру сокетов не имеют доступа —
+  // это разные изоляции. Общий носитель между ними — база (см. §3.2 плана).
+  startDeliveryPump()
+
   const cleanupTimer = setInterval(() => {
     try {
       const expired = expireStaleSessions()
@@ -133,6 +139,7 @@ async function main(): Promise<void> {
     logger.info({ signal }, 'завершаю работу')
     clearInterval(sweepTimer)
     clearInterval(cleanupTimer)
+    stopDeliveryPump()
     deviceHub.closeAll()
     server.close(() => process.exit(0))
     // Страховка: если сокеты держат соединение, выходим по таймауту.
