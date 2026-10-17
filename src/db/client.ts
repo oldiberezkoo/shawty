@@ -9,7 +9,11 @@ export type Database_ = BetterSQLite3Database<typeof schema>
 function resolveDbPath(): string {
   const configured = process.env.DATABASE_URL ?? './data/shawty.db'
   // Относительный путь задаём от корня проекта, а не от текущего каталога процесса.
-  return configured === ':memory:' ? configured : resolve(process.cwd(), configured)
+  //
+  // turbopackIgnore обязателен: динамический process.cwd() заставил бы сборщик
+  // трассировать весь проект в выходные файлы. База данных не является артефактом
+  // сборки и лежит вне неё, поэтому включать её в бандл неправильно.
+  return configured === ':memory:' ? configured : resolve(/* turbopackIgnore: true */ process.cwd(), configured)
 }
 
 function openConnection(): Database.Database {
