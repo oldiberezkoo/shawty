@@ -56,13 +56,19 @@ if (!globalForDb.__shawtyDb) {
   globalForDb.__shawtyDb = db
 }
 
+/** Тип транзакции: тот же набор запросов, но с фиксированным соединением. */
+export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
+
 /**
- * Синхронная транзакция. better-sqlite3 выполняет её целиком на одном соединении,
- * поэтому BEGIN IMMEDIATE надёжно берёт блокировку записи сразу, без гонок
- * на уровне SQLITE_BUSY. Этим пользуется подтверждение привязки.
+ * Синхронная транзакция с немедленным захватом блокировки записи.
+ *
+ * better-sqlite3 выполняет её целиком на одном соединении, поэтому `immediate`
+ * надёжно берёт write-lock сразу, без гонок на уровне SQLITE_BUSY. Этим
+ * пользуется подтверждение привязки: захват сессии и создание экрана должны
+ * быть одной неделимой операцией.
  */
-export function withImmediateTransaction<T>(fn: (tx: Database_) => T): T {
-  return db.transaction(fn).immediate()
+export function withImmediateTransaction<T>(fn: (tx: Transaction) => T): T {
+  return db.transaction(fn, { behavior: 'immediate' })
 }
 
 export function nowMs(): number {

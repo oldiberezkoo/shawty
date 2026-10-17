@@ -267,6 +267,15 @@ export const pairingSessions = sqliteTable(
   {
     id: text('id').primaryKey(),
     codeHash: text('code_hash').notNull(),
+    /**
+     * HMAC локального nonce телевизора.
+     *
+     * QR в безопасном режиме несёт только sessionId, и тот же sessionId виден
+     * всем, кто посмотрел экран. Поэтому одного sessionId недостаточно, чтобы
+     * забрать учётные данные: обмен дополнительно требует доказать владение
+     * nonce, который телевизор сгенерировал у себя и никогда не показывал.
+     */
+    deviceNonceHash: text('device_nonce_hash').notNull(),
     status: text('status', { enum: ['pending', 'confirmed', 'rejected', 'expired'] })
       .notNull()
       .default('pending'),
@@ -280,6 +289,12 @@ export const pairingSessions = sqliteTable(
     companyId: text('company_id').references(() => companies.id),
     branchId: text('branch_id').references(() => branches.id),
     screenId: text('screen_id').references(() => screens.id),
+    /**
+     * Публичная часть учётных данных, выдаётся при подтверждении.
+     * Секрет создаётся только в момент обмена: до этого момента его
+     * не существует, поэтому хранить его не нужно даже временно.
+     */
+    provisionalDeviceId: text('provisional_device_id'),
     /** Одноразовый токен выдачи учётных данных, 60 секунд. */
     enrollmentTokenHash: text('enrollment_token_hash'),
     enrollmentExpiresAt: integer('enrollment_expires_at', { mode: 'timestamp_ms' }),

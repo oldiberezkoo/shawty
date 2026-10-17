@@ -1,0 +1,201 @@
+@import 'tailwindcss';
+
+/*
+ * Темы. Ровно две: светлая и тёмная.
+ *
+ * Токены живут в обычных переменных, а в Tailwind попадают через `@theme inline`,
+ * потому что значения должны переключаться вместе с классом `.dark` на <html>.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f7f7f8;
+  --surface-3: #f1f1f3;
+  --border: #e8e8ea;
+  --border-strong: #d4d4d8;
+
+  --text: #1c1c1e;
+  --text-muted: #6b6b70;
+  --text-subtle: #9a9aa0;
+
+  /* Основное действие — чёрная кнопка, как в Notion. Цвет оставлен для статусов. */
+  --primary: #1c1c1e;
+  --primary-hover: #343438;
+  --primary-text: #ffffff;
+
+  --success: #14804a;
+  --success-bg: #e8f5ee;
+  --warn: #a45a06;
+  --warn-bg: #fdf1e2;
+  --danger: #c9372c;
+  --danger-bg: #fdecea;
+  --info: #1f6feb;
+  --info-bg: #e8f0fe;
+
+  --ring: #1f6feb;
+  --overlay: rgb(20 20 22 / 0.4);
+  --shadow-sm: 0 1px 2px rgb(16 16 18 / 0.06);
+  --shadow-md: 0 4px 16px rgb(16 16 18 / 0.1);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --bg: #17181a;
+  --surface: #1d1e20;
+  --surface-2: #252628;
+  --surface-3: #2e2f32;
+  --border: #2e2f32;
+  --border-strong: #414245;
+
+  --text: #ececee;
+  --text-muted: #9d9da3;
+  --text-subtle: #6e6e74;
+
+  /* Кнопка инвертируется: в тёмной теме она светлая, как в Notion. */
+  --primary: #f4f4f5;
+  --primary-hover: #e4e4e7;
+  --primary-text: #17181a;
+
+  --success: #3fb27f;
+  --success-bg: #14281f;
+  --warn: #e0a44a;
+  --warn-bg: #2b2113;
+  --danger: #f0776b;
+  --danger-bg: #2e1917;
+  --info: #62a0f7;
+  --info-bg: #16233a;
+
+  --ring: #62a0f7;
+  --overlay: rgb(0 0 0 / 0.6);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.5);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-text: var(--primary-text);
+
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+
+  --color-overlay: var(--overlay);
+
+  /* Небольшие радиусы: минимализм, а не «скруглённый пузырь». */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* Плеер на телевизоре: системный шрифт крупнее и контрастнее. */
+@theme {
+  --font-player:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html,
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Числа в таблицах метрик выравниваем по разрядам. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--ring) 25%, transparent);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border-strong);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-subtle);
+  }
+}
+
+@layer utilities {
+  .card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+
+  .hairline {
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/*
+ * Уважаем системную настройку: если пользователь просил меньше анимации,
+ * сокращения и переходы не нужны.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
