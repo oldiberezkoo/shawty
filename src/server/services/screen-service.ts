@@ -190,13 +190,3 @@ export function listScreenIds(companyId: string, screenIds: readonly string[]): 
     .all()
   return rows.map((row) => row.id)
 }
-
-export function getRecentActivity(companyId: string, limit = 10) {
-  return db
-    .select()
-    .from(screens)
-    .where(eq(screens.companyId, companyId))
-    .orderBy(desc(screens.updatedAt))
-    .limit(limit)
-    .all()
-}

@@ -3,6 +3,7 @@ import { createHmac } from 'node:crypto'
 import { db } from '@/db/client'
 import { deviceCredentials, screens } from '@/db/schema'
 import { hashSecret, safeEqual } from '@/lib/crypto'
+import { randomDeviceSecret } from '@/lib/ids'
 import { signJwt, verifyJwt } from '@/lib/jwt'
 import { loadOrCreateSecret } from '@/lib/secret-store'
 import { serverConfig } from '@/config/server'
@@ -163,6 +164,54 @@ export function revokeDeviceAccess(screenId: string, now = new Date()): void {
     .set({ revokedAt: now })
     .where(and(eq(deviceCredentials.screenId, screenId), isNull(deviceCredentials.revokedAt)))
     .run()
+}
+
+/**
+ * Ротация секрета без визита к телевизору.
+ *
+ * Устройство подтверждено действующим access-токеном, который привязан к
+ * текущей версии учётных данных. Ротация повышает версию, поэтому все ранее
+ * выданные токены мгновенно перестают работать, а старый секрет больше не
+ * проходит проверку. Новый секрет возвращается один раз и нигде не хранится.
+ */
+export function rotateDeviceSecret(identity: DeviceIdentity): { deviceSecret: string; version: number } {
+  const now = new Date()
+
+  return db.transaction((tx) => {
+    const nextVersion = identity.credentialVersion + 1
+    const deviceSecret = randomDeviceSecret()
+
+    const updated = tx
+      .update(deviceCredentials)
+      .set({ secretHash: hashSecret(deviceSecret), version: nextVersion, issuedAt: now, rotationPending: false })
+      .where(
+        and(
+          eq(deviceCredentials.id, identity.credentialId),
+          eq(deviceCredentials.version, identity.credentialVersion),
+        ),
+      )
+      .run()
+
+    if (updated.changes !== 1) {
+      throw HttpError.conflict('rotate_race', 'Учётные данные уже изменились, повторите ротацию')
+    }
+
+    tx.update(screens).set({ updatedAt: now }).where(eq(screens.id, identity.screenId)).run()
+
+    return { deviceSecret, version: nextVersion }
+  })
+}
+
+/**
+ * Запрос ротации из панели.
+ *
+ * Если телевизор сейчас на связи, команда уходит сразу. Если офлайн —
+ * помечаем ротацию как отложенную, и она применится при следующем обмене
+ * токена: устройство обнаружит, что его версия устарела, и запросит новый секрет.
+ */
+export function requestRotation(screenId: string): { pending: boolean } {
+  db.update(deviceCredentials).set({ rotationPending: true }).where(eq(deviceCredentials.screenId, screenId)).run()
+  return { pending: true }
 }
 
 /** Временное отключение: учётные данные живы, устройство не получает публикации. */

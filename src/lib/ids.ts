@@ -20,11 +20,6 @@ export function bitsPerCodeChar(): number {
   return Math.log2(CODE_ALPHABET.length)
 }
 
-/** Число возможных кодов длиной length. */
-export function spaceOf(length: number): number {
-  return CODE_ALPHABET.length ** length
-}
-
 // Байты 248..255 отбрасываем: 248 = 31 * 8, поэтому каждый из 31 символов
 // получает ровно 8 значений и распределение остаётся равномерным.
 const UNBIASED_LIMIT = Math.floor(256 / CODE_ALPHABET.length) * CODE_ALPHABET.length
@@ -73,11 +68,6 @@ export function randomCode(length = 8): string {
 /** Непрозрачный секрет устройства: 256 бит в URL-safe base64 без паддинга. */
 export function randomDeviceSecret(): string {
   return randomBytesOf(32).toString('base64url')
-}
-
-/** Одноразовый токен выдачи учётных данных: 192 бита. */
-export function randomEnrollmentToken(): string {
-  return randomBytesOf(24).toString('base64url')
 }
 
 /** Токен пользовательской сессии: 256 бит, в БД хранится только хеш. */

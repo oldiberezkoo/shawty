@@ -23,6 +23,7 @@ import {
   screenPublications,
   screens,
   subscriptions,
+  users,
 } from '@/db/schema'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
 import { confirmPairing, exchangeEnrollment, startPairingSession, watchPairing } from '@/server/services/pairing-service'
@@ -42,8 +43,39 @@ function fakeRequest(ip = '203.0.113.9'): Request {
   })
 }
 
+/**
+ * Полная очистка тестовой базы.
+ *
+ * Список таблиц берётся из самой схемы, а не пишется руками: иначе каждая
+ * новая таблица ломает подготовку тестов. Проверка внешних ключей на время
+ * сброса отключается — иначе порядок удаления обязан точно учитывать все
+ * связи, и любое изменение схемы приводит к падению фикстуры.
+ */
+function wipeAllTables() {
+  const rows = sqlite
+    .prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != '__drizzle_migrations'",
+    )
+    .all() as { name: string }[]
+
+  const tables = rows.map((row) => row.name)
+
+  sqlite.pragma('foreign_keys = OFF')
+  for (const table of tables) {
+    sqlite.exec(`DELETE FROM "${table}"`)
+  }
+  sqlite.pragma('foreign_keys = ON')
+}
+
 function seedFixture(overrides: { screensLimit?: number; subscriptionStatus?: 'active' | 'suspended' } = {}) {
-  sqlite.exec('DELETE FROM audit_log; DELETE FROM device_credentials; DELETE FROM screen_publications; DELETE FROM screens; DELETE FROM pairing_sessions; DELETE FROM memberships; DELETE FROM branches; DELETE FROM subscriptions; DELETE FROM companies; DELETE FROM plans; DELETE FROM rate_limit_buckets;')
+  wipeAllTables()
+
+  db.insert(users)
+    .values([
+      { id: OWNER, email: 'owner@test.local', passwordHash: hashPassword('test'), name: 'Владелец' },
+      { id: VIEWER, email: 'viewer@test.local', passwordHash: hashPassword('test'), name: 'Наблюдатель' },
+    ])
+    .run()
 
   db.insert(plans)
     .values({ id: 'plan_t', name: 'Test', screensLimit: overrides.screensLimit ?? 5, branchesLimit: 10, storageBytesLimit: 1024, seatsLimit: 5 })
@@ -234,7 +266,10 @@ describe('срок действия', () => {
     const session = startSession()
     const state = watchPairing(session.sessionId)
 
-    expect(state.state).toBe('pending')
+    if (state.state !== 'pending') {
+      throw new Error(`ожидалось состояние pending, получено ${state.state}`)
+    }
+
     expect(state.remainingMs).toBeGreaterThan(0)
     expect(state.remainingMs).toBeLessThanOrEqual(serverConfig.pairing.codeTtlMs)
   })
@@ -262,16 +297,20 @@ describe('лимит тарифа', () => {
     }
 
     const overflow = startSession('nonce-overflow')
-    const rejected = confirmPairing({
-      sessionId: overflow.sessionId,
-      code: overflow.code,
-      companyId: COMPANY,
-      branchId: BRANCH,
-      screenName: 'Лишний',
-      actor: ownerActor(),
-    })
 
-    expect(rejected).toEqual({ ok: false, reason: 'limit_reached' })
+    // Исчерпание лимита — ограничение платформы, а не ошибка запроса,
+    // поэтому выражается исключением с кодом 409, а не результатом разбора.
+    expect(() =>
+      confirmPairing({
+        sessionId: overflow.sessionId,
+        code: overflow.code,
+        companyId: COMPANY,
+        branchId: BRANCH,
+        screenName: 'Лишний',
+        actor: ownerActor(),
+      }),
+    ).toThrow(/Исчерпан лимит тарифа/)
+
     expect(screenCount()).toBe(2)
 
     // Сессия остаётся pending: после расширения тарифа подтверждение
@@ -313,16 +352,18 @@ describe('лимит тарифа', () => {
     seedFixture({ subscriptionStatus: 'suspended' })
 
     const session = startSession()
-    const result = confirmPairing({
-      sessionId: session.sessionId,
-      code: session.code,
-      companyId: COMPANY,
-      branchId: BRANCH,
-      screenName: 'Экран',
-      actor: ownerActor(),
-    })
 
-    expect(result).toEqual({ ok: false, reason: 'limit_reached' })
+    expect(() =>
+      confirmPairing({
+        sessionId: session.sessionId,
+        code: session.code,
+        companyId: COMPANY,
+        branchId: BRANCH,
+        screenName: 'Экран',
+        actor: ownerActor(),
+      }),
+    ).toThrow(/Подписка приостановлена/)
+
     expect(screenCount()).toBe(0)
   })
 })
@@ -370,6 +411,7 @@ describe('права и область доступа', () => {
   it('филиал чужой компании не принимается', () => {
     const session = startSession()
     const otherBranch = 'brn_foreign'
+    db.insert(companies).values({ id: 'cmp_other', slug: 'other', name: 'Чужая компания' }).run()
     db.insert(branches).values({ id: otherBranch, companyId: 'cmp_other', name: 'Чужая' }).run()
 
     expect(() =>
@@ -459,18 +501,20 @@ describe('обмен учётных данных', () => {
 describe('атомарность конкурентных подтверждений', () => {
   it('условный UPDATE отдаёт сессию ровно одному из двух соединений', () => {
     const session = startSession('nonce-race')
-    db.update(pairingSessions).set({ status: 'confirmed' }).where(eq(pairingSessions.id, session.sessionId)).run()
 
     // Второе независимое соединение к тому же файлу базы — как второй процесс.
     const other = new Database(resolve(process.cwd(), process.env.DATABASE_URL ?? 'data/test.db'))
     other.pragma('busy_timeout = 5000')
 
+    // Запрос повторяет боевой: захват меняет и статус, и время подтверждения.
     const claim = other.prepare(
-      'UPDATE pairing_sessions SET confirmed_at = ? WHERE id = ? AND status = ?',
+      "UPDATE pairing_sessions SET status = 'confirmed', confirmed_at = ? WHERE id = ? AND status = 'pending'",
     )
 
-    const firstRun = claim.run(Date.now(), session.sessionId, 'pending')
-    const secondRun = claim.run(Date.now(), session.sessionId, 'pending')
+    // Первое соединение захватывает сессию, второе получает отказ,
+    // хотя проверка выполняется для того же идентификатора.
+    const firstRun = claim.run(Date.now(), session.sessionId)
+    const secondRun = claim.run(Date.now(), session.sessionId)
 
     expect(firstRun.changes).toBe(1)
     expect(secondRun.changes).toBe(0)

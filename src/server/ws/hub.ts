@@ -68,14 +68,6 @@ class DeviceHub {
     this.byPairingSessionId.set(sessionId, connection)
   }
 
-  isOnline(screenId: string): boolean {
-    return (this.byScreenId.get(screenId)?.size ?? 0) > 0
-  }
-
-  onlineScreenIds(): string[] {
-    return [...this.byScreenId.keys()]
-  }
-
   /**
    * Уведомляет телевизор, что привязка подтверждена.
    *
@@ -91,34 +83,6 @@ class DeviceHub {
     return true
   }
 
-  notifyExpired(sessionId: string): void {
-    const connection = this.byPairingSessionId.get(sessionId)
-    if (connection) {
-      send(connection, { type: 'pairing.expired' })
-    }
-  }
-
-  sendToScreen(screenId: string, frame: ServerFrame): number {
-    const set = this.byScreenId.get(screenId)
-    if (!set) return 0
-
-    let delivered = 0
-    for (const connection of set) {
-      if (send(connection, frame)) delivered += 1
-    }
-    return delivered
-  }
-
-  sendToCompany(companyId: string, frame: ServerFrame): number {
-    let delivered = 0
-    for (const connection of this.all) {
-      if (connection.companyId === companyId && send(connection, frame)) {
-        delivered += 1
-      }
-    }
-    return delivered
-  }
-
   /** Рассылка ping и отключение тех, кто не ответил. */
   sweep(): void {
     for (const connection of [...this.all]) {
@@ -131,10 +95,6 @@ class DeviceHub {
       connection.isAlive = false
       send(connection, { type: 'ping', at: Date.now() })
     }
-  }
-
-  stats(): { total: number; onlineScreens: number } {
-    return { total: this.all.size, onlineScreens: this.byScreenId.size }
   }
 
   closeAll(): void {

@@ -14,12 +14,6 @@ export function randomBytesOf(size: number): Uint8Array {
   return bytes
 }
 
-export function randomHex(size: number): string {
-  return Array.from(randomBytesOf(size))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
-}
-
 /**
  * Случайная строка в URL-safe base64 без паддинга.
  *

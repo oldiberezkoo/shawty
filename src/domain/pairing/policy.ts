@@ -11,13 +11,20 @@ export type PairingSessionRecord = {
   expiresAt: Date
 }
 
+/**
+ * Отказы, которые относятся к самому запросу пользователя: неверный код,
+ * истёкшая или уже использованная сессия. Их удобно различать в интерфейсе.
+ *
+ * Отсутствие прав, выход за область доступа и исчерпание лимита тарифа
+ * сюда НЕ входят: это не ошибка запроса, а ограничение платформы, и они
+ * выражаются исключениями, чтобы до интерфейса дошёл корректный код ответа.
+ */
 export type ConfirmRejection =
   | 'not_found'
   | 'expired'
   | 'invalid_code'
   | 'locked'
   | 'already_confirmed'
-  | 'limit_reached'
 
 export type ConfirmDecision = { allowed: true } | { allowed: false; reason: ConfirmRejection }
 

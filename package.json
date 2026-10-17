@@ -16,7 +16,11 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:reset": "tsx scripts/reset.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:integration": "vitest run tests/integration",
+    "smoke:http": "node scripts/smoke-http.cjs",
+    "smoke:pairing": "node scripts/smoke-pairing.cjs",
+    "check": "pnpm typecheck && pnpm test"
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",
