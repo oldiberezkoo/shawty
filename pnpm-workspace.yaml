@@ -1,0 +1,6 @@
+# pnpm 11: настройки читаются отсюда, поле "pnpm" в package.json игнорируется.
+allowBuilds:
+  # Нативный модуль SQLite: без prebuild-сборки драйвер не загрузится.
+  better-sqlite3: true
+  # Нужен tsx и vitest.
+  esbuild: true
