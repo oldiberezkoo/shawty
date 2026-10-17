@@ -93,6 +93,12 @@ export type ServerFrame =
    */
   | { type: 'pairing.confirmed'; screenId: string }
   | { type: 'pairing.expired' }
+  /**
+   * Новая публикация. Манифест идёт прямо в кадре: файл может весить
+   * десятки килобайт текста, а отдельный HTTP-запрос означал бы, что канал
+   * перестал быть основным путём доставки.
+   */
+  | { type: 'assignment'; releaseVersion: number; manifest: unknown }
   | { type: 'ping'; at: number }
 
 export function encodeFrame(frame: ServerFrame): string {

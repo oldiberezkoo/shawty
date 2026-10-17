@@ -83,6 +83,38 @@ class DeviceHub {
     return true
   }
 
+  /**
+   * Отправляет манифест всем подключённым экранам компании.
+   *
+   * Возвращает число доставленных: панель показывает его как «отправлено»,
+   * а не как «должно быть отправлено». Разница между отправленным и
+   * применённым — это и есть суть контроля результата.
+   */
+  sendManifest(companyId: string, frame: ServerFrame): number {
+    let delivered = 0
+
+    for (const connection of this.all) {
+      if (connection.companyId !== companyId) continue
+      if (send(connection, frame)) delivered += 1
+    }
+
+    return delivered
+  }
+
+  sendToScreens(screenIds: readonly string[], frame: ServerFrame): number {
+    let delivered = 0
+
+    for (const screenId of screenIds) {
+      const set = this.byScreenId.get(screenId)
+      if (!set) continue
+      for (const connection of set) {
+        if (send(connection, frame)) delivered += 1
+      }
+    }
+
+    return delivered
+  }
+
   /** Рассылка ping и отключение тех, кто не ответил. */
   sweep(): void {
     for (const connection of [...this.all]) {

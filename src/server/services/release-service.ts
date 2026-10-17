@@ -6,10 +6,9 @@
  * отправлено, применили, загружают, нет связи. Они не рисуются — они
  * считаются из receipts и времени последнего heartbeat.
  */
-import { and, asc, desc, eq, inArray, lt, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, lt, ne, sql } from 'drizzle-orm'
 import { db, withImmediateTransaction } from '@/db/client'
 import {
-  branches,
   deliveryReceipts,
   mediaAssets,
   playlistVersionItems,
@@ -17,20 +16,28 @@ import {
   releaseAssignments,
   releaseTargets,
   releases,
-  screenGroups,
   screenPublications,
   screens,
 } from '@/db/schema'
+import { sha256Hex } from '@/lib/crypto'
 import { serverConfig } from '@/config/server'
 import { buildManifest } from '@/domain/release/manifest'
+import { issueMediaTicket } from '@/domain/release/media-ticket'
 import { extensionForMime } from '@/server/services/media-service'
 import type { PlayerManifest } from '@/player/engine'
 import { HttpError } from '@/server/http/errors'
 import { logger } from '@/lib/logger'
 
-/** Адрес файла, который телевизор запрашивает у сервера. */
-export function playbackUrl(mediaId: string): string {
-  return `/api/player/media/${mediaId}`
+/**
+ * Адрес файла, который телевизор запрашивает у сервера.
+ *
+ * Пропуск выдаётся на момент сборки манифеста и подписывается под конкретный
+ * экран и файл. `<img>` и `<video>` не умеют слать заголовок авторизации,
+ * поэтому постоянный токен устройства в адрес не попадает никогда —
+ * в URL лежит только этот ограниченный пропуск (см. domain/release/media-ticket).
+ */
+export function playbackUrl(screenId: string, mediaId: string): string {
+  return `/api/player/media/${mediaId}?t=${issueMediaTicket(screenId, mediaId)}`
 }
 
 /**
@@ -42,7 +49,7 @@ export function playbackUrl(mediaId: string): string {
  * семьюдесятью.
  */
 export function resolveScreens(companyId: string, scopeType: string, scopeId: string): string[] {
-  const conditions = [eq(screens.companyId, companyId), ne_(screens.status, 'revoked')]
+  const conditions = [eq(screens.companyId, companyId), ne(screens.status, 'revoked')]
 
   switch (scopeType) {
     case 'company':
@@ -67,11 +74,6 @@ export function resolveScreens(companyId: string, scopeType: string, scopeId: st
     .orderBy(asc(screens.id))
     .all()
     .map((row) => row.id)
-}
-
-/** SQLite не знает оператора «не равно» для перечисления, поэтому здесь явная форма. */
-function ne_(column: typeof screens.status, value: string) {
-  return sql`${column} <> ${value}`
 }
 
 export type AssignInput = {
@@ -231,26 +233,25 @@ export function buildScreenManifest(companyId: string, screenId: string, version
 
   if (playable.length === 0) return null
 
-  const now = new Date()
-
-  return buildManifest({
-    version,
-    screenId,
-    companyId,
-    nextChangeAt: null,
-    items: playable.map((row) => ({
+  return buildManifest(
+    {
+      version,
+      screenId,
+      companyId,
+      nextChangeAt: null,
+      items: playable.map((row) => ({
       id: row.itemId,
       kind: row.assetKind === 'video' ? ('video' as const) : ('image' as const),
       assetDurationMs: row.assetDurationMs,
       durationMs: row.durationMs,
       playPolicy: row.playPolicy,
-      url: playbackUrl(row.assetId),
-      mime: extensionForMime(row.mime) ? row.mime : 'application/octet-stream',
+      url: playbackUrl(screenId, row.assetId),
+      mime: row.mime,
       transition: row.transition,
       audio: row.audio,
     })),
-    now,
-  })
+    },
+  )
 }
 
 export type PublishResult = {
@@ -270,7 +271,7 @@ export function publishCompany(companyId: string, actorUserId: string, reason?: 
   const companyScreens = db
     .select({ id: screens.id, offlineAfterSec: screens.offlineAfterSec, lastSeenAt: screens.lastSeenAt })
     .from(screens)
-    .where(and(eq(screens.companyId, companyId), ne_(screens.status, 'revoked')))
+    .where(and(eq(screens.companyId, companyId), ne(screens.status, 'revoked')))
     .all()
 
   const assigned = companyScreens
@@ -359,13 +360,6 @@ function hashAll(screenIds: string[], version: number): string {
   return sha256Hex(JSON.stringify({ version, screens: [...screenIds].sort() }))
 }
 
-function sha256Hex(value: string): string {
-  // Импортируется выше как sha256Hex; локальная обёртка не нужна.
-  return require_sha(value)
-}
-
-import { sha256Hex as require_sha } from '@/lib/crypto'
-
 /** Состояние публикации для устройства. */
 export function stateForScreen(companyId: string, screenId: string) {
   const publication = db
@@ -416,12 +410,7 @@ export function deliverySummary(companyId: string, releaseId?: string): Delivery
     })
     .from(deliveryReceipts)
     .innerJoin(screens, eq(screens.id, deliveryReceipts.screenId))
-    .leftJoin(releaseTargets, eq(releaseTargets.screenId, screens.id))
-    .where(
-      releaseId
-        ? eq(deliveryReceipts.releaseId, releaseId)
-        : eq(screens.companyId, companyId),
-    )
+    .where(releaseId ? eq(deliveryReceipts.releaseId, releaseId) : eq(screens.companyId, companyId))
     .all()
 
   const summary: DeliverySummary = { sent: 0, applied: 0, downloading: 0, noContact: 0, total: rows.length }
@@ -500,4 +489,4 @@ export function staleReceipts(olderThanMs = 5 * 60_000) {
     .all()
 }
 
-export { branches, screenGroups, releaseTargets, deliveryReceipts, releaseAssignments, playlistVersions }
+

@@ -8,6 +8,8 @@ import {
   type PlaybackPosition,
   type PlayerManifest,
 } from '@/player/engine'
+import { verifyManifest } from '@/domain/release/manifest'
+import { logger } from '@/lib/logger'
 import { clearCredential, loadCredential } from '@/player/credential-store'
 import type { DeviceCredential } from '@/player/credential-store'
 
@@ -99,6 +101,31 @@ export function PlayerDisplay() {
     }
   }, [exchangeForToken])
 
+  /**
+   * Применение манифеста.
+   *
+   * Позиция считается от времени начала показа с сервера: так перезагрузка
+   * страницы телевизора и переподключение канала не сбрасывают показ в начало.
+   */
+  const applyManifest = useCallback((manifest: PlayerManifest) => {
+    manifestRef.current = manifest
+
+    if (manifest.items.length === 0) {
+      setPhase('empty')
+      return
+    }
+
+    failuresRef.current = 0
+    setPhase('ready')
+
+    const position = positionForInstant(manifest.items, manifest.since, new Date())
+    if (!position) return
+
+    positionRef.current = position
+    setItemIndex(position.itemIndex)
+    setItem(manifest.items[position.itemIndex] ?? manifest.items[0] ?? null)
+  }, [])
+
   // ── Загрузка публикации ──────────────────────────────────────────────────
 
   const loadState = useCallback(async (): Promise<void> => {
@@ -121,28 +148,17 @@ export function PlayerDisplay() {
       }
 
       const manifest = data.manifest ? normalizeManifest(data.manifest) : null
-      manifestRef.current = manifest
 
-      if (!manifest || manifest.items.length === 0) {
+      if (!manifest) {
         setPhase('empty')
         return
       }
 
-      setPhase('ready')
-
-      // Позиция считается от времени начала показа на сервере: переживает
-      // перезагрузку страницы и неточные часы телевизора.
-      const position = positionForInstant(manifest.items, manifest.since, new Date())
-
-      if (position) {
-        positionRef.current = position
-        setItemIndex(position.itemIndex)
-        setItem(manifest.items[position.itemIndex] ?? manifest.items[0] ?? null)
-      }
+      applyManifest(manifest)
     } catch {
       setPhase('offline')
     }
-  }, [ensureToken])
+  }, [ensureToken, applyManifest])
 
   // ── Канал устройства ──────────────────────────────────────────────────────
 
@@ -179,6 +195,23 @@ export function PlayerDisplay() {
         try {
           frame = JSON.parse(String(event.data))
         } catch {
+          return
+        }
+
+        if (frame.type === 'assignment') {
+          // Манифест пришёл по каналу: применяем его без обращения к серверу.
+          const payload = frame as { type: 'assignment'; releaseVersion: number; manifest: unknown }
+          const verdict = verifyManifest(payload.manifest)
+
+          if (!verdict.ok) {
+            // Повреждённый манифест не применяем: лучше старый контент,
+            // чем случайный набор файлов на экране в магазине.
+            logger.warn({ reason: verdict.reason }, 'манифест отклонён проверкой целостности')
+            void loadState()
+            return
+          }
+
+          applyManifest(normalizeManifest(payload.manifest as PlayerManifest))
           return
         }
 

@@ -17,13 +17,18 @@ export type ManifestSource = {
   version: number
   screenId: string
   companyId: string
-  items: (PlaylistItemInput & {
+  items: {
+    id: string
+    kind: 'image' | 'video'
+    assetDurationMs: number | null
+    durationMs: number | null
+    playPolicy: PlaylistItemInput['playPolicy']
     /** Адрес проигрываемого файла на сервере. */
     url: string
     mime: string
     transition: 'none' | 'fade'
     audio: 'keep' | 'mute'
-  })[]
+  }[]
   nextChangeAt: Date | null
 }
 
