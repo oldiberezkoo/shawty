@@ -61,20 +61,29 @@ export default async function MediaPage() {
         canUpload={canUpload}
         canDelete={canDelete}
         folders={folders.map((folder) => ({ id: folder.id, name: folder.name }))}
-        initialAssets={assets.map((asset) => ({
-          id: asset.id,
-          kind: asset.kind,
-          state: asset.state,
-          mime: asset.mime,
-          bytes: asset.bytes,
-          width: asset.width,
-          height: asset.height,
-          durationMs: asset.durationMs,
-          transcoded: asset.transcoded,
-          error: asset.error,
-          hasPoster: Boolean(asset.posterSha256),
-          createdAt: asset.createdAt.toISOString(),
-        }))}
+        initialAssets={assets
+          // Шаблон — это документ макета (P9), а не файл для показа.
+          // В сетку медиатеки он не попадает, пока не будет отрендерен в ассет.
+          .filter((asset) => asset.kind !== 'template' && asset.state !== 'archived')
+          .map((asset) => ({
+            id: asset.id,
+            kind: asset.kind === 'video' ? ('video' as const) : ('image' as const),
+            state:
+              asset.state === 'processing'
+                ? ('processing' as const)
+                : asset.state === 'failed'
+                  ? ('failed' as const)
+                  : ('ready' as const),
+            mime: asset.mime,
+            bytes: asset.bytes,
+            width: asset.width,
+            height: asset.height,
+            durationMs: asset.durationMs,
+            transcoded: asset.transcoded,
+            error: asset.error,
+            hasPoster: Boolean(asset.posterSha256),
+            createdAt: asset.createdAt.toISOString(),
+          }))}
       />
     </div>
   )

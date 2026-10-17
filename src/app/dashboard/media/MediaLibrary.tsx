@@ -267,6 +267,8 @@ export function MediaLibrary(props: {
               companyId={props.companyId}
               canDelete={props.canDelete}
               onDelete={remove}
+              blocked={blocked?.assetId === asset.id ? blocked.message : null}
+              onClearBlocked={() => setBlocked(null)}
             />
           ))}
         </div>
@@ -280,6 +282,8 @@ function MediaCard(props: {
   companyId: string
   canDelete: boolean
   onDelete: (assetId: string, force: boolean) => Promise<void>
+  blocked: string | null
+  onClearBlocked: () => void
 }) {
   const { asset } = props
 
@@ -338,7 +342,27 @@ function MediaCard(props: {
           {dimensions || '—'} · {formatBytes(asset.bytes)}
         </div>
 
-        {props.canDelete ? (
+        {props.blocked ? (
+          <div className="mt-1 rounded-[var(--radius-sm)] border border-warn/40 bg-warn-bg px-2 py-1.5">
+            <p className="text-[11px] leading-snug text-warn">{props.blocked}</p>
+            <div className="mt-1.5 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void props.onDelete(props.asset.id, true)}
+                className="text-[11px] font-medium text-danger underline underline-offset-2"
+              >
+                Удалить всё равно
+              </button>
+              <button
+                type="button"
+                onClick={props.onClearBlocked}
+                className="text-[11px] text-text-muted underline underline-offset-2"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        ) : props.canDelete ? (
           <button
             type="button"
             onClick={() => void props.onDelete(asset.id, false)}

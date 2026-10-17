@@ -9,7 +9,7 @@ type NavItem = { href: string; label: string; ready: boolean }
 const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Обзор', ready: true },
   { href: '/dashboard/screens', label: 'Экраны', ready: true },
-  { href: '/dashboard/media', label: 'Медиатека', ready: false },
+  { href: '/dashboard/media', label: 'Медиатека', ready: true },
   { href: '/dashboard/playlists', label: 'Плейлисты', ready: false },
   { href: '/dashboard/campaigns', label: 'Кампании', ready: false },
   { href: '/dashboard/monitoring', label: 'Мониторинг', ready: false },
