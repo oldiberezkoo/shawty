@@ -7,8 +7,9 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     // Интеграционные тесты работают с настоящим SQLite-файлом: транзакции
     // и блокировки строк проверяются только на реальном движке.
-    testTimeout: 20_000,
-    hookTimeout: 20_000,
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
+    globalSetup: ['tests/setup/migrate-test-db.ts'],
   },
   resolve: {
     alias: {

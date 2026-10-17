@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a4a6029c-fd7e-40b8-b827-ae66764a7586",
+  "id": "a4b1bf6c-94aa-411a-955d-2ea81b2c90b1",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "api_tokens": {
@@ -595,14 +595,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'active'"
-        },
-        "pairing_require_code": {
-          "name": "pairing_require_code",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": true
         },
         "created_at": {
           "name": "created_at",
@@ -1773,6 +1765,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "device_nonce_hash": {
+          "name": "device_nonce_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "status": {
           "name": "status",
           "type": "text",
@@ -1846,22 +1845,15 @@
           "notNull": false,
           "autoincrement": false
         },
-        "enrollment_token_hash": {
-          "name": "enrollment_token_hash",
+        "provisional_device_id": {
+          "name": "provisional_device_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "enrollment_expires_at": {
-          "name": "enrollment_expires_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "enrollment_used_at": {
-          "name": "enrollment_used_at",
+        "credentials_issued_at": {
+          "name": "credentials_issued_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

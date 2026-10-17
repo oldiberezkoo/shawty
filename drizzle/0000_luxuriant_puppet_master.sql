@@ -80,7 +80,6 @@ CREATE TABLE `companies` (
 	`timezone` text DEFAULT 'Asia/Tashkent' NOT NULL,
 	`locale` text DEFAULT 'ru' NOT NULL,
 	`status` text DEFAULT 'active' NOT NULL,
-	`pairing_require_code` integer DEFAULT true NOT NULL,
 	`created_at` integer NOT NULL
 );
 --> statement-breakpoint
@@ -245,6 +244,7 @@ CREATE INDEX `memberships_company_idx` ON `memberships` (`company_id`);--> state
 CREATE TABLE `pairing_sessions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`code_hash` text NOT NULL,
+	`device_nonce_hash` text NOT NULL,
 	`status` text DEFAULT 'pending' NOT NULL,
 	`attempts` integer DEFAULT 0 NOT NULL,
 	`max_attempts` integer DEFAULT 8 NOT NULL,
@@ -255,9 +255,8 @@ CREATE TABLE `pairing_sessions` (
 	`company_id` text,
 	`branch_id` text,
 	`screen_id` text,
-	`enrollment_token_hash` text,
-	`enrollment_expires_at` integer,
-	`enrollment_used_at` integer,
+	`provisional_device_id` text,
+	`credentials_issued_at` integer,
 	`reject_reason` text,
 	`created_ip` text,
 	`last_attempt_at` integer,
