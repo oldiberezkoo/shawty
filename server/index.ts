@@ -57,6 +57,7 @@ async function main(): Promise<void> {
 
   const app = next({ dev, hostname: '0.0.0.0', port })
   const handle = app.getRequestHandler()
+  const handleUpgrade = app.getUpgradeHandler()
 
   await app.prepare()
 
@@ -72,7 +73,11 @@ async function main(): Promise<void> {
     const { pathname } = parse(request.url ?? '/')
 
     if (pathname !== '/ws/device') {
-      socket.destroy()
+      // Остальные upgrade-запросы принадлежат Next: в dev это HMR-сокет
+      // (Turbopack подключается к /_next/hmr). Если их гасить, dev-клиент
+      // бесконечно переподключается, гидратация не завершается — форма входа
+      // отправляется нативно, то есть «страница просто перезагружается».
+      void handleUpgrade(request, socket, head)
       return
     }
 

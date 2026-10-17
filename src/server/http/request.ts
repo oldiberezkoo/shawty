@@ -45,10 +45,19 @@ export function toErrorResponse(error: unknown): Response {
   )
 }
 
-type Handler = (request: Request, context?: unknown) => Promise<Response> | Response
+/**
+ * Контекст маршрута. В Next 15+ `params` — промис, поэтому и здесь он промис.
+ * Тип выводится обобщением, чтобы обработчик видел `params` как `Promise<...>`,
+ * а не как `unknown`.
+ */
+export type RouteContext<TParams = Record<string, string>> = {
+  params: Promise<TParams>
+}
+
+export type Handler<Ctx = unknown> = (request: Request, context: Ctx) => Promise<Response> | Response
 
 /** Обёртка обработчика: превращает HttpError и случайные сбои в корректный JSON. */
-export function route(handler: Handler): Handler {
+export function route<Ctx = unknown>(handler: Handler<Ctx>): Handler<Ctx> {
   return async (request, context) => {
     try {
       return await handler(request, context)

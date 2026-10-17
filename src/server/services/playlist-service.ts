@@ -20,6 +20,7 @@ import {
   type PlaylistItemInput,
 } from '@/domain/playlist/rules'
 import { HttpError } from '@/server/http/errors'
+import { logger } from '@/lib/logger'
 
 export type PlaylistItemView = PlaylistItemInput & {
   mime: string
@@ -71,22 +72,32 @@ function loadItems(playlistId: string): PlaylistItemView[] {
     .orderBy(asc(playlistItems.position))
     .all()
 
-  return rows.map((row) => ({
-    id: row.id,
-    position: row.position,
-    durationMs: row.durationMs,
-    playPolicy: row.playPolicy,
-    transition: row.transition,
-    audio: row.audio,
-    assetKind: row.assetKind,
-    assetDurationMs: row.assetDurationMs,
-    mime: row.mime,
-    bytes: row.bytes,
-    state: row.state,
-    hasPoster: Boolean(row.hasPoster),
-    width: row.width,
-    height: row.height,
-  }))
+  return rows
+    // Шаблон макета — документ, а не показываемый файл. `addItems` его не
+    // пускает, но в базу могли попасть правкой в обход сервиса: показывать
+    // такое на экране нельзя, поэтому отсекаем здесь и сообщаем.
+    .filter((row) => {
+      if (row.assetKind !== 'template') return true
+      logger.warn({ playlistId, itemId: row.id }, 'элемент с шаблоном исключён из показа')
+      return false
+    })
+    .map((row) => ({
+      id: row.id,
+      position: row.position,
+      kind: row.assetKind as 'image' | 'video',
+      durationMs: row.durationMs,
+      playPolicy: row.playPolicy,
+      transition: row.transition,
+      audio: row.audio,
+      assetKind: row.assetKind,
+      assetDurationMs: row.assetDurationMs,
+      mime: row.mime,
+      bytes: row.bytes,
+      state: row.state,
+      hasPoster: Boolean(row.hasPoster),
+      width: row.width,
+      height: row.height,
+    }))
 }
 
 function isAssigned(playlistId: string): boolean {
