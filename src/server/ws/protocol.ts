@@ -58,6 +58,27 @@ export const deviceErrorFrame = z.object({
   releaseVersion: z.number().int().positive().optional(),
 })
 
+/**
+ * Событие воспроизведения.
+ *
+ * Честная альтернатива «показов»: устройство сообщает, что материал
+ * **показывался**, а панель считает это фактом. Никто не утверждает, что
+ * человек посмотрел рекламу — утверждается ровно то, что известно машине.
+ *
+ * Ошибки и пропуски идут сюда же, а не отдельным кадром: «материал не
+ * показался» — это тоже результат, и без него отчёт о недоступности был бы
+ * неполным. Отдельный `player.error` остаётся для сбоев самого плеера.
+ */
+export const devicePlaybackFrame = z.object({
+  type: z.literal('playback'),
+  event: z.enum(['started', 'ended', 'error', 'skipped']),
+  itemId: z.string().min(1).max(64),
+  releaseVersion: z.number().int().positive().optional(),
+  /** Сколько показывался материал до события, мс. */
+  positionMs: z.number().int().nonnegative().optional(),
+  errorCode: z.string().max(64).optional(),
+})
+
 export const devicePongFrame = z.object({ type: z.literal('pong') })
 
 export const deviceFrameSchema = z.discriminatedUnion('type', [
@@ -66,10 +87,12 @@ export const deviceFrameSchema = z.discriminatedUnion('type', [
   deviceWatchPairingFrame,
   deviceAppliedFrame,
   deviceErrorFrame,
+  devicePlaybackFrame,
   devicePongFrame,
 ])
 
 export type DeviceFrame = z.infer<typeof deviceFrameSchema>
+export type DevicePlaybackFrame = z.infer<typeof devicePlaybackFrame>
 
 /** Кадры, которые сервер шлёт устройству. */
 export type ServerFrame =

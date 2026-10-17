@@ -6,6 +6,7 @@ import {
   normalizeManifest,
   positionAtElapsed,
   positionForInstant,
+  refreshManifestUrls,
   type PlayerItem,
   type PlayerManifest,
 } from '@/player/engine'
@@ -183,5 +184,57 @@ describe('поведение при ошибке файла', () => {
   it('пустой плейлист ведёт к экрану ошибки, а не к зацикливанию', () => {
     const decision = decideAfterFailure([], { itemIndex: 0, offsetMs: 0 }, 0)
     expect(decision.action).toBe('show_error')
+  })
+})
+
+describe('обновление адресов файлов', () => {
+  const current = manifest([
+    item({ id: 'a', url: '/api/player/media/1?t=OLD' }),
+    item({ id: 'b', url: '/api/player/media/2?t=OLD' }),
+  ])
+
+  const incoming = manifest([
+    item({ id: 'a', url: '/api/player/media/1?t=NEW' }),
+    item({ id: 'b', url: '/api/player/media/2?t=NEW' }),
+  ])
+
+  it('меняет адреса материалов, до которых экран ещё не дошёл', () => {
+    const refreshed = refreshManifestUrls(current, incoming, 'a')
+
+    expect(refreshed?.items.map((entry) => entry.url)).toEqual([
+      '/api/player/media/1?t=OLD',
+      '/api/player/media/2?t=NEW',
+    ])
+  })
+
+  it('не трогает адрес показываемого материала: ролик не должен перезапускаться', () => {
+    const refreshed = refreshManifestUrls(current, incoming, 'b')
+
+    expect(refreshed?.items[1]?.url).toBe('/api/player/media/2?t=OLD')
+  })
+
+  it('не обновляет ничего, если программа изменилась', () => {
+    const other: PlayerManifest = { ...incoming, manifestHash: 'hash-2' }
+
+    expect(refreshManifestUrls(current, other, 'a')).toBeNull()
+  })
+
+  it('сохраняет показываемый материал при неизвестном идентификаторе', () => {
+    // Идентификатор мог не совпасть (смена материала в том же тике):
+    // безопаснее обновить всё, чем оставить заведомо протухшие адреса.
+    const refreshed = refreshManifestUrls(current, incoming, 'missing')
+
+    expect(refreshed?.items.map((entry) => entry.url)).toEqual([
+      '/api/player/media/1?t=NEW',
+      '/api/player/media/2?t=NEW',
+    ])
+  })
+
+  it('не меняет прочие поля манифеста', () => {
+    const refreshed = refreshManifestUrls(current, incoming, 'a')
+
+    expect(refreshed?.version).toBe(current.version)
+    expect(refreshed?.manifestHash).toBe(current.manifestHash)
+    expect(refreshed?.since).toBe(current.since)
   })
 })

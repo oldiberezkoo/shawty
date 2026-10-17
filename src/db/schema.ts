@@ -654,6 +654,11 @@ export const deliveryReceipts = sqliteTable(
   (t) => [
     uniqueIndex('delivery_receipts_idx').on(t.releaseId, t.screenId),
     index('delivery_receipts_screen_state_idx').on(t.screenId, t.state),
+    // Насос доставки спрашивает очередь по состоянию и порогу времени раз в
+    // две секунды. Без этого индекса каждый такой запрос — полное сканирование
+    // таблицы, и сеть из сотни экранов со временем офлайна начала бы упираться
+    // в саму себя. Порядок полей совпадает с запросом: state, затем время.
+    index('delivery_receipts_state_updated_idx').on(t.state, t.updatedAt),
   ],
 )
 

@@ -5,6 +5,7 @@ import {
   decideAfterFailure,
   normalizeManifest,
   positionForInstant,
+  refreshManifestUrls,
   type PlaybackPosition,
   type PlayerManifest,
 } from '@/player/engine'
@@ -31,8 +32,46 @@ import type { DeviceCredential } from '@/player/credential-store'
 
 type Phase = 'authenticating' | 'ready' | 'offline' | 'error' | 'unpaired' | 'empty'
 
-const ACCESS_TOKEN_TTL_MS = 10 * 60_000
+/** За сколько до истечения обновляем короткоживущий токен. */
 const TOKEN_REFRESH_MARGIN_MS = 60_000
+
+/**
+ * Как часто экран повторяет попытку, когда сервер недоступен.
+ *
+ * Короче основного интервала, потому что «нет связи» — это ждущее состояние,
+ * а не итоговое: сеть в магазине может вернуться через минуту, и оператор не
+ * должен перезагружать телевизор вручную, чтобы вернуть рекламу на экран.
+ */
+const OFFLINE_RETRY_MS = 30_000
+
+/**
+ * Задержки до следующей попытки переподключения, миллисекунды.
+ *
+ * Список, а не формула: ограничение сверху важнее плавности. Телевизор,
+ * стоящий в магазине при выключенной сети, не должен превращаться в источник
+ * тысяч попыток в секунду — иначе он добьётся веб-сервера, обслуживающего
+ * панель, вместо того чтобы просто ждать сеть.
+ */
+const RECONNECT_DELAYS_MS = [1_000, 2_000, 5_000, 10_000, 20_000, 30_000, 60_000]
+
+/**
+ * Как часто экран переспрашивает публикацию.
+ *
+ * Не из-за канала: канал остаётся основным путём, и обычно он молчит, потому
+ * что публикаций не было. Опрос нужен по двум причинам, и обе — про год
+ * работы без вмешательства:
+ *
+ * - Пропуск на файл живёт час. Без периодического обновления адресов через
+ *   час экран не сможет показать материал, который ещё не загружался, и
+ *   уйдёт в ошибку — то есть перестанет работать без всяких причин.
+ * - Канал может молча перестать работать: телевизор уснул, сеть сменилась,
+ *   прокси закрыл соединение. Пропущенную публикацию экран обязан получить
+ *   иначе, а опрос — это единственный способ, не зависящий от состояния сокета.
+ *
+ * Пятнадцать минут — с запасом больше, чем час жизни пропуска, и не чаще,
+ * чем нужно: запрос один, лёгкий, а не поток.
+ */
+const STATE_POLL_MS = 15 * 60_000
 
 export function PlayerDisplay() {
   const [phase, setPhase] = useState<Phase>('authenticating')
@@ -42,6 +81,14 @@ export function PlayerDisplay() {
   const positionRef = useRef<PlaybackPosition>({ itemIndex: 0, offsetMs: 0 })
   const [item, setItem] = useState<PlayerManifest['items'][number] | null>(null)
   const [itemIndex, setItemIndex] = useState(0)
+
+  /**
+   * Идентификатор показываемого материала.
+   *
+   * Нужен для обновления адресов: у показываемого материала адрес трогать
+   * нельзя — замена `src` у `<video>` перезапустила бы ролик с начала.
+   */
+  const currentItemIdRef = useRef<string | null>(null)
 
   const failuresRef = useRef(0)
   const credentialRef = useRef<DeviceCredential | null>(null)
@@ -126,41 +173,145 @@ export function PlayerDisplay() {
     setItem(manifest.items[position.itemIndex] ?? manifest.items[0] ?? null)
   }, [])
 
+  /**
+   * Обновление адресов файлов без смены программы.
+   *
+   * Приходит при опросе состояния: сервер перевыпускает пропуск на каждый
+   * файл, поэтому в свежем манифесте адреса другие, а программа та же самая.
+   * Хеш манифеста при этом совпадает — он считается без подписи пропуска,
+   * специально чтобы отличать смену программы от смены часа.
+   *
+   * Показываемый материал не трогаем: замена `src` у `<video>` перезапустила
+   * бы ролик с начала, и зритель увидел бы обрыв на ровном месте. Пропуск
+   * выдан на час, а материал уже загружен и показывается, поэтому проблемы
+   * с его адресом уже не возникнет.
+   *
+   * Возвращает `true`, если программа не изменилась и адреса обновлены.
+   */
+  const refreshUrls = useCallback((incoming: PlayerManifest): boolean => {
+    const current = manifestRef.current
+    if (!current) return false
+
+    const refreshed = refreshManifestUrls(current, incoming, currentItemIdRef.current)
+    if (!refreshed) return false
+
+    manifestRef.current = refreshed
+    return true
+  }, [])
+
   // ── Загрузка публикации ──────────────────────────────────────────────────
 
-  const loadState = useCallback(async (): Promise<void> => {
-    const token = await ensureToken()
-    if (!token) return
+  const loadState = useCallback(
+    async (options: { isRefresh?: boolean } = {}): Promise<void> => {
+      const token = await ensureToken()
+      if (!token) return
 
-    try {
-      const response = await fetch('/api/player/state', {
-        headers: { authorization: `Bearer ${token}` },
-      })
+      try {
+        const response = await fetch('/api/player/state', {
+          headers: { authorization: `Bearer ${token}` },
+        })
 
-      if (!response.ok) {
-        setPhase('offline')
+        // Фоновый опрос не имеет права ронять работающий экран: недоступность
+        // сервера на минуту — это «нет связи» в панели, а не чёрный экран в
+        // магазине. Показ продолжается из памяти, следующий опрос всё исправит.
+        if (!response.ok) {
+          if (!options.isRefresh) setPhase('offline')
+          return
+        }
+
+        const data = (await response.json()) as {
+          manifest: PlayerManifest | null
+          appliedVersion: number | null
+        }
+
+        const manifest = data.manifest ? normalizeManifest(data.manifest) : null
+
+        if (!manifest) {
+          // Пустая публикация — это осмысленное состояние, и сообщать
+          // о нём нужно и при обновлении: контент могли снять с экрана.
+          setPhase('empty')
+          return
+        }
+
+        // Та же программа — обновляем только адреса файлов, показ не трогаем.
+        if (refreshUrls(manifest)) return
+
+        applyManifest(manifest)
+      } catch {
+        if (!options.isRefresh) setPhase('offline')
+      }
+    },
+    [ensureToken, applyManifest, refreshUrls],
+  )
+
+  // ── Обработка кадров канала ───────────────────────────────────────────────
+
+  const clearAndReturnToPairing = useCallback(async () => {
+    // Стираем локальные учётные данные: устройство обязано забыть секрет,
+    // иначе будет снова и снова пытаться авторизоваться отозванным доступом.
+    await clearCredential()
+    window.location.replace('/player/pairing')
+  }, [])
+
+  /**
+   * Разбор входящего кадра.
+   *
+   * Вынесено из обработчика сокета, потому что кадры приходят и из первого
+   * подключения, и из каждого переподключения: одна реализация означает, что
+   * восстановление после обрыва не ведёт себя иначе, чем первый запуск.
+   */
+  const handleDeviceFrame = useCallback(
+    (event: MessageEvent) => {
+      let frame: { type: string; releaseVersion?: number; code?: string }
+      try {
+        frame = JSON.parse(String(event.data))
+      } catch {
         return
       }
 
-      const data = (await response.json()) as {
-        manifest: PlayerManifest | null
-        appliedVersion: number | null
-      }
+      if (frame.type === 'assignment') {
+        // Манифест пришёл по каналу: применяем его без обращения к серверу.
+        const payload = frame as { type: 'assignment'; releaseVersion: number; manifest: unknown }
+        void (async () => {
+          const verdict = await verifyManifest(payload.manifest)
 
-      const manifest = data.manifest ? normalizeManifest(data.manifest) : null
+          if (!verdict.ok) {
+            // Повреждённый манифест не применяем: лучше старый контент,
+            // чем случайный набор файлов на экране в магазине.
+            logger.warn({ reason: verdict.reason }, 'манифест отклонён проверкой целостности')
+            await loadState()
+            return
+          }
 
-      if (!manifest) {
-        setPhase('empty')
+          applyManifest(normalizeManifest(payload.manifest as PlayerManifest))
+        })()
+
         return
       }
 
-      applyManifest(manifest)
-    } catch {
-      setPhase('offline')
-    }
-  }, [ensureToken, applyManifest])
+      if (frame.type === 'applied' && frame.releaseVersion !== undefined) {
+        // Новая публикация применена: пересчитываем позицию и переключаемся.
+        failuresRef.current = 0
+        void loadState()
+        return
+      }
 
-  // ── Канал устройства ──────────────────────────────────────────────────────
+      if (frame.type === 'device.rotate') {
+        // Секрет обновится на следующем обмене: подставлять новый секрет
+        // по команде в кадре нельзя — секрет не должен ходить по сокету.
+        accessTokenRef.current = null
+        void loadState()
+        return
+      }
+
+      if (frame.type === 'revoke' || frame.code === 'revoked') {
+        void clearAndReturnToPairing()
+      }
+    },
+    [applyManifest, clearAndReturnToPairing, loadState],
+  )
+
+  // ── Первый запуск ────────────────────────────────────────────────────────
 
   useEffect(() => {
     let cancelled = false
@@ -181,87 +332,100 @@ export function PlayerDisplay() {
       if (!token || cancelled) return
 
       await loadState()
-
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-      const socket = new WebSocket(`${protocol}://${window.location.host}/ws/device`)
-      socketRef.current = socket
-
-      socket.onopen = () => {
-        socket.send(JSON.stringify({ type: 'hello', accessToken: accessTokenRef.current }))
-      }
-
-      socket.onmessage = (event) => {
-        let frame: { type: string; releaseVersion?: number; code?: string; reauth?: boolean }
-        try {
-          frame = JSON.parse(String(event.data))
-        } catch {
-          return
-        }
-
-        if (frame.type === 'assignment') {
-          // Манифест пришёл по каналу: применяем его без обращения к серверу.
-          const payload = frame as { type: 'assignment'; releaseVersion: number; manifest: unknown }
-          void (async () => {
-            const verdict = await verifyManifest(payload.manifest)
-
-            if (!verdict.ok) {
-              // Повреждённый манифест не применяем: лучше старый контент,
-              // чем случайный набор файлов на экране в магазине.
-              logger.warn({ reason: verdict.reason }, 'манифест отклонён проверкой целостности')
-              await loadState()
-              return
-            }
-
-            applyManifest(normalizeManifest(payload.manifest as PlayerManifest))
-          })()
-
-          return
-        }
-
-        if (frame.type === 'applied' && frame.releaseVersion !== undefined) {
-          // Новая публикация применена: пересчитываем позицию и переключаемся.
-          failuresRef.current = 0
-          void loadState()
-          return
-        }
-
-        if (frame.type === 'device.rotate') {
-          // Секрет обновится на следующем обмене: подставлять новый секрет
-          // по команде в кадре нельзя — секрет не должен ходить по сокету.
-          accessTokenRef.current = null
-          void loadState()
-          return
-        }
-
-        if (frame.type === 'revoke' || frame.code === 'revoked') {
-          void clearAndReturnToPairing()
-          return
-        }
-      }
-
-      socket.onclose = () => {
-        // Показ не прерываем: reconnect переподключит канал, а содержимое
-        // уже в памяти. Отсутствие связи — самостоятельное состояние экрана.
-        if (!cancelled) setPhase((current) => (current === 'ready' ? current : 'offline'))
-      }
     }
 
     void start()
 
     return () => {
       cancelled = true
-      socketRef.current?.close()
     }
     // Один раз на всё время жизни экрана: дальше состояние ведёт себя само.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const clearAndReturnToPairing = useCallback(async () => {
-    // Стираем локальные учётные данные: устройство обязано забыть секрет,
-    // иначе будет снова и снова пытаться авторизоваться отозванным доступом.
-    await clearCredential()
-    window.location.replace('/player/pairing')
-  }, [])
+  // ── Переподключение канала ────────────────────────────────────────────────
+
+  /**
+   * Переподключение канала устройства.
+   *
+   * Канал — основной путь доставки, и он молчит, когда публикаций нет. Но
+   * молчащий канал и мёртвый канал неразличимы снаружи, поэтому экран обязан
+   * возвращаться в сеть сам: телевизор спит, сеть меняется, прокси закрывает
+   * соединение через несколько часов. Без этого «подключил и забыл на год»
+   * не работает — публикации просто перестали бы доходить.
+   *
+   * Показ при обрыве не прерывается: содержимое уже в памяти, а сообщение
+   * «нет связи» на экране в магазине только мешает людям.
+   */
+  useEffect(() => {
+    // Фаза «нет связи» тоже ждёт: экран обязан вернуться в показ сам,
+    // как только сервер снова отвечает.
+    if (phase !== 'ready' && phase !== 'offline') return
+
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let attempt = 0
+
+    const connect = async () => {
+      if (cancelled) return
+
+      // Прежний сокет закрыт осознанно, а не обрывом: считать это
+      // неудачей подключения нельзя, иначе получится вечный цикл попыток.
+      const previous = socketRef.current
+      socketRef.current = null
+      previous?.close()
+
+      const token = await ensureToken()
+      if (!token || cancelled) return
+
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+      const socket = new WebSocket(`${protocol}://${window.location.host}/ws/device`)
+
+      socket.onopen = () => {
+        attempt = 0
+        socket.send(JSON.stringify({ type: 'hello', accessToken: accessTokenRef.current }))
+      }
+
+      socket.onmessage = (event) => handleDeviceFrame(event)
+
+      socket.onclose = () => {
+        if (cancelled) return
+        if (socketRef.current === socket) socketRef.current = null
+
+        const delay = RECONNECT_DELAYS_MS[Math.min(attempt, RECONNECT_DELAYS_MS.length - 1)] ?? 60_000
+        attempt += 1
+
+        logger.debug({ attempt, delay }, 'канал устройства закрыт, переподключаемся')
+        timer = setTimeout(() => void connect(), delay)
+      }
+    }
+
+    const start = () => {
+      // Уже живой канал не трогаем: он работает, показывать ту же картинку
+      // заново незачем.
+      if (socketRef.current?.readyState === WebSocket.OPEN) return
+      void connect()
+    }
+
+    // Первая попытка — сразу, но с задержкой: хук запускается после того,
+    // как `onclose` уже успел запланировать своё. Две попытки подряд были бы
+    // двумя каналами на один экран.
+    timer = setTimeout(start, RECONNECT_DELAYS_MS[0])
+
+    // Возврат вкладки из сна — самый частый повод для проверки: телевизор
+    // почти всегда просыпается вместе с сетью.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') start()
+    }
+
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [phase, ensureToken, handleDeviceFrame])
 
   // ── Heartbeat и capability profile ────────────────────────────────────────
 
@@ -285,6 +449,21 @@ export function PlayerDisplay() {
 
     return () => clearInterval(timer)
   }, [phase])
+
+  // ── Периодический опрос публикации ────────────────────────────────────────
+
+  useEffect(() => {
+    // Готовый экран опрашивает редко и обновляет только адреса файлов.
+    // Экран без связи опрашивает часто и пытается вернуться в показ.
+    const isReady = phase === 'ready'
+    if (!isReady && phase !== 'offline') return
+
+    const timer = setInterval(() => {
+      void loadState({ isRefresh: isReady })
+    }, isReady ? STATE_POLL_MS : OFFLINE_RETRY_MS)
+
+    return () => clearInterval(timer)
+  }, [phase, loadState])
 
   // ── Wake Lock ─────────────────────────────────────────────────────────────
 
@@ -341,6 +520,42 @@ export function PlayerDisplay() {
 
   // ── Показ ─────────────────────────────────────────────────────────────────
 
+  /**
+   * Событие воспроизведения в аналитику.
+   *
+   * Утверждается ровно то, что известно машине: материал показывался столько-то
+   * миллисекунд. Никто не говорит, что человек посмотрел рекламу — этого
+   * продукт не знает и не имеет права утверждать.
+   *
+   * Отправка идёт только по живому каналу и молча пропускается, если канала
+   * нет: событие воспроизведения — это аналитика, а не подтверждение публикации.
+   * Потеря единичного события лучше, чем очередь событий на телевизоре, который
+   * никто не сможет перезагрузить.
+   */
+  const reportPlayback = useCallback(
+    (
+      event: 'started' | 'ended' | 'error' | 'skipped',
+      itemId: string,
+      positionMs?: number,
+      errorCode?: string,
+    ) => {
+      const socket = socketRef.current
+      if (socket?.readyState !== WebSocket.OPEN) return
+
+      socket.send(
+        JSON.stringify({
+          type: 'playback',
+          event,
+          itemId,
+          releaseVersion: manifestRef.current?.version,
+          positionMs,
+          errorCode,
+        }),
+      )
+    },
+    [],
+  )
+
   // Таймер перехода живёт здесь, а не в отдельном компоненте: он обязан
   // пересоздаваться при смене материала, иначе длительность нового слайда
   // применялась бы к таймеру предыдущего.
@@ -353,17 +568,33 @@ export function PlayerDisplay() {
 
     const timer = setTimeout(() => {
       failuresRef.current = 0
+      // Материал доигран до конца: это единственное событие, за которое
+      // можно сказать «материал показан целиком».
+      reportPlayback('ended', current.id, current.durationMs)
       const next = itemIndex + 1 >= manifest.items.length ? 0 : itemIndex + 1
       setItemIndex(next)
       setItem(manifest.items[next] ?? null)
     }, current.durationMs)
 
     return () => clearTimeout(timer)
-  }, [itemIndex, phase])
+  }, [itemIndex, phase, reportPlayback])
+
+  /**
+   * Начало показа материала.
+   *
+   * Отдельно от смены `itemIndex`: переход к следующему слайду происходит
+   * одним событием, и «начал показываться» должно следовать именно за ним.
+   */
+  useEffect(() => {
+    if (phase !== 'ready' || !item) return
+    reportPlayback('started', item.id, 0)
+  }, [itemIndex, phase, item, reportPlayback])
 
   /** Ошибка файла: пропускаем материал, но не останавливаем показ. */
   const onItemError = useCallback(() => {
     const manifest = manifestRef.current
+    const failed = manifest?.items[itemIndex]
+
     if (!manifest) {
       setPhase('error')
       return
@@ -372,14 +603,19 @@ export function PlayerDisplay() {
     const decision = decideAfterFailure(manifest.items, positionRef.current, failuresRef.current)
 
     if (decision.action === 'show_error') {
+      if (failed) reportPlayback('error', failed.id, undefined, 'load_failed')
       setPhase('error')
       return
     }
 
+    // Материал не показался, но показ продолжается: это «пропущено», а не
+    // «ошибка» — разница видна в отчёте и в объяснении оператору.
+    if (failed) reportPlayback('skipped', failed.id, undefined, 'load_failed')
+
     failuresRef.current += 1
     setItemIndex(decision.position.itemIndex)
     setItem(manifest.items[decision.position.itemIndex] ?? null)
-  }, [])
+  }, [itemIndex, reportPlayback])
 
   const appliedVersionRef = useRef<number | null>(null)
 

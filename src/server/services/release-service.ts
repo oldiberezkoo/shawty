@@ -394,6 +394,15 @@ export type DeliverySummary = {
   downloading: number
   noContact: number
   total: number
+  /**
+   * Чеки, где экран сообщил об отказе или молчал после нескольких попыток.
+   *
+   * Держится отдельно от четырёх чисел намеренно: «Отправлено» по плану
+   * считает только состояния `sent`/`downloading`/`applied`, а отказ не
+   * значит ни «доставлено», ни «загружает». Скрывать его было бы враньём,
+   * поэтому панель показывает его явно.
+   */
+  failed: number
 }
 
 export function deliverySummary(companyId: string, releaseId?: string): DeliverySummary {
@@ -413,7 +422,14 @@ export function deliverySummary(companyId: string, releaseId?: string): Delivery
     .where(releaseId ? eq(deliveryReceipts.releaseId, releaseId) : eq(screens.companyId, companyId))
     .all()
 
-  const summary: DeliverySummary = { sent: 0, applied: 0, downloading: 0, noContact: 0, total: rows.length }
+  const summary: DeliverySummary = {
+    sent: 0,
+    applied: 0,
+    downloading: 0,
+    noContact: 0,
+    total: rows.length,
+    failed: 0,
+  }
 
   for (const row of rows) {
     const ageSeconds = row.lastSeenAt ? Math.floor((now - row.lastSeenAt.getTime()) / 1000) : Number.MAX_SAFE_INTEGER
@@ -429,6 +445,11 @@ export function deliverySummary(companyId: string, releaseId?: string): Delivery
     if (row.state === 'applied') {
       summary.applied += 1
       summary.sent += 1
+      continue
+    }
+
+    if (row.state === 'failed' || row.state === 'stale') {
+      summary.failed += 1
       continue
     }
 
@@ -470,22 +491,6 @@ export function receiptsForRelease(releaseId: string) {
     .innerJoin(screens, eq(screens.id, deliveryReceipts.screenId))
     .where(eq(deliveryReceipts.releaseId, releaseId))
     .orderBy(asc(screens.name))
-    .all()
-}
-
-/** Публикации, которые экраны ещё не применили: их имеет смысл повторить. */
-export function staleReceipts(olderThanMs = 5 * 60_000) {
-  const threshold = Date.now() - olderThanMs
-
-  return db
-    .select()
-    .from(deliveryReceipts)
-    .where(
-      and(
-        inArray(deliveryReceipts.state, ['queued', 'sent', 'downloading', 'failed']),
-        lt(deliveryReceipts.updatedAt, new Date(threshold)),
-      ),
-    )
     .all()
 }
 

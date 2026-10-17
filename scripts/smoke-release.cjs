@@ -261,6 +261,51 @@ async function main() {
     const after = await api('/api/dashboard/releases?companyId=' + COMPANY, 'GET', undefined)
     console.log('→ сводка после подтверждения:', JSON.stringify(after.data?.summary))
 
+    // 9. События воспроизведения. Плеер утверждает ровно то, что знает:
+    // материал начал показываться и был показан целиком. Никаких «показов» —
+    // счётчик показов был бы выдумкой, а не измерением.
+    device.send({
+      type: 'playback',
+      event: 'started',
+      itemId: item.id,
+      releaseVersion: manifest.version,
+      positionMs: 0,
+    })
+    device.send({
+      type: 'playback',
+      event: 'ended',
+      itemId: item.id,
+      releaseVersion: manifest.version,
+      positionMs: item.durationMs,
+    })
+    await new Promise((r) => setTimeout(r, 600))
+
+    const events = DB
+      .prepare(
+        'SELECT event, item_id, position_ms FROM playback_events WHERE screen_id = ? AND release_id IN (SELECT id FROM releases WHERE manifest_version = ?) ORDER BY at ASC',
+      )
+      .all(hello.screenId, manifest.version)
+
+    console.log(
+      '→ события воспроизведения:',
+      events.map((e) => `${e.event}@${e.position_ms ?? 0}мс`).join(', ') || 'нет',
+    )
+
+    if (events.length !== 2 || events[0].event !== 'started' || events[1].event !== 'ended') {
+      throw new Error(`события воспроизведения записаны неверно: ${JSON.stringify(events)}`)
+    }
+
+    const missingRelease = DB
+      .prepare(
+        'SELECT COUNT(*) AS n FROM playback_events WHERE screen_id = ? AND release_id IS NULL AND item_id = ?',
+      )
+      .get(hello.screenId, item.id)
+
+    if (missingRelease.n > 0) {
+      throw new Error('событие не связано с публикацией: release_id не найден')
+    }
+    console.log('→ событие связано с публикацией')
+
     device.close()
     console.log('\n✓ сквозная проверка публикации завершена')
   } finally {

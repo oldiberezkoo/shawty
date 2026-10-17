@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { CSRF_COOKIE } from '@/lib/cookie-names'
@@ -11,6 +12,15 @@ export type DeliverySummaryView = {
   downloading: number
   noContact: number
   total: number
+  failed?: number
+}
+
+export type ReceiptView = {
+  screenId: string
+  screenName: string
+  state: string
+  ackedAt: string | null
+  errorCode?: string | null
 }
 
 export type AssignmentView = {
@@ -24,7 +34,42 @@ export type PlaylistVersionView = {
   playlistId: string
   name: string
   version: number | null
-  versions: { id: string; version: number; items: number }[]
+  versions: { id: string; version: number }[]
+}
+
+/** Как часто доска опрашивает сервер за живыми числами доставки. */
+const REFRESH_MS = 3000
+
+/** Понятная подпись состояния чека вместо английского слова из базы. */
+const STATE_LABEL: Record<string, string> = {
+  queued: 'в очереди',
+  sent: 'отправлено, ждёт подтверждения',
+  downloading: 'загружает',
+  applied: 'применил',
+  failed: 'отказ',
+  stale: 'устарело',
+}
+
+/** Цвет состояния: «применил» — единственное, что выглядит как результат. */
+const STATE_TONE: Record<string, string> = {
+  applied: 'text-success',
+  failed: 'text-danger',
+  downloading: 'text-info',
+  queued: 'text-text-muted',
+  sent: 'text-text-muted',
+  stale: 'text-warn',
+}
+
+function relativeTime(value: string | null): string {
+  if (!value) return '—'
+
+  const seconds = Math.floor((Date.now() - new Date(value).getTime()) / 1000)
+  if (seconds < 60) return `${seconds} сек назад`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes} мин назад`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} ч назад`
+  return `${Math.floor(hours / 24)} дн назад`
 }
 
 function readCsrf(): string {
@@ -33,18 +78,20 @@ function readCsrf(): string {
 }
 
 /**
- * Четыре числа доставки.
+ * Четыре числа доставки и разбор по каждому экрану.
  *
  * Это главный экран продукта. Важно, что они считаются, а не рисуются:
- * «применили» означает подтверждение плеера плюс факт переключения,
- * «нет связи» — heartbeat старше порога экрана.
+ * «применили» означает подтверждение плеера, «нет связи» — heartbeat старше
+ * порога экрана. Числа обновляются опросом сервера, а не пересчётом на
+ * клиенте: после публикации экран применяет манифест через несколько секунд,
+ * и именно это изменение оператор обязан увидеть без перезагрузки страницы.
  */
 export function DeliveryBoard(props: {
   companyId: string
   canPublish: boolean
   summary: DeliverySummaryView
-  releases: { id: string; version: number; createdAt: string; itemCount: number }[]
-  latestReceipts: { screenId: string; screenName: string; state: string; ackedAt: string | null }[]
+  receipts: ReceiptView[]
+  latestRelease: { version: number; createdAt: string; itemCount: number } | null
   assignments: AssignmentView[]
   branches: { id: string; name: string }[]
   groups: { id: string; name: string }[]
@@ -54,9 +101,57 @@ export function DeliveryBoard(props: {
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  const [summary, setSummary] = useState(props.summary)
+  const [receipts, setReceipts] = useState(props.receipts)
+
   const [scopeType, setScopeType] = useState<'company' | 'branch' | 'group'>('company')
   const [scopeId, setScopeId] = useState('')
   const [versionId, setVersionId] = useState('')
+
+  // Пропсы нужны только для первичного значения: дальше числа приходят
+  // с сервера, и пересоздание компонента не должно затирать живые данные.
+  const initialSummary = useRef(props.summary)
+  const initialReceipts = useRef(props.receipts)
+
+  useEffect(() => {
+    setSummary(initialSummary.current)
+    setReceipts(initialReceipts.current)
+  }, [])
+
+  useEffect(() => {
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+
+    // Один таймер без слушателя видимости: браузер сам притормаживает
+    // таймеры в скрытой вкладке, а два конкурирующих опроса дали бы
+    // дублирующие ответы и гонку за состояние.
+    const refresh = async () => {
+      try {
+        const response = await fetch('/api/dashboard/releases', {
+          headers: { 'x-company-id': props.companyId },
+          cache: 'no-store',
+        })
+
+        if (response.ok) {
+          const data = (await response.json()) as { summary?: DeliverySummaryView; receipts?: ReceiptView[] }
+          if (!stopped && data.summary) setSummary(data.summary)
+          if (!stopped && data.receipts) setReceipts(data.receipts)
+        }
+      } catch {
+        // Молча переживаем обрыв: следующий тик попробует снова. Показывать
+        // ошибку опроса было бы шумом — числа просто останутся прежними.
+      } finally {
+        if (!stopped) timer = setTimeout(refresh, REFRESH_MS)
+      }
+    }
+
+    timer = setTimeout(refresh, REFRESH_MS)
+
+    return () => {
+      stopped = true
+      if (timer) clearTimeout(timer)
+    }
+  }, [props.companyId])
 
   const versionOptions = props.playlistVersions.flatMap((playlist) =>
     playlist.versions.map((entry) => ({
@@ -115,22 +210,21 @@ export function DeliveryBoard(props: {
 
     if (result) {
       const summary = result.summary as DeliverySummaryView | undefined
-      const delivered = Number(result.delivered ?? 0)
 
+      // Числа после публикации ещё неполны: экран применяет манифест через
+      // несколько секунд. Поэтому сообщение фиксирует факт публикации и
+      // отсылает к живым числам, а не выдумывает «доставлено N».
       setNotice(
         summary
-          ? `Опубликована версия ${result.version}. Отправлено ${delivered} из ${result.screens}. ` +
-              `Применили: ${summary.applied}, грузят: ${summary.downloading}, нет связи: ${summary.noContact}`
+          ? `Опубликована версия ${result.version} для ${summary.total} экранов. ` +
+              `Отправлено ${summary.sent}, применяют ${summary.applied}. ` +
+              `Точные числа обновятся на этой странице автоматически.`
           : `Опубликована версия ${result.version}`,
       )
-
-      // Сводку обновляем перезагрузкой страницы: честные числа должны
-      // прийти с сервера, а не быть пересчитанными на клиенте.
-      window.location.reload()
     }
   }, [call])
 
-  const { summary } = props
+  const failed = summary.failed ?? 0
 
   return (
     <div className="flex flex-col gap-6">
@@ -151,6 +245,13 @@ export function DeliveryBoard(props: {
         <NumberTile label="Загружают" value={summary.downloading} tone="info" />
         <NumberTile label="Нет связи" value={summary.noContact} tone={summary.noContact > 0 ? 'warn' : 'default'} />
       </div>
+
+      {failed > 0 ? (
+        <div className="rounded-[var(--radius-md)] border border-danger/30 bg-danger-bg px-3 py-2 text-[13px] text-danger">
+          {failed} {failed === 1 ? 'экран не смог' : 'экрана не смогли'} применить публикацию. Такие чеки
+          помечены «отказ» в таблице ниже — их придётся разобрать вручную: повторная отправка прекращена.
+        </div>
+      ) : null}
 
       {props.canPublish ? (
         <Card>
@@ -236,6 +337,49 @@ export function DeliveryBoard(props: {
                 ))}
               </div>
             ) : null}
+          </CardBody>
+        </Card>
+      ) : null}
+
+      {props.latestRelease && receipts.length > 0 ? (
+        <Card>
+          <CardHeader
+            title={`Публикация №${props.latestRelease.version}`}
+            description={`${relativeTime(props.latestRelease.createdAt)} · ${
+              props.latestRelease.itemCount
+            } материалов · ${receipts.length} экранов`}
+          />
+          <CardBody className="p-0">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-border text-left text-[12px] text-text-subtle">
+                  <th className="px-5 py-2 font-normal">Экран</th>
+                  <th className="px-5 py-2 font-normal">Состояние доставки</th>
+                  <th className="px-5 py-2 text-right font-normal">Подтверждено</th>
+                </tr>
+              </thead>
+              <tbody>
+                {receipts.map((receipt) => (
+                  <tr key={receipt.screenId} className="border-b border-border last:border-0">
+                    <td className="px-5 py-2">
+                      <Link
+                        href="/dashboard/screens"
+                        className="font-medium hover:underline underline-offset-4"
+                      >
+                        {receipt.screenName}
+                      </Link>
+                    </td>
+                    <td className={`px-5 py-2 ${STATE_TONE[receipt.state] ?? 'text-text-muted'}`}>
+                      {STATE_LABEL[receipt.state] ?? receipt.state}
+                      {receipt.errorCode ? (
+                        <span className="ml-2 text-[12px] text-text-subtle">{receipt.errorCode}</span>
+                      ) : null}
+                    </td>
+                    <td className="px-5 py-2 text-right text-text-muted">{relativeTime(receipt.ackedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </CardBody>
         </Card>
       ) : null}

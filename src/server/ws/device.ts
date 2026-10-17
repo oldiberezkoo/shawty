@@ -5,6 +5,7 @@ import { db, withImmediateTransaction } from '@/db/client'
 import {
   deliveryReceipts,
   pairingSessions,
+  playbackEvents,
   playerErrors,
   releases,
   screenPublications,
@@ -15,7 +16,12 @@ import { serverConfig } from '@/config/server'
 import { authenticateAccessToken, type DeviceIdentity } from '@/server/services/device-service'
 import { logger } from '@/lib/logger'
 import { deviceHub, type DeviceConnection } from './hub'
-import { deviceFrameSchema, encodeFrame, type ServerFrame } from './protocol'
+import {
+  deviceFrameSchema,
+  encodeFrame,
+  type DevicePlaybackFrame,
+  type ServerFrame,
+} from './protocol'
 
 function send(connection: DeviceConnection, frame: ServerFrame): void {
   if (connection.socket.readyState !== connection.socket.OPEN) return
@@ -97,6 +103,11 @@ export function handleDeviceConnection(socket: WebSocket, request: IncomingMessa
         case 'player.error':
           if (!connection.screenId || !connection.companyId) return
           insertPlayerError(connection, frame.code, frame.message)
+          break
+
+        case 'playback':
+          if (!connection.screenId || !connection.companyId) return
+          insertPlaybackEvent(connection, frame)
           break
       }
     } catch (error) {
@@ -304,4 +315,45 @@ function insertPlayerError(connection: DeviceConnection, code: string, message: 
     .run()
 
   logger.warn({ screenId, code }, 'ошибка воспроизведения на устройстве')
+}
+
+/**
+ * Запись события воспроизведения.
+ *
+ * `releaseId` ищется по версии публикации, а не берётся из кадра: версия в
+ * кадре принадлежит устройству, а внешняя ссылка должна указывать на запись
+ * нашей таблицы. Неизвестная версия — обычное дело при перезагрузке, и событие
+ * всё равно сохраняется: потеря события из-за гонки хуже, чем событие без ссылки.
+ */
+function insertPlaybackEvent(connection: DeviceConnection, frame: DevicePlaybackFrame): void {
+  const screenId = connection.screenId
+  const companyId = connection.companyId
+  if (!screenId || !companyId) return
+
+  const release = frame.releaseVersion
+    ? db
+        .select({ id: releases.id })
+        .from(releases)
+        .where(and(eq(releases.companyId, companyId), eq(releases.manifestVersion, frame.releaseVersion)))
+        .get()
+    : undefined
+
+  db.insert(playbackEvents)
+    .values({
+      id: crypto.randomUUID(),
+      screenId,
+      companyId,
+      releaseId: release?.id ?? null,
+      itemId: frame.itemId.slice(0, 64),
+      event: frame.event,
+      at: new Date(),
+      positionMs: frame.positionMs ?? null,
+      errorCode: frame.errorCode?.slice(0, 64) ?? null,
+    })
+    .run()
+
+  logger.debug(
+    { screenId, event: frame.event, itemId: frame.itemId, releaseVersion: frame.releaseVersion },
+    'событие воспроизведения',
+  )
 }

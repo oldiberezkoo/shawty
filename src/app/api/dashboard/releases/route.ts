@@ -1,8 +1,7 @@
 import { z } from 'zod'
-import { and, eq, inArray, sql } from 'drizzle-orm'
-import { db, withImmediateTransaction } from '@/db/client'
-import { deliveryReceipts, releases, screenPublications } from '@/db/schema'
-import { deviceHub } from '@/server/ws/hub'
+import { and, eq } from 'drizzle-orm'
+import { db } from '@/db/client'
+import { releases } from '@/db/schema'
 import { PERMISSIONS } from '@/domain/authz/permissions'
 import { route, jsonResponse, readJsonBody } from '@/server/http/request'
 import {
@@ -12,7 +11,6 @@ import {
 } from '@/server/http/dashboard-request'
 import {
   assignPlaylist,
-  buildScreenManifest,
   deliverySummary,
   listAssignments,
   listRecentReleases,
@@ -38,7 +36,9 @@ const publishSchema = z.object({
  * Назначения и последние публикации.
  *
  * Сводка доставки отдаётся здесь же: оператор после публикации сразу видит
- * четыре числа, не переходя на отдельный экран.
+ * четыре числа, не переходя на отдельный экран. Этот же ответ — источник
+ * живой доски доставки, поэтому он обязан отдавать чеки последней публикации:
+ * без них экран «что произошло на экранах» старел бы до перезагрузки.
  */
 export const GET = route(async (request: Request) => {
   const { companyId, access } = await requireDashboardRequest(request)
@@ -63,10 +63,16 @@ export const GET = route(async (request: Request) => {
     })
   }
 
+  // Имя не `releases`: в этом файле уже импортирована таблица releases,
+  // и локальная переменная перекрыла бы её — запросы искались бы в массиве.
+  const recent = listRecentReleases(companyId)
+  const latest = recent[0]
+
   return jsonResponse({
     assignments: listAssignments(companyId),
-    releases: listRecentReleases(companyId),
+    releases: recent,
     summary: deliverySummary(companyId),
+    receipts: latest ? receiptsForRelease(latest.id) : [],
   })
 })
 
@@ -88,15 +94,15 @@ export const PUT = route(async (request: Request) => {
 /**
  * Публикация на сеть.
  *
- * Создаёт версию, раскладывает манифесты по экранам, ставит receipts в
- * `queued` и отправляет манифесты тем экранам, что сейчас на связи.
+ * Создаёт версию, раскладывает манифесты по экранам и ставит чеки в
+ * `queued`. Саму отправку делает не этот обработчик, а насос доставки в
+ * процессе канала устройств: обработчики маршрутов и канал работают в
+ * разных изоляциях процесса и не делят память, поэтому реестр сокетов в
+ * маршруте всегда пуст (см. §3.2 плана и `src/server/ws/delivery-pump.ts`).
  *
- * Ограничение изоляции: обработчики маршрутов и канал устройств работают
- * в разных изоляциях процесса и не разделяют память. Поэтому `deviceHub`
- * в этом маршруте — всегда пустой: вызов вернёт 0, и состояние receipts
- * останется `queued` даже при живых экранах. Доставка по каналу будет
- * работать, когда реестр сокетов станет доступен обоим слоям — это
- * отдельная задача P4, зафиксированная в плане (см. §3.2).
+ * Из-за этого ответ не содержит «доставлено N»: в момент ответа ещё никто
+ * не отправил. Числа появятся через несколько секунд — их показывает доска
+ * доставки, которая опрашивает сервер.
  */
 export const POST = route(async (request: Request) => {
   const { companyId, access, session } = await requireDashboardMutation(request)
