@@ -132,11 +132,7 @@ export function PlayerDisplay() {
 
       // Позиция считается от времени начала показа на сервере: переживает
       // перезагрузку страницы и неточные часы телевизора.
-      const position = positionForInstant(
-        manifest.items,
-        (manifest as { since?: string | null }).since ?? null,
-        new Date(),
-      )
+      const position = positionForInstant(manifest.items, manifest.since, new Date())
 
       if (position) {
         positionRef.current = position
@@ -349,23 +345,36 @@ export function PlayerDisplay() {
     setItem(manifest.items[decision.position.itemIndex] ?? null)
   }, [])
 
-  // Отправляем подтверждение применения: без него панель не увидит экран
-  // в числе «применили».
+  const appliedVersionRef = useRef<number | null>(null)
+
+  /**
+   * Подтверждение применения.
+   *
+   * Отправляется один раз на версию публикации: панель считает экран в числе
+   * «применили» именно по этому событию. Повторные подтверждения того же
+   * манифеста только засоряли бы журнал доставки.
+   */
   useEffect(() => {
     if (phase !== 'ready') return
 
-    const socket = socketRef.current
     const manifest = manifestRef.current
-    if (!socket || socket.readyState !== WebSocket.OPEN || !manifest) return
+    if (!manifest) return
+
+    if (appliedVersionRef.current === manifest.version) return
+
+    const socket = socketRef.current
+    if (!socket || socket.readyState !== WebSocket.OPEN) return
 
     socket.send(
       JSON.stringify({
         type: 'applied',
         releaseVersion: manifest.version,
-        manifestHash: String(manifest.version),
+        manifestHash: manifest.manifestHash,
       }),
     )
-  }, [phase, itemIndex === 0])
+
+    appliedVersionRef.current = manifest.version
+  }, [phase, itemIndex])
 
   if (phase !== 'ready' || !item) {
     return <PlayerStateScreen phase={phase} message={message} />

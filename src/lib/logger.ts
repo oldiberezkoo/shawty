@@ -7,6 +7,30 @@ function currentLevel(): number {
   return LEVELS[configured] ?? LEVELS.info
 }
 
+function isError(value: unknown): value is Error {
+  return value instanceof Error
+}
+
+/**
+ * Ошибки нужно сериализовать руками: JSON.stringify(Error) даёт `{}`,
+ * и в логе остаётся «сервер не запустился» без причины.
+ */
+function serializeError(error: Error): Record<string, unknown> {
+  const out: Record<string, unknown> = { name: error.name, message: error.message }
+  if (error.stack) out.stack = error.stack.split('\n').slice(0, 8).join('\n')
+  const cause = (error as Error & { cause?: unknown }).cause
+  if (cause) out.cause = isError(cause) ? serializeError(cause) : String(cause)
+  return out
+}
+
+function normalize(payload: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(payload)) {
+    out[key] = isError(value) ? serializeError(value) : value
+  }
+  return out
+}
+
 function emit(level: Level, payload: Record<string, unknown>, message: string): void {
   if (LEVELS[level] < currentLevel()) return
 
@@ -14,7 +38,7 @@ function emit(level: Level, payload: Record<string, unknown>, message: string): 
     level,
     time: new Date().toISOString(),
     message,
-    ...payload,
+    ...normalize(payload),
   })
 
   if (level === 'error' || level === 'warn') {

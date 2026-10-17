@@ -23,7 +23,15 @@ function item(overrides: Partial<PlayerItem> & { id: string }): PlayerItem {
 }
 
 function manifest(items: PlayerItem[]): PlayerManifest {
-  return { version: 1, screenId: 'scr_1', items, loop: true, nextChangeAt: null }
+  return {
+    version: 1,
+    screenId: 'scr_1',
+    manifestHash: 'hash-1',
+    items,
+    loop: true,
+    nextChangeAt: null,
+    since: '2026-10-17T10:00:00.000Z',
+  }
 }
 
 describe('нормализация манифеста', () => {

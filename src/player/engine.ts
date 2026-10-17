@@ -26,11 +26,18 @@ export type PlayerItem = {
 export type PlayerManifest = {
   version: number
   screenId: string
+  /** Хеш манифеста: плеер проверяет целостность, а сервер сверяет при подтверждении. */
+  manifestHash: string
   items: PlayerItem[]
   /** Цикл повторяется бесконечно. */
   loop: boolean
   /** Момент, когда по расписанию нужно забрать следующую публикацию. */
   nextChangeAt: string | null
+  /**
+   * Время начала показа. От него считается позиция после перезагрузки
+   * страницы: часы телевизора для этого ненадёжны.
+   */
+  since: string
 }
 
 export type PlaybackPosition = {
