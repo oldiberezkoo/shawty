@@ -321,6 +321,14 @@ export function confirmPairing(params: ConfirmPairingParams): ConfirmPairingResu
     // без записи, по которой считается доставка.
     tx.insert(screenPublications).values({ screenId, companyId: params.companyId }).run()
 
+    // Ссылка на экран записывается здесь, а не в условном UPDATE выше:
+    // идентификатор экрана известен только после вставки.
+    // Обмен учётных данных идёт по этой ссылке.
+    tx.update(pairingSessions)
+      .set({ screenId })
+      .where(and(eq(pairingSessions.id, params.sessionId), eq(pairingSessions.status, 'confirmed')))
+      .run()
+
     tx.insert(auditLog)
       .values({
         id: crypto.randomUUID(),

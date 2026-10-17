@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
+import { CSRF_COOKIE, SESSION_COOKIE } from '@/lib/cookie-names'
 
-export const SESSION_COOKIE = 'shawty_session'
-export const CSRF_COOKIE = 'shawty_csrf'
+export { CSRF_COOKIE, SESSION_COOKIE }
 
 const isProduction = process.env.NODE_ENV === 'production'
 

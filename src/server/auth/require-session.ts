@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { readSessionCookie } from '@/server/http/cookies'
+import { HttpError } from '@/server/http/errors'
 import { loadSessionContext, type SessionContext } from '@/server/services/auth-service'
 
 /**
@@ -31,12 +32,12 @@ export async function requireSessionForApi(): Promise<SessionContext> {
   const token = await readSessionCookie()
 
   if (!token) {
-    throw new Response(null, { status: 401 })
+    throw HttpError.unauthorized('Требуется вход')
   }
 
   const context = loadSessionContext(token)
   if (!context) {
-    throw new Response(null, { status: 401 })
+    throw HttpError.unauthorized('Сессия истекла или была отозвана')
   }
 
   return context
