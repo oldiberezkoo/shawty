@@ -192,13 +192,13 @@ async function main() {
     // 8. Защита используемого файла: кладём ассет в плейлист и рвёмся удалить
     const playlistId = 'pl_media_smoke'
     DB.prepare(
-      "INSERT INTO playlists (id, company_id, name, state) VALUES (?, ?, 'Медиа-смоук', 'draft') " +
-        'ON CONFLICT(id) DO NOTHING',
-    ).run(playlistId, COMPANY)
+      'INSERT INTO playlists (id, company_id, name, state, created_at, updated_at) ' +
+        "VALUES (?, ?, 'Медиа-смоук', 'draft', ?, ?) ON CONFLICT(id) DO NOTHING",
+    ).run(playlistId, COMPANY, Date.now(), Date.now())
     DB.prepare(
-      'INSERT INTO playlist_items (id, playlist_id, media_asset_id, position, play_policy, transition, audio) ' +
-        "VALUES (?, ?, ?, 0, 'loop_once', 'none', 'mute') ON CONFLICT(id) DO NOTHING",
-    ).run('pli_media_smoke', playlistId, image.data.assetId)
+      'INSERT INTO playlist_items (id, playlist_id, media_asset_id, position, play_policy, transition, audio, created_at) ' +
+        "VALUES (?, ?, ?, 0, 'loop_once', 'none', 'mute', ?) ON CONFLICT(id) DO NOTHING",
+    ).run('pli_media_smoke', playlistId, image.data.assetId, Date.now())
 
     const blocked = await json(
       `/api/dashboard/media/file?companyId=${COMPANY}&assetId=${image.data.assetId}`,

@@ -3,7 +3,6 @@ import { route, readJsonBody, jsonResponse } from '@/server/http/request'
 import { requireSessionForApi } from '@/server/auth/require-session'
 import { accessFor, assertCsrf } from '@/server/services/auth-service'
 import { confirmPairing } from '@/server/services/pairing-service'
-import { deviceHub } from '@/server/ws/hub'
 import { HttpError } from '@/server/http/errors'
 import { logger } from '@/lib/logger'
 
@@ -50,13 +49,13 @@ export const POST = route(async (request) => {
     throw HttpError.badRequest(result.reason, describeRejection(result.reason))
   }
 
-  // Уведомляем телевизор по каналу. Секретов в кадре нет и быть не должно:
-  // телевизор сам забирает учётные данные по HTTP, доказывая владение
-  // локальным nonce. Поэтому подтверждение работает и когда сокета нет.
-  const delivered = deviceHub.notifyPairingConfirmed(body.data.sessionId, result.screenId)
-
+  // Уведомление телевизору не отправляем: обработчик маршрута и канал
+  // устройства работают в разных изоляциях процесса и не разделяют память,
+  // поэтому такой вызов всегда возвращал бы false. Канал сам читает статус
+  // подтверждения из общей таблицы SQLite раз в секунду — это единственный
+  // надёжный мост между слоями. См. §3.2 плана.
   logger.info(
-    { sessionId: body.data.sessionId, screenId: result.screenId, delivered },
+    { sessionId: body.data.sessionId, screenId: result.screenId },
     'привязка подтверждена',
   )
 

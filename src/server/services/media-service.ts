@@ -179,6 +179,11 @@ export async function ingestUpload(params: {
   temporaryPath: string
   folderId?: string | null
 }): Promise<IngestResult> {
+  // Владение временным файлом передаётся задаче обработки: она переносит его
+  // в хранилище. Поэтому удаляем файл только если до постановки в очередь
+  // не дошли — иначе задача получит уже удалённый файл.
+  let handedOver = false
+
   try {
     const detected = detectFormat(await readHead(params.temporaryPath))
 
@@ -210,10 +215,15 @@ export async function ingestUpload(params: {
 
     assertStorageQuota(params.companyId, bytes)
 
-    const probe = detected.kind === 'video' ? await probeMedia(params.temporaryPath) : null
+    // Опрашиваем и изображения тоже: без этого размер остался бы неизвестным,
+    // лимит разрешения не проверялся бы, а в сетке медиатеки показывалось «—».
+    const probe = await probeMedia(params.temporaryPath)
 
     if (probe) {
-      const durationVerdict = validateDuration(probe.durationMs, mediaLimits())
+      const durationVerdict = validateDuration(
+        detected.kind === 'video' ? probe.durationMs : null,
+        mediaLimits(),
+      )
       if (!durationVerdict.ok) {
         throw HttpError.badRequest(durationVerdict.reason, durationVerdict.message)
       }
@@ -254,11 +264,17 @@ export async function ingestUpload(params: {
       .submit(assetId, () => processAsset({ assetId, temporaryPath: params.temporaryPath, detected, probe }))
       .catch((error: unknown) => {
         logger.error({ err: error, assetId }, 'обработка ассета не удалась')
+        // Задача не справилась: временный файл остался в data/tmp.
+        void unlink(params.temporaryPath).catch(() => {})
       })
+
+    handedOver = true
 
     return { assetId, deduplicated: false, state: 'processing' }
   } finally {
-    await unlink(params.temporaryPath).catch(() => {})
+    if (!handedOver) {
+      await unlink(params.temporaryPath).catch(() => {})
+    }
   }
 }
 
