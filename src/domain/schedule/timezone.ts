@@ -135,7 +135,40 @@ export function localMinuteOfDay(value: InstantLike, timezone: string): number {
  * меняется, и усреднённое значение сдвинуло бы границу окна на час.
  */
 export function offsetMinutesAt(value: InstantLike, timezone: string): number {
-  return toInstant(value).toZonedDateTimeISO(timezone).offset
+  // Смещение приходит строкой вида `+05:00`. Разбирать его вручную — точнее,
+  // чем Date: Date живёт в зоне процесса, и на сервере с `TZ=Europe/Moscow`
+  // он молча пересчитал бы всё в местное время оператора.
+  const offset = toInstant(value).toZonedDateTimeISO(timezone).offset
+  const match = /^([+-])(\d{2}):(\d{2})$/.exec(offset)
+
+  if (!match) return 0
+
+  const [, sign, hours, minutes] = match as unknown as [string, string, string, string]
+  const total = Number(hours) * 60 + Number(minutes)
+
+  return sign === '-' ? -total : total
+}
+
+/**
+ * Прибавление календарных суток в зоне.
+ *
+ * Именно календарных, а не 24 часов: в день перевода стрелки «сутки» — это
+ * 23 или 25 часов. `Temporal.Instant.add` такую арифметику специально
+ * запрещает — она зависит от зоны, — поэтому сначала переходим в локальное
+ * время, считаем там и возвращаемся обратно.
+ */
+export function addCalendarDays(value: InstantLike, days: number, timezone: string): Temporal.Instant {
+  return toInstant(value).toZonedDateTimeISO(timezone).add({ days }).toInstant()
+}
+
+/**
+ * Прибавление точного промежутка времени.
+ *
+ * Точного, а не календарного: час — это всегда 60 минут, независимо от того,
+ * переводили ли в этот день стрелки.
+ */
+export function addExactMinutes(value: InstantLike, minutes: number): Temporal.Instant {
+  return toInstant(value).add({ minutes })
 }
 
 /** Момент в формате, пригодном для отправки телевизору и для логов. */

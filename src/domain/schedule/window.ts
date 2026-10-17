@@ -12,6 +12,7 @@
 import { Temporal } from '@js-temporal/polyfill'
 
 import {
+  addCalendarDays,
   instantOfLocal,
   localDateParts,
   localDateString,
@@ -100,7 +101,7 @@ export function windowIntervals(
 
   // Локальная дата начала минус один день: сутки целиком, чтобы не пропустить
   // окно, начавшееся накануне.
-  let date = localMidnight(localDateString(start, timezone), timezone).subtract({ days: 1 })
+  let date = addCalendarDays(localMidnight(localDateString(start, timezone), timezone), -1, timezone)
   const lastDate = localMidnight(localDateString(end, timezone), timezone)
 
   while (Temporal.Instant.compare(date, lastDate) <= 0) {
@@ -123,7 +124,7 @@ export function windowIntervals(
 
       const segmentEnd = Temporal.Instant.compare(segmentEndCandidate, segmentStart) > 0
         ? segmentEndCandidate
-        : segmentEndCandidate.add({ days: 1 })
+        : addCalendarDays(segmentEndCandidate, 1, timezone)
 
       // Пересечение с запросом. Без него в таймлайн попадали бы интервалы
       // за пределами горизонта, и `nextChangeAt` уезжал бы в прошлое.
@@ -135,7 +136,7 @@ export function windowIntervals(
       }
     }
 
-    date = date.add({ days: 1 })
+    date = addCalendarDays(date, 1, timezone)
   }
 
   intervals.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0))
