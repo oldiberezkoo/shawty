@@ -1,17 +1,12 @@
 import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { Readable } from 'node:stream'
-import { route } from '@/server/http/request'
+import { route, jsonResponse } from '@/server/http/request'
 import { requireSessionForApi } from '@/server/auth/require-session'
 import { accessFor } from '@/server/services/auth-service'
 import { PERMISSIONS } from '@/domain/authz/permissions'
 import { HttpError } from '@/server/http/errors'
-import {
-  assetPaths,
-  deleteMedia,
-  findUsage,
-  getAsset,
-} from '@/server/services/media-service'
+import { assetPaths, deleteMedia, getAsset } from '@/server/services/media-service'
 
 /**
  * Отдача файла из медиатеки панели.
@@ -144,25 +139,18 @@ export const DELETE = route(async (request) => {
   const outcome = await deleteMedia(companyId, assetId, force)
 
   if (!outcome.ok) {
-    // 409: файл занят, и это не ошибка запроса, а конфликт состояния.
-    return new Response(
-      JSON.stringify({
-        error: {
-          code: 'media_in_use',
-          message: outcome.usage.published
-            ? 'Файл входит в плейлист, назначенный на экраны. Сначала снимите назначение.'
-            : `Файл используется в плейлистах: ${outcome.usage.playlists.map((p) => p.name).join(', ')}`,
-        },
-        usage: outcome.usage,
-      }),
-      { status: 409, headers: { 'content-type': 'application/json; charset=utf-8' } },
+    // 409: файл занят. Это конфликт состояния, а не ошибка запроса.
+    // Тело собирается через общий jsonResponse, чтобы формат ответа
+    // совпадал со всеми остальными маршрутами.
+    throw new HttpError(
+      409,
+      'media_in_use',
+      outcome.usage.published
+        ? 'Файл входит в плейлист, назначенный на экраны. Сначала снимите назначение.'
+        : `Файл используется в плейлистах: ${outcome.usage.playlists.map((playlist) => playlist.name).join(', ')}`,
+      { usage: outcome.usage },
     )
   }
 
-  const usage = findUsage(companyId, assetId)
-
-  return new Response(JSON.stringify({ ok: true, assetId, usage }), {
-    status: 200,
-    headers: { 'content-type': 'application/json; charset=utf-8' },
-  })
+  return jsonResponse({ ok: true, assetId })
 })

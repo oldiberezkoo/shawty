@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream'
-import { route, clientIp, jsonResponse } from '@/server/http/request'
+import { route, jsonResponse } from '@/server/http/request'
 import { requireSessionForApi } from '@/server/auth/require-session'
 import { accessFor, assertCsrf } from '@/server/services/auth-service'
 import { PERMISSIONS } from '@/domain/authz/permissions'
@@ -103,7 +103,6 @@ export const GET = route(async (request) => {
     folders: listFolders(companyId),
     usage: storageUsage(companyId),
     queue: queueStats(),
-    clientIp: clientIp(request),
   })
 })
 

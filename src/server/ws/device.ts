@@ -176,7 +176,6 @@ function handleWatchPairing(connection: DeviceConnection, sessionId: string, dev
 const pairingPolls = new WeakMap<DeviceConnection, NodeJS.Timeout>()
 
 function startPairingWatch(connection: DeviceConnection, sessionId: string): void {
-  pairingPolls.get(connection)?.unref?.()
   clearInterval(pairingPolls.get(connection))
 
   const poll = setInterval(() => {

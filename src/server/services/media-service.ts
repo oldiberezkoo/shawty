@@ -597,5 +597,3 @@ export function getAsset(companyId: string, assetId: string) {
 export function queueStats() {
   return getMediaQueue().stats()
 }
-
-export { fileSize }
