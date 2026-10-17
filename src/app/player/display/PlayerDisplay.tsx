@@ -8,7 +8,7 @@ import {
   type PlaybackPosition,
   type PlayerManifest,
 } from '@/player/engine'
-import { verifyManifest } from '@/domain/release/manifest'
+import { verifyManifest } from '@/domain/release/verify'
 import { logger } from '@/lib/logger'
 import { clearCredential, loadCredential } from '@/player/credential-store'
 import type { DeviceCredential } from '@/player/credential-store'
@@ -201,17 +201,20 @@ export function PlayerDisplay() {
         if (frame.type === 'assignment') {
           // Манифест пришёл по каналу: применяем его без обращения к серверу.
           const payload = frame as { type: 'assignment'; releaseVersion: number; manifest: unknown }
-          const verdict = verifyManifest(payload.manifest)
+          void (async () => {
+            const verdict = await verifyManifest(payload.manifest)
 
-          if (!verdict.ok) {
-            // Повреждённый манифест не применяем: лучше старый контент,
-            // чем случайный набор файлов на экране в магазине.
-            logger.warn({ reason: verdict.reason }, 'манифест отклонён проверкой целостности')
-            void loadState()
-            return
-          }
+            if (!verdict.ok) {
+              // Повреждённый манифест не применяем: лучше старый контент,
+              // чем случайный набор файлов на экране в магазине.
+              logger.warn({ reason: verdict.reason }, 'манифест отклонён проверкой целостности')
+              await loadState()
+              return
+            }
 
-          applyManifest(normalizeManifest(payload.manifest as PlayerManifest))
+            applyManifest(normalizeManifest(payload.manifest as PlayerManifest))
+          })()
+
           return
         }
 

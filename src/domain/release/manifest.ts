@@ -1,15 +1,15 @@
 /**
  * Сборка манифеста публикации.
  *
- * Манифест — это единственное, что видит телевизор. Он должен быть
- * самодостаточным: плеер не ходит в базу, не знает про компании, филиалы
- * и кампании. Всё, что нужно для показа, упаковано сюда.
+ * Манифест — единственное, что видит телевизор. Он самодостаточен: плеер не
+ * ходит в базу, не знает про компании, филиалы и кампании.
  *
- * Манифест иммутабелен. Новая публикация — это новая версия с новым хешем,
- * поэтому плеер может применять её и подтверждать применение, не опасаясь,
- * что содержимое изменится под ним.
+ * Модуль серверный: считает хеш через node:crypto. Проверка на устройстве
+ * живёт отдельно (release/verify.ts) и использует Web Crypto, поэтому в
+ * браузерный бандл node-модули не попадают.
  */
 import { sha256Hex } from '@/lib/crypto'
+import { canonicalManifestJson } from './canonical'
 import { effectiveDurationMs, type PlaylistItemInput } from '@/domain/playlist/rules'
 import type { PlayerItem, PlayerManifest } from '@/player/engine'
 
@@ -55,56 +55,13 @@ export function buildManifest(source: ManifestSource, now = new Date()): PlayerM
     since: now.toISOString(),
   }
 
-  // Хеш считаем по содержимому без самого поля хеша: иначе значение
-  // зависело бы от порядка вычисления и не было бы воспроизводимым.
-  manifest.manifestHash = hashManifest(manifest)
+  // Хеш считается по канонической строке без самого поля хеша: иначе
+  // значение зависело бы от порядка вычисления и не было бы воспроизводимым.
+  manifest.manifestHash = sha256Hex(canonicalManifestJson(manifest))
 
   return manifest
 }
 
 export function hashManifest(manifest: PlayerManifest): string {
-  const canonical = {
-    version: manifest.version,
-    screenId: manifest.screenId,
-    items: manifest.items.map((item) => ({
-      id: item.id,
-      url: item.url,
-      durationMs: item.durationMs,
-      kind: item.kind,
-      mime: item.mime,
-    })),
-  }
-
-  // Порядок ключей фиксирован: JSON.stringify зависит от порядка вставки,
-  // а манифесты должны давать одинаковый хеш в разных процессах.
-  return sha256Hex(JSON.stringify(canonical))
-}
-
-export type ManifestIntegrity = { ok: true } | { ok: false; reason: 'hash_mismatch' | 'malformed' }
-
-/**
- * Проверка целостности на устройстве.
- *
- * Телевизор применяет только тот манифест, который совпал с хешем:
- * повреждённый ответ сети или подмена на стороне прокси не должны приводить
- * к показу случайного набора файлов.
- */
-export function verifyManifest(manifest: unknown): ManifestIntegrity {
-  if (typeof manifest !== 'object' || manifest === null) {
-    return { ok: false, reason: 'malformed' }
-  }
-
-  const candidate = manifest as Partial<PlayerManifest>
-  if (!Array.isArray(candidate.items) || typeof candidate.version !== 'number') {
-    return { ok: false, reason: 'malformed' }
-  }
-
-  const expected = candidate.manifestHash
-  if (typeof expected !== 'string' || expected.length === 0) {
-    return { ok: false, reason: 'malformed' }
-  }
-
-  return hashManifest(candidate as PlayerManifest) === expected
-    ? { ok: true }
-    : { ok: false, reason: 'hash_mismatch' }
+  return sha256Hex(canonicalManifestJson(manifest))
 }

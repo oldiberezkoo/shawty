@@ -57,9 +57,13 @@ async function main(): Promise<void> {
 
   const app = next({ dev, hostname: '0.0.0.0', port })
   const handle = app.getRequestHandler()
-  const handleUpgrade = app.getUpgradeHandler()
 
+  // Порядок обязателен: обработчик апгрейдов можно получить только после
+  // prepare(). В Next 16 это проверяется и падает с «prepare() must be called
+  // before performing this operation».
   await app.prepare()
+
+  const handleUpgrade = app.getUpgradeHandler()
 
   const server = createServer((req, res) => {
     // Next начинает отправку ответа внутри handle, поэтому свои заголовки

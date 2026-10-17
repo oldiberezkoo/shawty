@@ -83,6 +83,53 @@ function openDeviceSocket() {
   })
 }
 
+/** Загружает картинку и дожидается готовности ассета. */
+async function uploadFixture() {
+  const { execFileSync } = require('node:child_process')
+  const { mkdtempSync, rmSync } = require('node:fs')
+  const { tmpdir } = require('node:os')
+  const { join } = require('node:path')
+
+  const dir = mkdtempSync(join(tmpdir(), 'shawty-release-'))
+  const image = join(dir, 'poster.png')
+
+  execFileSync('ffmpeg', [
+    '-y', '-hide_banner', '-loglevel', 'error',
+    '-f', 'lavfi', '-i', 'color=c=0x0f766e:size=1280x720:duration=1',
+    '-frames:v', '1', image,
+  ])
+
+  const { readFile } = require('node:fs/promises')
+  const buffer = await readFile(image)
+  const form = new FormData()
+  form.set('file', new Blob([buffer], { type: 'image/png' }), 'poster.png')
+
+  const upload = await req('/api/dashboard/media', {
+    method: 'POST',
+    headers: { 'x-company-id': COMPANY, 'x-csrf-token': csrf },
+    body: form,
+  })
+
+  if (!upload.data?.assetId) {
+    throw new Error(`файл не загружен: ${upload.text.slice(0, 200)}`)
+  }
+
+  const assetId = upload.data.assetId
+
+  const deadline = Date.now() + 60_000
+  while (Date.now() < deadline) {
+    const row = DB.prepare('SELECT state FROM media_assets WHERE id = ?').get(assetId)
+    if (row && row.state === 'ready') {
+      rmSync(dir, { recursive: true, force: true })
+      return { id: assetId }
+    }
+    if (row && row.state === 'failed') throw new Error('файл не обработался')
+    await new Promise((r) => setTimeout(r, 500))
+  }
+
+  throw new Error('файл не обработался за отведённое время')
+}
+
 async function main() {
   const createdPlaylists = []
 
@@ -95,15 +142,9 @@ async function main() {
     if (login.status !== 200) throw new Error(`вход не удался: ${login.status}`)
     console.log('✓ вход выполнен')
 
-    // 1. Готовим медиа: нужен хотя бы один обработанный файл.
-    const asset = DB
-      .prepare("SELECT id FROM media_assets WHERE state = 'ready' AND kind != 'template' LIMIT 1")
-      .get()
-
-    if (!asset) {
-      throw new Error('нет готовых файлов: сначала выполните pnpm smoke:media')
-    }
-    console.log('✓ взят готовый файл', asset.id.slice(0, 8) + '…')
+    // 1. Своя медиа-фикстура: скрипт не зависит от leftovers другого прогона.
+    const asset = await uploadFixture()
+    console.log('✓ загружен файл', asset.id.slice(0, 8) + '…')
 
     // 2. Плейлист: создать, наполнить, зафиксировать версию.
     const created = await api('/api/dashboard/playlists', 'POST', { name: 'Смоук релиз' })
@@ -211,6 +252,7 @@ async function main() {
       DB.prepare('DELETE FROM playlists WHERE id = ?').run(id)
     }
     DB.prepare("DELETE FROM screens WHERE name LIKE 'Релиз-смоук-%'").run()
+    DB.prepare("DELETE FROM media_assets WHERE created_by_user_id IS NOT NULL AND state != 'archived' AND id NOT IN (SELECT media_asset_id FROM playlist_items)").run()
     DB.prepare('DELETE FROM rate_limit_buckets').run()
   }
 }
@@ -244,18 +286,17 @@ function createDeviceForSmoke() {
   const screenId = 'scr_smoke_' + randomBytes(8).toString('hex')
 
   DB.prepare(
-    "INSERT INTO screens (id, company_id, branch_id, name, status, paired_at, heartbeat_interval_sec, offline_after_sec) " +
-      "VALUES (?, ?, 'brn_tashkent', 'Релиз-смоук', 'paired', ?, 30, 90)",
-  ).run(screenId, COMPANY, Date.now())
+    "INSERT INTO screens (id, company_id, branch_id, name, status, paired_at, created_at, updated_at, heartbeat_interval_sec, offline_after_sec) " +
+      "VALUES (?, ?, 'brn_tashkent', 'Релиз-смоук', 'paired', ?, ?, ?, 30, 90)",
+  ).run(screenId, COMPANY, Date.now(), Date.now(), Date.now())
 
   DB.prepare(
     'INSERT INTO device_credentials (id, screen_id, device_id, secret_hash, version, issued_at) VALUES (?, ?, ?, ?, 1, ?)',
   ).run(randomBytes(16).toString('hex'), screenId, deviceId, hashSecret(deviceSecret), Date.now())
 
-  DB.prepare('INSERT INTO screen_publications (screen_id, company_id) VALUES (?, ?) ON CONFLICT DO NOTHING').run(
-    screenId,
-    COMPANY,
-  )
+  DB.prepare(
+    'INSERT INTO screen_publications (screen_id, company_id, updated_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING',
+  ).run(screenId, COMPANY, Date.now())
 
   return { screenId, deviceId, deviceSecret }
 }
