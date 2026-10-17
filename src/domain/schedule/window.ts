@@ -25,9 +25,17 @@ import {
 export type ScheduleWindowInput = {
   /** Битовая маска: бит 0 — понедельник … бит 6 — воскресенье. 127 — ежедневно. */
   daysOfWeek: number
-  /** Минуты от полуночи включительно. */
+  /** Минуты от полуночи включительно, 0…1439. */
   startMinute: number
-  /** Минуты от полуночи невключительно; `end < start` означает окно через полночь. */
+  /**
+   * Минуты от полуночи **не**включительно, 0…1440.
+   *
+   * Значение 1440 — полночь следующих суток, а значит «показывать целые
+   * сутки». Именно поэтому граница не включительная: «до 18:00» должно
+   * означать «до 18:00», а не «до 17:59».
+   *
+   * `endMinute <= startMinute` означает окно через полночь.
+   */
   endMinute: number
 }
 
@@ -44,7 +52,7 @@ export function isValidWindow(window: ScheduleWindowInput): boolean {
   if (!Number.isInteger(window.daysOfWeek) || window.daysOfWeek < 1 || window.daysOfWeek > 127) return false
   if (!Number.isInteger(window.startMinute) || !Number.isInteger(window.endMinute)) return false
   if (window.startMinute < 0 || window.startMinute >= MINUTES_IN_DAY) return false
-  if (window.endMinute < 0 || window.endMinute >= MINUTES_IN_DAY) return false
+  if (window.endMinute < 0 || window.endMinute > MINUTES_IN_DAY) return false
 
   // Нулевая длина означала бы «никогда», но выглядела бы как ошибка ввода.
   // Отличать её от «показывать круглосуточно» — работа автора расписания,
@@ -52,28 +60,35 @@ export function isValidWindow(window: ScheduleWindowInput): boolean {
   return window.startMinute !== window.endMinute
 }
 
+/** Окно переходит через полночь. */
+export function crossesMidnight(window: ScheduleWindowInput): boolean {
+  return window.endMinute <= window.startMinute
+}
+
 /** Показывается ли этот день недели по маске. */
 export function matchesDay(daysOfWeek: number, weekday: number): boolean {
   return (daysOfWeek & (1 << (weekday - 1))) !== 0
 }
 
-/** Показывается ли этот момент. Границы включены с начала и исключены с конца. */
+/** Показывается ли этот момент. Начало включено, конец исключён. */
 export function isWithinWindow(window: ScheduleWindowInput, at: InstantLike, timezone: string): boolean {
-  if (!matchesDay(window.daysOfWeek, localDateParts(at, timezone).weekday)) return false
-
   const zoned = toInstant(at).toZonedDateTimeISO(timezone)
   const minute = zoned.hour * 60 + zoned.minute
 
-  if (window.startMinute < window.endMinute) {
-    return minute >= window.startMinute && minute < window.endMinute
+  if (!crossesMidnight(window)) {
+    return matchesDay(window.daysOfWeek, zoned.dayOfWeek) && minute >= window.startMinute && minute < window.endMinute
   }
 
-  // Окно через полночь: 22:00–06:00 в 01:00 попадает в *вчерашнее* окно,
-  // поэтому день недели берётся не от текущего момента, а от предыдущего.
-  if (minute >= window.startMinute) return true
+  // Окно через полночь: 22:00–06:00. Утренняя половина относится к *вчерашнему*
+  // окну, поэтому день недели берётся не от текущего момента, а от предыдущего.
+  if (minute >= window.startMinute) return matchesDay(window.daysOfWeek, zoned.dayOfWeek)
 
-  const previousDay = zoned.subtract({ days: 1 })
-  return matchesDay(window.daysOfWeek, previousDay.dayOfWeek)
+  // После полуночи и до конца окна: проверяем вчерашний день.
+  // Проверка `minute < endMinute` обязательна: без неё окно «22:00–06:00»
+  // считалось бы открытым весь вторник с 06:00 до 22:00.
+  if (minute >= window.endMinute) return false
+
+  return matchesDay(window.daysOfWeek, zoned.subtract({ days: 1 }).dayOfWeek)
 }
 
 /**
@@ -112,19 +127,26 @@ export function windowIntervals(
 
       // Начало всегда в текущие сутки: день недели проверялся именно для них,
       // и для окна через полночь это день *начала*, а не день конца.
+      const dayStart = localMidnight(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`, timezone)
+
       const segmentStart = instantOfLocal(
         { year, month, day, hour: Math.floor(startMinute / 60), minute: startMinute % 60 },
         timezone,
       )
 
-      const segmentEndCandidate = instantOfLocal(
-        { year, month, day, hour: Math.floor(endMinute / 60), minute: endMinute % 60 },
-        timezone,
-      )
+      // 1440 — это полночь следующих суток, а не 24:00 того же дня:
+      // такого часа в календаре нет, и Temporal его справедливо не примет.
+      const segmentEndCandidate =
+        endMinute === MINUTES_IN_DAY
+          ? addCalendarDays(dayStart, 1, timezone)
+          : instantOfLocal(
+              { year, month, day, hour: Math.floor(endMinute / 60), minute: endMinute % 60 },
+              timezone,
+            )
 
-      const segmentEnd = Temporal.Instant.compare(segmentEndCandidate, segmentStart) > 0
-        ? segmentEndCandidate
-        : addCalendarDays(segmentEndCandidate, 1, timezone)
+      const segmentEnd = crossesMidnight(window)
+        ? addCalendarDays(segmentEndCandidate, 1, timezone)
+        : segmentEndCandidate
 
       // Пересечение с запросом. Без него в таймлайн попадали бы интервалы
       // за пределами горизонта, и `nextChangeAt` уезжал бы в прошлое.
