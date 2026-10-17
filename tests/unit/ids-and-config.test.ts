@@ -1,17 +1,27 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { bitsPerCodeChar, formatCode, normalizeCode, randomCode, randomDeviceId, randomDeviceSecret, randomSessionId } from '@/lib/ids'
-import { CODE_ALPHABET } from '@/lib/ids'
+import { CODE_ALPHABET, ID_LENGTH, bitsPerCodeChar, formatCode, normalizeCode, randomCode, randomDeviceId, randomDeviceSecret, randomSessionId } from '@/lib/ids'
 
 describe('генерация идентификаторов', () => {
   it('идентификатор сессии даёт не менее 128 бит энтропии', () => {
-    expect(randomSessionId()).toHaveLength(26)
-    expect(26 * bitsPerCodeChar()).toBeGreaterThanOrEqual(128)
+    const id = randomSessionId()
+    expect(id).toHaveLength(ID_LENGTH)
+    expect(ID_LENGTH * bitsPerCodeChar()).toBeGreaterThanOrEqual(128)
   })
 
   it('идентификатор устройства отличается от идентификатора сессии по форме', () => {
     const id = randomDeviceId()
     expect(id.startsWith('scr_')).toBe(true)
-    expect(id.slice(4)).toHaveLength(26)
+    expect(id.slice(4)).toHaveLength(ID_LENGTH)
+  })
+
+  it('каждый символ идентификатора принадлежит алфавиту', () => {
+    // Регрессия: побитовая упаковка по 5 бит при алфавите из 31 символа
+    // выдавала индекс 31 и подставляла строку "undefined" вместо символа.
+    for (let i = 0; i < 200; i += 1) {
+      for (const char of randomSessionId()) {
+        expect(CODE_ALPHABET).toContain(char)
+      }
+    }
   })
 
   it('код подтверждения даёт не менее 39 бит энтропии', () => {

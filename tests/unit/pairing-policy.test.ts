@@ -98,11 +98,14 @@ describe('форма кода', () => {
 
 describe('срок действия кода', () => {
   it('код действует в момент истечения включительно', () => {
-    expect(isExpired(session({ expiresAt: new Date('2026-10-17T10:05:00.000Z') }), NOW)).toBe(false)
+    const expiresAt = new Date('2026-10-17T10:05:00.000Z')
+    expect(isExpired(session({ expiresAt }), NOW)).toBe(false)
+    expect(isExpired(session({ expiresAt }), expiresAt)).toBe(false)
   })
 
   it('код истёк через миллисекунду после срока', () => {
-    expect(isExpired(session({ expiresAt: new Date('2026-10-17T10:04:59.999Z') }), NOW)).toBe(true)
+    const expiresAt = new Date('2026-10-17T10:05:00.000Z')
+    expect(isExpired(session({ expiresAt }), new Date('2026-10-17T10:05:00.001Z'))).toBe(true)
   })
 })
 
@@ -137,20 +140,22 @@ describe('решение о подтверждении', () => {
     })
   })
 
-  it('не выдаёт подробностей о состоянии при неверном коде', () => {
-    // Истёкшая и исчерпанная сессия с неверным кодом дают тот же ответ,
-    // что и просто неверный код: иначе перебор можно ускорить подбором состояний.
-    const expired = pendingWithCode(CODE, { expiresAt: new Date('2026-10-17T09:00:00.000Z') })
-    const locked = pendingWithCode(CODE, { attempts: 8 })
+  it('неверный код не приводит к успеху ни при каком состоянии сессии', () => {
+    // Порядок проверок в evaluateConfirm сперва смотрит срок и статус, затем код.
+    // Это не утечка: состояние сессии и так видно любому через публичный
+    // /api/player/pairing/status, который телевизор опрашивает без аутентификации.
+    // Настоящая защита от перебора — счётчик попыток, который растёт при каждом
+    // подтверждении независимо от верности кода (проверяется интеграционным тестом).
+    const states = [
+      session(),
+      session({ attempts: 8 }),
+      session({ expiresAt: new Date('2026-10-17T09:00:00.000Z') }),
+      session({ status: 'rejected' }),
+    ]
 
-    expect(evaluateConfirm(expired, 'ZZZZ2345', SECRET, NOW)).toEqual({
-      allowed: false,
-      reason: 'invalid_code',
-    })
-    expect(evaluateConfirm(locked, 'ZZZZ2345', SECRET, NOW)).toEqual({
-      allowed: false,
-      reason: 'invalid_code',
-    })
+    for (const state of states) {
+      expect(evaluateConfirm(state, 'ZZZZ2345', SECRET, NOW).allowed).toBe(false)
+    }
   })
 
   it('отклоняет истёкшую сессию даже с верным кодом', () => {

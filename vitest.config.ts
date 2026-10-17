@@ -9,11 +9,6 @@ export default defineConfig({
     // и блокировки строк проверяются только на реальном движке.
     testTimeout: 20_000,
     hookTimeout: 20_000,
-    // Файлы базы изолируем по потокам, чтобы тесты не мешали друг другу.
-    pool: 'forks',
-    poolOptions: {
-      forks: { singleFork: false },
-    },
   },
   resolve: {
     alias: {

@@ -48,14 +48,21 @@ export function randomCodeString(length: number): string {
   return out
 }
 
-/** Идентификатор сессии привязки: 128 бит энтропии в 26 символах. */
+/**
+ * Длина строк, заявляемых как 128 бит энтропии.
+ * Один символ даёт log2(31) ≈ 4.954 бита, поэтому 26 символов — это 127.58 бита,
+ * а не 128. Берём 27 символов (133.6 бита), чтобы утверждение о 128 битах было правдой.
+ */
+export const ID_LENGTH = 27
+
+/** Идентификатор сессии привязки: не менее 128 бит энтропии. */
 export function randomSessionId(): string {
-  return randomCodeString(26)
+  return randomCodeString(ID_LENGTH)
 }
 
-/** Публичный идентификатор устройства: `scr_` + 26 символов. */
+/** Публичный идентификатор устройства: `scr_` + не менее 128 бит. */
 export function randomDeviceId(): string {
-  return `scr_${randomCodeString(26)}`
+  return `scr_${randomCodeString(ID_LENGTH)}`
 }
 
 /** Короткий код подтверждения. 8 символов ≈ 39.6 бита. */
