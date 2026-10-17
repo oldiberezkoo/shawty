@@ -70,6 +70,29 @@ export const serverConfig = {
     initialExchangeTtlMs: intFromEnv('DEVICE_INITIAL_EXCHANGE_TTL_MS', 365 * 24 * 60 * 60_000),
   },
 
+  media: {
+    /**
+     * Пределы файла. Значения по умолчанию; компания сможет их сузить
+     * в настройках (P7), но не расширить выше системного максимума —
+     * иначе один файл уронит сеть телевизоров.
+     */
+    maxBytes: intFromEnv('MEDIA_MAX_BYTES', 512 * 1024 * 1024),
+    maxWidth: intFromEnv('MEDIA_MAX_WIDTH', 3840),
+    maxHeight: intFromEnv('MEDIA_MAX_HEIGHT', 2160),
+    /** Максимальная длительность ролика: 10 минут. */
+    maxDurationMs: intFromEnv('MEDIA_MAX_DURATION_MS', 10 * 60_000),
+    /** Короче этого видео почти наверняка ошибка. */
+    minDurationMs: intFromEnv('MEDIA_MIN_DURATION_MS', 1000),
+    /** Показ изображения по умолчанию. */
+    defaultImageDurationMs: intFromEnv('MEDIA_DEFAULT_IMAGE_MS', 8000),
+    /** Параллельных задач обработки: ffmpeg тяжёлый, процесс один. */
+    transcodeConcurrency: intFromEnv('MEDIA_TRANSCODE_CONCURRENCY', 2),
+    /** Доля, с которой считаем файл слишком тяжёлым для ТВ. */
+    transcodeMaxBitrateBps: intFromEnv('MEDIA_TRANSCODE_MAX_BITRATE', 8_000_000),
+    /** За сколько до конца ролика берём кадр для превью. */
+    posterAtFraction: Number.parseFloat(process.env.MEDIA_POSTER_FRACTION ?? '0.1'),
+  },
+
   player: {
     heartbeatSec: intFromEnv('PLAYER_HEARTBEAT_SEC', 30),
     /** Порог «нет связи». Ниже 60 секунд ловим мигание сети в торговом центре. */

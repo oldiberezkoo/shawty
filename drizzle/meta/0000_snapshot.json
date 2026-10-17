@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a4b1bf6c-94aa-411a-955d-2ea81b2c90b1",
+  "id": "a295e104-2e64-450f-8fc6-2313293e4960",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "api_tokens": {
@@ -1267,15 +1267,29 @@
           "notNull": false,
           "autoincrement": false
         },
-        "poster_asset_id": {
-          "name": "poster_asset_id",
+        "poster_sha256": {
+          "name": "poster_sha256",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "poster_bytes": {
+          "name": "poster_bytes",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "probe_json": {
           "name": "probe_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "playback_sha256": {
+          "name": "playback_sha256",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

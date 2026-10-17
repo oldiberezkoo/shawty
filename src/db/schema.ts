@@ -357,9 +357,21 @@ export const mediaAssets = sqliteTable(
     width: integer('width'),
     height: integer('height'),
     durationMs: integer('duration_ms'),
-    posterAssetId: text('poster_asset_id'),
+    /**
+     * Превью хранится как производный артефакт рядом с ассетом, а не
+     * отдельной записью: иначе в медиатеке появлялись бы фантомные картинки,
+     * которые пользователь никогда не загружал.
+     */
+    posterSha256: text('poster_sha256'),
+    posterBytes: integer('poster_bytes'),
     /** Результат ffprobe: кодеки, fps, битрейт, аудиодорожки. */
     probeJson: text('probe_json'),
+    /**
+     * Хеш проигрываемого файла. Отличается от `sha256` только после
+     * транскодирования: оригинал хранится для повторной обработки,
+     * а телевизорам отдаётся приведённый к профилю MP4.
+     */
+    playbackSha256: text('playback_sha256'),
     transcoded: integer('transcoded', { mode: 'boolean' }).notNull().default(false),
     error: text('error'),
     folderId: text('folder_id').references(() => mediaFolders.id, { onDelete: 'set null' }),
