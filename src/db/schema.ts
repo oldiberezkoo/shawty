@@ -295,10 +295,13 @@ export const pairingSessions = sqliteTable(
      * не существует, поэтому хранить его не нужно даже временно.
      */
     provisionalDeviceId: text('provisional_device_id'),
-    /** Одноразовый токен выдачи учётных данных, 60 секунд. */
-    enrollmentTokenHash: text('enrollment_token_hash'),
-    enrollmentExpiresAt: integer('enrollment_expires_at', { mode: 'timestamp_ms' }),
-    enrollmentUsedAt: integer('enrollment_used_at', { mode: 'timestamp_ms' }),
+    /**
+     * Момент выдачи постоянных учётных данных.
+     *
+     * Одноразовость обмена держится на этом поле. Сам секрет устройства
+     * создаётся в момент обмена и нигде не хранится, кроме HMAC.
+     */
+    credentialsIssuedAt: integer('credentials_issued_at', { mode: 'timestamp_ms' }),
     rejectReason: text('reject_reason'),
     createdIp: text('created_ip'),
     lastAttemptAt: integer('last_attempt_at', { mode: 'timestamp_ms' }),

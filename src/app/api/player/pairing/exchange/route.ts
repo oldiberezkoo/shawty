@@ -5,8 +5,12 @@ import { HttpError } from '@/server/http/errors'
 
 const exchangeSchema = z.object({
   sessionId: z.string().min(16).max(64),
+  /**
+   * Локальный nonce телевизора — доказательство, что сессию открыл именно он.
+   * Идентификатора сессии из QR недостаточно: его видит любой, кто посмотрел
+   * на экран во время подтверждения.
+   */
   deviceNonce: z.string().min(32).max(256),
-  enrollmentToken: z.string().min(16).max(256),
 })
 
 /**

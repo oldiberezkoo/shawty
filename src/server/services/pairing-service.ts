@@ -1,4 +1,4 @@
-import { and, count, eq, gte, gt, lt, ne, or, sql } from 'drizzle-orm'
+import { and, count, eq, gte, gt, isNull, lt, ne, or, sql } from 'drizzle-orm'
 import { db, withImmediateTransaction, type Transaction } from '@/db/client'
 import {
   auditLog,
@@ -11,12 +11,11 @@ import {
   screens,
   subscriptions,
 } from '@/db/schema'
-import { hashSecret, hmacHex, safeEqual } from '@/lib/crypto'
+import { hashSecret, safeEqual } from '@/lib/crypto'
 import {
   randomCode,
   randomDeviceId,
   randomDeviceSecret,
-  randomEnrollmentToken,
   randomSessionId,
 } from '@/lib/ids'
 import { loadOrCreateSecret } from '@/lib/secret-store'
@@ -140,9 +139,6 @@ export type ConfirmPairingResult =
       ok: true
       screenId: string
       deviceId: string
-      /** Одноразовый и короткоживущий: по нему ТВ забирает постоянные учётные данные. */
-      enrollmentToken: string
-      enrollmentExpiresAt: Date
     }
   | { ok: false; reason: ConfirmRejection }
 
@@ -208,8 +204,6 @@ export function confirmPairing(params: ConfirmPairingParams): ConfirmPairingResu
 
   const now = new Date()
   const secret = loadOrCreateSecret()
-  const enrollmentToken = randomEnrollmentToken()
-  const enrollmentExpiresAt = new Date(now.getTime() + serverConfig.pairing.enrollmentTtlMs)
   const deviceId = randomDeviceId()
 
   return withImmediateTransaction((tx) => {
@@ -291,8 +285,6 @@ export function confirmPairing(params: ConfirmPairingParams): ConfirmPairingResu
         companyId: params.companyId,
         branchId: branch.id,
         provisionalDeviceId: deviceId,
-        enrollmentTokenHash: hmacHex(secret, `enrollment:${params.sessionId}:${enrollmentToken}`),
-        enrollmentExpiresAt,
       })
       .where(and(eq(pairingSessions.id, params.sessionId), eq(pairingSessions.status, 'pending')))
       .run()
@@ -342,7 +334,7 @@ export function confirmPairing(params: ConfirmPairingParams): ConfirmPairingResu
       })
       .run()
 
-    return { ok: true, screenId, deviceId, enrollmentToken, enrollmentExpiresAt }
+    return { ok: true, screenId, deviceId }
   })
 }
 
@@ -356,19 +348,22 @@ export type ExchangeResult = {
 /**
  * Шаг 4. Телевизор забирает собственные постоянные учётные данные.
  *
- * Нужны все три вещи: идентификатор сессии, локальный nonce (доказательство,
- * что сессию открыл именно этот телевизор) и одноразовый токен выдачи.
- * Одного идентификатора сессии из QR недостаточно: иначе тот, кто увидел QR
- * на экране, смог бы перехватить устройство.
+ * Доказательство — владение локальным nonce, который телевизор сгенерировал
+ * у себя, никогда не показывал и не передавал открыто. Одного идентификатора
+ * сессии из QR недостаточно: тот, кто посмотрел на экран, его знает.
  *
  * Секрет устройства создаётся здесь, а не при подтверждении. До этого момента
- * он просто не существует, поэтому его не нужно хранить даже временно —
+ * он просто не существует, поэтому хранить его не нужно даже временно —
  * в базе остаётся только HMAC.
+ *
+ * Отдельный одноразовый токен выдачи сознательно не используется: канал
+ * уведомлений и HTTP работают в разных изоляциях процесса, и передавать
+ * секрет по сокету означало бы завязать выдачу на разделение памяти. Доказательство
+ * по nonce работает в обоих путях, и по сокету не передаётся ничего секретного.
  */
 export function exchangeEnrollment(params: {
   sessionId: string
   deviceNonce: string
-  enrollmentToken: string
 }): ExchangeResult {
   enforceRateLimit(
     keyOf('pairing:exchange', params.sessionId),
@@ -376,7 +371,6 @@ export function exchangeEnrollment(params: {
     'Слишком много попыток обмена. Повторите позже.',
   )
 
-  const secret = loadOrCreateSecret()
   const now = new Date()
 
   return withImmediateTransaction((tx) => {
@@ -387,26 +381,21 @@ export function exchangeEnrollment(params: {
     }
 
     const nonceOk = safeEqual(hashSecret(`${row.id}:${params.deviceNonce}`), row.deviceNonceHash)
-    const tokenOk = row.enrollmentTokenHash
-      ? safeEqual(
-          hmacHex(secret, `enrollment:${row.id}:${params.enrollmentToken}`),
-          row.enrollmentTokenHash,
-        )
-      : false
-    const tokenFresh =
-      row.enrollmentUsedAt === null &&
-      row.enrollmentExpiresAt !== null &&
-      row.enrollmentExpiresAt.getTime() > now.getTime()
-
-    if (!nonceOk || !tokenOk || !tokenFresh) {
+    if (!nonceOk) {
       throw HttpError.unauthorized('Недействительные данные привязки')
     }
 
-    // Одноразовость: второй обмен с тем же токеном уже не пройдёт.
+    // Одноразовость: второй обмен с тем же nonce уже не пройдёт.
     const consumed = tx
       .update(pairingSessions)
-      .set({ enrollmentUsedAt: now })
-      .where(and(eq(pairingSessions.id, params.sessionId), eq(pairingSessions.status, 'confirmed')))
+      .set({ credentialsIssuedAt: now })
+      .where(
+        and(
+          eq(pairingSessions.id, params.sessionId),
+          eq(pairingSessions.status, 'confirmed'),
+          isNull(pairingSessions.credentialsIssuedAt),
+        ),
+      )
       .run()
 
     if (consumed.changes !== 1) {

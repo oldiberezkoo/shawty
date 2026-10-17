@@ -19,11 +19,39 @@ const WS_URL = BASE.replace(/^http/, 'ws') + '/ws/device'
 let cookies = ''
 let csrf = ''
 
+/**
+ * Удаляет следы предыдущих прогонов.
+ * Порядок соблюдает внешние ключи: сначала зависимые строки, потом экраны.
+ */
+function cleanupScreens(dbx) {
+  const ids = dbx
+    .prepare("SELECT id FROM screens WHERE name LIKE 'Смоук-%'")
+    .all()
+    .map((row) => row.id)
+
+  if (ids.length === 0) return
+
+  for (const table of [
+    'delivery_receipts',
+    'screen_publications',
+    'device_credentials',
+    'release_targets',
+    'device_incidents',
+    'player_errors',
+    'playback_events',
+    'pairing_sessions',
+  ]) {
+    dbx.prepare(`DELETE FROM ${table} WHERE screen_id IN (${ids.map(() => '?').join(',')})`).run(...ids)
+  }
+
+  dbx.prepare(`DELETE FROM screens WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids)
+}
+
 function resetTestState() {
   // Чистим счётчики ограничения частоты и прошлые прогоны, иначе
   // второй запуск упирается в лимит из предыдущего.
   db.prepare('DELETE FROM rate_limit_buckets').run()
-  db.prepare("DELETE FROM screens WHERE name LIKE 'Смоук-%'").run()
+  cleanupScreens(db)
   db.prepare("DELETE FROM pairing_sessions WHERE status = 'pending'").run()
 }
 
@@ -144,8 +172,11 @@ async function main() {
   console.log('→ верный код:', good.status, good.json?.ok ? 'подтверждено' : good.json?.error)
   if (!good.json?.ok) throw new Error('подтверждение не прошло')
 
-  const enrollment = await confirmPromise
-  console.log('✓ телевизор получил токен выдачи по каналу')
+  const confirmed = await confirmPromise.catch((err) => {
+    console.log('  кадры, полученные по каналу:', device.frames.map((f) => f.type).join(', ') || 'нет')
+    throw err
+  })
+  console.log('✓ телевизор узнал о подтверждении по каналу, секретов в кадре нет:', JSON.stringify(confirmed))
 
   // 5. Повторное подтверждение той же сессии
   const again = await post(
@@ -161,11 +192,10 @@ async function main() {
   )
   console.log('→ повторное подтверждение:', again.status, again.json?.error?.code)
 
-  // 6. Обмен на постоянные учётные данные
+  // 6. Обмен на постоянные учётные данные: по nonce, без токена через канал
   const exchange = await post('/api/player/pairing/exchange', {
     sessionId: session.sessionId,
     deviceNonce: NONCE,
-    enrollmentToken: enrollment.enrollmentToken,
   })
   console.log('→ обмен:', exchange.status, exchange.json?.ok !== false ? `устройство ${exchange.json?.deviceId}` : exchange.json?.error)
   if (!exchange.json?.deviceId) throw new Error('обмен не вернул учётные данные')
@@ -174,7 +204,6 @@ async function main() {
   const reuse = await post('/api/player/pairing/exchange', {
     sessionId: session.sessionId,
     deviceNonce: NONCE,
-    enrollmentToken: enrollment.enrollmentToken,
   })
   console.log('→ повторный обмен:', reuse.status, reuse.json?.error?.code)
 
@@ -189,8 +218,7 @@ async function main() {
   }, { 'x-csrf-token': csrf })
   const bad2Exchange = await post('/api/player/pairing/exchange', {
     sessionId: start2.json.sessionId,
-    deviceNonce: 'WRONG'.repeat(10).slice(0, 43),
-    enrollmentToken: 'x'.repeat(43),
+    deviceNonce: NONCE,
   })
   console.log('→ подтверждение второй сессии:', bad2.status, '| обмен с чужим nonce:', bad2Exchange.status, bad2Exchange.json?.error?.code)
 
@@ -242,7 +270,8 @@ async function main() {
   device.close()
 
   // Уборка
-  db.prepare("DELETE FROM screens WHERE name LIKE 'Смоук-%'").run()
+  cleanupScreens(db)
+  db.prepare('DELETE FROM rate_limit_buckets').run()
   console.log('\n✓ сквозная проверка завершена')
 }
 

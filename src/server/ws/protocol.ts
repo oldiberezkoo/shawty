@@ -87,11 +87,11 @@ export type ServerFrame =
       reauth: boolean
       message: string
     }
-  | {
-      type: 'pairing.confirmed'
-      enrollmentToken: string
-      expiresInMs: number
-    }
+  /**
+   * Уведомление о подтверждении. Секретов не содержит: телевизор сам
+   * получает учётные данные по HTTP, доказывая владение локальным nonce.
+   */
+  | { type: 'pairing.confirmed'; screenId: string }
   | { type: 'pairing.expired' }
   | { type: 'ping'; at: number }
 

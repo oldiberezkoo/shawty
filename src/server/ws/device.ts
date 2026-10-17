@@ -105,11 +105,13 @@ export function handleDeviceConnection(socket: WebSocket, request: IncomingMessa
   })
 
   socket.on('close', () => {
+    stopPairingWatch(connection)
     deviceHub.remove(connection)
   })
 
   socket.on('error', (error) => {
     logger.debug({ err: error }, 'ошибка сокета устройства')
+    stopPairingWatch(connection)
     deviceHub.remove(connection)
   })
 
@@ -146,8 +148,7 @@ function handleHello(connection: DeviceConnection, accessToken: string): void {
 
 /**
  * Подписка на привязку. Обязательна проверка nonce: sessionId виден в QR,
- * и без этой проверки одноразовый токен выдачи получил бы любой, кто посмотрел
- * на экран во время подтверждения.
+ * и без этой проверке подписаться на чужую сессию можно было бы тривиально.
  */
 function handleWatchPairing(connection: DeviceConnection, sessionId: string, deviceNonce: string): void {
   const row = db.select().from(pairingSessions).where(eq(pairingSessions.id, sessionId)).get()
@@ -165,11 +166,58 @@ function handleWatchPairing(connection: DeviceConnection, sessionId: string, dev
 
   deviceHub.watchPairing(connection, sessionId)
 
-  // Если подтверждение уже произошло, пока сокет поднимался, сообщаем сразу:
-  // иначе телевизор ждал бы до конца пяти минут впустую.
-  if (row.status === 'confirmed') {
-    logger.debug({ sessionId }, 'привязка уже подтверждена, ожидаем обмена токеном')
+  // Подтверждение отслеживаем самостоятельно, читая базу, а не ожидая
+  // уведомление из обработчика маршрута: маршруты Next и кастомный сервер
+  // работают в разных изоляциях процесса и не разделяют память.
+  // Общая таблица SQLite — единственный надёжный канал между ними.
+  startPairingWatch(connection, sessionId)
+}
+
+const pairingPolls = new WeakMap<DeviceConnection, NodeJS.Timeout>()
+
+function startPairingWatch(connection: DeviceConnection, sessionId: string): void {
+  pairingPolls.get(connection)?.unref?.()
+  clearInterval(pairingPolls.get(connection))
+
+  const poll = setInterval(() => {
+    let row: (typeof pairingSessions.$inferSelect) | undefined
+    try {
+      row = db.select().from(pairingSessions).where(eq(pairingSessions.id, sessionId)).get()
+    } catch {
+      return
+    }
+
+    if (!row) {
+      stopPairingWatch(connection)
+      send(connection, { type: 'pairing.expired' })
+      return
+    }
+
+    if (row.status === 'confirmed') {
+      stopPairingWatch(connection)
+      send(connection, { type: 'pairing.confirmed', screenId: row.screenId ?? '' })
+      return
+    }
+
+    if (row.status !== 'pending' || isExpired({ expiresAt: row.expiresAt }, new Date())) {
+      stopPairingWatch(connection)
+      send(connection, { type: 'pairing.expired' })
+    }
+  }, 1000)
+
+  pairingPolls.set(connection, poll)
+}
+
+function stopPairingWatch(connection: DeviceConnection): void {
+  const timer = pairingPolls.get(connection)
+  if (timer) {
+    clearInterval(timer)
+    pairingPolls.delete(connection)
   }
+}
+
+function isExpired(row: { expiresAt: Date }, now: Date): boolean {
+  return row.expiresAt.getTime() < now.getTime()
 }
 
 function handleHeartbeat(

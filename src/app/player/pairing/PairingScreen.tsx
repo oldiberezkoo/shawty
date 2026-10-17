@@ -27,8 +27,6 @@ type WatchResponse = {
   codeInQr?: boolean
 }
 
-const ENROLLMENT_TOKEN_STORAGE = 'shawty:pending-enrollment'
-
 export function PairingScreen() {
   const [phase, setPhase] = useState<Phase>('starting')
   const [session, setSession] = useState<StartResponse | null>(null)
@@ -41,26 +39,30 @@ export function PairingScreen() {
   const sessionRef = useRef<StartResponse | null>(null)
   const nonceRef = useRef<string | null>(null)
 
-  const exchange = useCallback(async (enrollmentToken: string) => {
+  const exchange = useCallback(async () => {
     const start = sessionRef.current
     if (!start || !nonceRef.current) return
 
     setPhase('exchanging')
 
     try {
+      // Доказательство владения — локальный nonce. Идентификатор сессии из QR
+      // знает любой, кто посмотрел на экран, поэтому его недостаточно.
       const response = await fetch('/api/player/pairing/exchange', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           sessionId: start.sessionId,
           deviceNonce: nonceRef.current,
-          enrollmentToken,
         }),
       })
 
       if (!response.ok) {
         const data = (await response.json().catch(() => null)) as { error?: { message?: string } } | null
-        setError(data?.error?.message ?? 'Не удалось получить учётные данные')
+        const message = data?.error?.message ?? 'Не удалось получить учётные данные'
+
+        // Повторная попытка: устройство могло не успеть обменяться в окно.
+        setError(message)
         setPhase('error')
         return
       }
@@ -168,9 +170,10 @@ export function PairingScreen() {
 
     socket.onmessage = (event) => {
       try {
-        const frame = JSON.parse(String(event.data)) as { type: string; enrollmentToken?: string }
-        if (frame.type === 'pairing.confirmed' && frame.enrollmentToken) {
-          void exchange(frame.enrollmentToken)
+        const frame = JSON.parse(String(event.data)) as { type: string }
+        if (frame.type === 'pairing.confirmed') {
+          // Кадр не содержит секретов: учётные данные получаем отдельным обменом.
+          void exchange()
         }
         if (frame.type === 'pairing.expired') {
           setPhase('expired')
@@ -200,13 +203,9 @@ export function PairingScreen() {
         const data = (await response.json()) as WatchResponse
 
         if (data.state === 'confirmed') {
-          const token = sessionStorage.getItem(ENROLLMENT_TOKEN_STORAGE)
-          if (token) {
-            void exchange(token)
-          }
-          // Без push-токена обмен невозможен: nonce не передаётся по HTTP,
-          // а канал недоступен. Показываем понятное состояние.
-          setPhase('exchanging')
+          // Канал мог не доставить уведомление: обмен выполняем по HTTP,
+          // доказывая владение локальным nonce.
+          void exchange()
         } else if (data.state === 'expired') {
           setPhase('expired')
         } else if (typeof data.remainingMs === 'number') {

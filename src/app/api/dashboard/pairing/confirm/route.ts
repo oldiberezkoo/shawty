@@ -5,6 +5,7 @@ import { accessFor, assertCsrf } from '@/server/services/auth-service'
 import { confirmPairing } from '@/server/services/pairing-service'
 import { deviceHub } from '@/server/ws/hub'
 import { HttpError } from '@/server/http/errors'
+import { logger } from '@/lib/logger'
 
 const confirmSchema = z.object({
   sessionId: z.string().min(16).max(64),
@@ -49,12 +50,14 @@ export const POST = route(async (request) => {
     throw HttpError.badRequest(result.reason, describeRejection(result.reason))
   }
 
-  // Доставляем одноразовый токен выдачи по каналу устройства.
-  // Если сокета нет, телевизор заберёт учётные данные через HTTP-обмен.
-  deviceHub.deliverEnrollment(
-    body.data.sessionId,
-    result.enrollmentToken,
-    result.enrollmentExpiresAt.getTime() - Date.now(),
+  // Уведомляем телевизор по каналу. Секретов в кадре нет и быть не должно:
+  // телевизор сам забирает учётные данные по HTTP, доказывая владение
+  // локальным nonce. Поэтому подтверждение работает и когда сокета нет.
+  const delivered = deviceHub.notifyPairingConfirmed(body.data.sessionId, result.screenId)
+
+  logger.info(
+    { sessionId: body.data.sessionId, screenId: result.screenId, delivered },
+    'привязка подтверждена',
   )
 
   return jsonResponse({ ok: true, screenId: result.screenId, deviceId: result.deviceId })

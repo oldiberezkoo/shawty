@@ -76,12 +76,18 @@ class DeviceHub {
     return [...this.byScreenId.keys()]
   }
 
-  /** Доставить одноразовый токен выдачи учётных данных телевизору. */
-  deliverEnrollment(sessionId: string, enrollmentToken: string, expiresInMs: number): boolean {
+  /**
+   * Уведомляет телевизор, что привязка подтверждена.
+   *
+   * Секретов в кадре нет намеренно: учётные данные телевизор забирает сам
+   * по HTTP, доказывая владение локальным nonce. Поэтому подтверждение
+   * работает и когда сокета нет, а канал остаётся простым ускорителем.
+   */
+  notifyPairingConfirmed(sessionId: string, screenId: string): boolean {
     const connection = this.byPairingSessionId.get(sessionId)
     if (!connection) return false
 
-    send(connection, { type: 'pairing.confirmed', enrollmentToken, expiresInMs })
+    send(connection, { type: 'pairing.confirmed', screenId })
     return true
   }
 
@@ -154,4 +160,30 @@ function send(connection: DeviceConnection, frame: ServerFrame): boolean {
 
 export type { DeviceConnection }
 
-export const deviceHub = new DeviceHub()
+/**
+ * Реестр подключений устройств — общий синглтон на весь процесс.
+ *
+ * Важная деталь: приложение состоит из двух независимых реестров модулей.
+ * Кастомный сервер (`server/index.ts`) запускается через tsx, а обработчики
+ * маршрутов Next собираются Turbopack в собственный бандл. Обычный
+ * `export const deviceHub = new DeviceHub()` создал бы ДВА разных объекта:
+ * подтверждение привязки доставляло бы токен в реестр, который никто не
+ * читает, а дашборд всегда показывал бы экраны офлайн.
+ *
+ * Объединение возможно только через `globalThis` — он у них общий.
+ * `Symbol.for` гарантирует один и тот же ключ во всех копиях модуля.
+ */
+const HUB_KEY = Symbol.for('shawty.deviceHub')
+
+function getHub(): DeviceHub {
+  const store = globalThis as Record<symbol, unknown>
+  const existing = store[HUB_KEY]
+
+  if (existing instanceof DeviceHub) return existing
+
+  const created = new DeviceHub()
+  store[HUB_KEY] = created
+  return created
+}
+
+export const deviceHub: DeviceHub = getHub()

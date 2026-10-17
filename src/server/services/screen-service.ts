@@ -1,7 +1,6 @@
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { db } from '@/db/client'
 import { branches, deviceCredentials, screenGroups, screenPublications, screens } from '@/db/schema'
-import { deviceHub } from '@/server/ws/hub'
 import type { ScreenState } from '@/components/ui/status-badge'
 
 export type ScreenListItem = {
@@ -31,25 +30,26 @@ export type ScreenListItem = {
 /**
  * Итоговое состояние экрана.
  *
- * Живое соединение важнее отметки времени: сеть торгового центра мигает
- * постоянно, и по одному только heartbeat экран выглядел бы «нет связи»
- * каждые несколько секунд. Порог `offlineAfterSec` (по умолчанию 90 секунд)
- * существует именно для этой терпимости.
+ * Источник истины — время последнего heartbeat в базе, а не наличие сокета:
+ * обработчики маршрутов Next и кастомный сервер работают в разных изоляциях
+ * процесса и не разделяют память, поэтому in-memory реестр сокетов в панели
+ * недоступен и был бы источником ложных «все экраны офлайн».
+ *
+ * Порог `offlineAfterSec` (по умолчанию 90 секунд) существует для терпимости:
+ * сеть торгового центра мигает постоянно, и по одному heartbeat экран
+ * выглядел бы «нет связи» каждые несколько секунд.
  */
 function computeOnlineState(params: {
   recordStatus: ScreenListItem['recordStatus']
-  live: boolean
   lastSeenAt: Date | null
   offlineAfterSec: number
   now: number
 }): ScreenState {
-  const { recordStatus, live, lastSeenAt, offlineAfterSec, now } = params
+  const { recordStatus, lastSeenAt, offlineAfterSec, now } = params
 
   if (recordStatus === 'revoked') return 'revoked'
   if (recordStatus === 'disabled') return 'disabled'
   if (recordStatus === 'unpaired') return 'unpaired'
-
-  if (live) return 'online'
 
   if (lastSeenAt) {
     const ageSeconds = Math.floor((now - lastSeenAt.getTime()) / 1000)
@@ -96,7 +96,6 @@ export function listScreens(companyId: string, options: { branchId?: string | nu
   return rows.map((row) => {
     const onlineState = computeOnlineState({
       recordStatus: row.recordStatus,
-      live: deviceHub.isOnline(row.id),
       lastSeenAt: row.lastSeenAt,
       offlineAfterSec: row.offlineAfterSec,
       now,
