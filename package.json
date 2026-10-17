@@ -20,6 +20,7 @@
     "test:integration": "vitest run tests/integration",
     "smoke:http": "node scripts/smoke-http.cjs",
     "smoke:pairing": "node scripts/smoke-pairing.cjs",
+    "smoke:pages": "node scripts/smoke-pages.cjs",
     "check": "pnpm typecheck && pnpm test"
   },
   "dependencies": {
