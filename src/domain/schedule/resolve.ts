@@ -15,7 +15,7 @@ import { Temporal } from '@js-temporal/polyfill'
 import type { ScopeType } from '@/db/schema'
 
 import { addCalendarDays, localMidnight, toInstant, type InstantLike } from './timezone'
-import { isWithinWindow, windowIntervals, type ScheduleInterval, type ScheduleWindowInput } from './window'
+import { isWithinWindow, mergeIntervals, windowIntervals, type ScheduleInterval, type ScheduleWindowInput } from './window'
 
 /** Кампания в том виде, в котором её видит решатель. */
 export type CampaignCandidate = {
@@ -36,16 +36,14 @@ export type CampaignCandidate = {
   fallbackPlaylistVersionId: string | null
 }
 
-/** Экран, для которого считается расписание. */
+/** Экран, для которого решается показ. */
 export type ScheduleScreen = {
   id: string
-  branchId: string | null
-  groupId: string | null
-  /** Часовой пояс экрана, если задан: он перебивает филиальный. */
-  timezoneOverride: string | null
+  branchId: string
+  companyId: string
 }
 
-/** Что показывать на экране в конкретный момент. */
+/** Итог решения: что выводить и почему. */
 export type ScheduleResolution = {
   /** Победившая кампания; `null` — показывать fallback. */
   campaignId: string | null
@@ -60,114 +58,121 @@ export type ScheduleResolution = {
 }
 
 /**
- * Специфичность области: чем уже, тем сильнее назначение.
- *
- * Экран важнее группы важнее филиала важнее всей компании: оператор, который
- * повесил плейлист на конкретный экран, ожидает именно его содержимого.
+ * Вес области назначения (§7.2 спецификации).
+ * Экран важнее филиала, филиал важнее компании.
  */
-const SPECIFICITY: Record<ScopeType, number> = {
-  screen: 4,
-  group: 3,
-  branch: 2,
-  company: 1,
+export function scopeWeight(scopeType: ScopeType): number {
+  switch (scopeType) {
+    case 'screen':
+      return 30
+    case 'branch':
+      return 20
+    case 'company':
+      return 10
+    default:
+      return 0
+  }
 }
 
-/** Наибольшая специфичность среди целей кампании, задевающих экран. */
-export function specificityFor(targets: CampaignCandidate['targets'], screen: ScheduleScreen): number {
+/** Подходит ли назначение к экрану. */
+export function matchesTarget(
+  target: { scopeType: ScopeType; scopeId: string },
+  screen: ScheduleScreen,
+): boolean {
+  switch (target.scopeType) {
+    case 'screen':
+      return target.scopeId === screen.id
+    case 'branch':
+      return target.scopeId === screen.branchId
+    case 'company':
+      return target.scopeId === screen.companyId
+    default:
+      return false
+  }
+}
+
+/** Максимальная специфичность назначений кампании, подошедших к экрану. */
+export function specificityFor(
+  targets: readonly { scopeType: ScopeType; scopeId: string }[],
+  screen: ScheduleScreen,
+): number {
   let best = 0
 
   for (const target of targets) {
-    let matched = 0
-
-    switch (target.scopeType) {
-      case 'company':
-        matched = SPECIFICITY.company
-        break
-      case 'branch':
-        matched = target.scopeId === screen.branchId ? SPECIFICITY.branch : 0
-        break
-      case 'group':
-        matched = target.scopeId === screen.groupId ? SPECIFICITY.group : 0
-        break
-      case 'screen':
-        matched = target.scopeId === screen.id ? SPECIFICITY.screen : 0
-        break
+    if (matchesTarget(target, screen)) {
+      best = Math.max(best, scopeWeight(target.scopeType))
     }
-
-    if (matched > best) best = matched
   }
 
   return best
 }
 
-/** Задевает ли назначение кампании этот экран. */
-export function targetMatches(
-  targets: CampaignCandidate['targets'],
-  screen: ScheduleScreen,
-): boolean {
-  return specificityFor(targets, screen) > 0
-}
-
 /**
- * Даты кампании как инстанты в зоне источника.
+ * Границы кампании во времени.
  *
- * `ends_on` включён целиком: кампания, заданная «до 15 марта», идёт до
- * полуночи 15-го. Считать концом полночь *15-го* означало бы отнять у
- * оператора целый день.
+ * `starts_on` начинается в 00:00:00 первого дня в локальном времени зоны,
+ * `ends_on` — в 24:00:00 последнего дня (полночь следующих суток).
+ * Открытый `ends_on` — плюс 100 лет (фактически бесконечность).
  */
 export function campaignRange(
   campaign: Pick<CampaignCandidate, 'startsOn' | 'endsOn'>,
   timezone: string,
 ): { start: string; end: string } {
   const start = localMidnight(campaign.startsOn, timezone)
-
   const end = campaign.endsOn
     ? addCalendarDays(localMidnight(campaign.endsOn, timezone), 1, timezone)
-    : // Открытая дата: горизонт расписания всё равно конечен, поэтому
-      // бесконечность здесь означала бы «нет верхней границы» и усложняла
-      // бы расчёт. Десять лет — с запасом для любого разумного расписания.
-      addCalendarDays(start, 3650, timezone)
+    : addCalendarDays(start, 36500, timezone)
 
-  return { start: start.toString(), end: end.toString() }
+  return {
+    start: start.toString(),
+    end: end.toString(),
+  }
 }
 
-/**
- * Активна ли кампания по датам в заданный момент.
- *
- * Границы включены с обеих сторон: день начала входит, день окончания входит.
- */
+/** Попадает ли момент `at` в даты кампании. */
 export function isWithinCampaignDates(
   campaign: Pick<CampaignCandidate, 'startsOn' | 'endsOn'>,
   timezone: string,
   at: InstantLike,
 ): boolean {
+  const instant = toInstant(at)
   const { start, end } = campaignRange(campaign, timezone)
 
   return (
-    Temporal.Instant.compare(toInstant(at), Temporal.Instant.from(start)) >= 0 &&
-    Temporal.Instant.compare(toInstant(at), Temporal.Instant.from(end)) < 0
+    Temporal.Instant.compare(instant, Temporal.Instant.from(start)) >= 0 &&
+    Temporal.Instant.compare(instant, Temporal.Instant.from(end)) < 0
   )
 }
 
-/** Показывается ли кампания на этом экране прямо сейчас. */
+/** Попадает ли момент `at` в хотя бы одно окно кампании. */
+export function isWithinAnyWindow(
+  campaign: Pick<CampaignCandidate, 'windows'>,
+  timezone: string,
+  at: InstantLike,
+): boolean {
+  if (campaign.windows.length === 0) return true
+
+  return campaign.windows.some((window) => isWithinWindow(window, at, timezone))
+}
+
+/** Активна ли кампания на экране в заданный момент. */
 export function isCampaignActiveAt(
   campaign: CampaignCandidate,
   screen: ScheduleScreen,
   timezone: string,
   at: InstantLike,
 ): boolean {
-  if (!targetMatches(campaign.targets, screen)) return false
-  if (!isWithinCampaignDates(campaign, timezone, at)) return false
+  if (specificityFor(campaign.targets, screen) === 0) return false
 
-  // Кампания без окон показывается непрерывно в свои даты.
-  if (campaign.windows.length === 0) return true
+  const effectiveZone = campaign.timezoneOverride ?? timezone
 
-  return campaign.windows.some((window) => isWithinWindow(window, at, timezone))
+  if (!isWithinCampaignDates(campaign, effectiveZone, at)) return false
+  if (!isWithinAnyWindow(campaign, effectiveZone, at)) return false
+
+  return true
 }
 
 /**
- * Полный сортирующий ключ по §7.2 плана.
- *
  * Порядок: приоритет → специфичность области → более свежая кампания →
  * идентификатор. Последний шаг обязателен: без него два одинаковых
  * назначения дают результат, зависящий от порядка строк в базе.
@@ -226,11 +231,16 @@ export function resolveSchedule(
     }
   }
 
+  const activePlaylist = winner.playlistVersionId ?? winner.fallbackPlaylistVersionId ?? fallbackPlaylistVersionId
+  const remainingFallback = winner.playlistVersionId
+    ? (winner.fallbackPlaylistVersionId ?? fallbackPlaylistVersionId)
+    : (winner.fallbackPlaylistVersionId ? fallbackPlaylistVersionId : null)
+
   return {
     campaignId: winner.id,
     campaignName: winner.name,
-    playlistVersionId: winner.playlistVersionId ?? fallbackPlaylistVersionId,
-    fallbackPlaylistVersionId: winner.playlistVersionId ? winner.fallbackPlaylistVersionId : null,
+    playlistVersionId: activePlaylist,
+    fallbackPlaylistVersionId: remainingFallback,
     chain,
     timezone,
   }
@@ -335,9 +345,9 @@ export function nextChangeAt(
     stepMs,
   )
 
-  // `timeline[1]` — начало второго сегмента, то есть первый момент смены.
-  // Нулевой индекс означает, что за горизонт смен не было.
-  return timeline.length > 1 ? (timeline[1]?.from ?? null) : null
+  // Ищем первый момент смены, строго превышающий момент `start`.
+  const futureChange = timeline.find((segment) => Temporal.Instant.compare(Temporal.Instant.from(segment.from), start) > 0)
+  return futureChange ? futureChange.from : null
 }
 
 /**
@@ -365,7 +375,7 @@ export function campaignIntervals(
     ]
   }
 
-  return campaign.windows.flatMap((window) => {
+  const intervals = campaign.windows.flatMap((window) => {
     const intervals = windowIntervals(window, from, to, timezone)
 
     // Отсекаем то, что не попадает в даты кампании: окно могло быть задано
@@ -377,4 +387,6 @@ export function campaignIntervals(
       }))
       .filter((interval) => interval.start < interval.end)
   })
+
+  return mergeIntervals(intervals)
 }

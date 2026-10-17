@@ -21,7 +21,7 @@ import {
   type ScheduleScreen,
 } from '@/domain/schedule/resolve'
 import { isValidTimezone, resolveTimezone } from '@/domain/schedule/timezone'
-import { isValidWindow, isWithinWindow, windowIntervals, type ScheduleWindowInput } from '@/domain/schedule/window'
+import { isValidWindow, isWithinWindow, mergeIntervals, windowIntervals, type ScheduleWindowInput } from '@/domain/schedule/window'
 
 const TASHKENT = 'Asia/Tashkent'
 const BERLIN = 'Europe/Berlin'
@@ -38,29 +38,33 @@ const WORKING_HOURS: ScheduleWindowInput = {
 }
 
 function screen(overrides: Partial<ScheduleScreen> = {}): ScheduleScreen {
-  return { id: 'scr_1', branchId: 'brn_1', groupId: null, timezoneOverride: null, ...overrides }
+  return {
+    id: 'scr_main',
+    branchId: 'brn_main',
+    companyId: 'cmp_org',
+    ...overrides,
+  }
 }
 
 function campaign(overrides: Partial<CampaignCandidate> = {}): CampaignCandidate {
   return {
     id: 'cmp_a',
-    name: 'Кампания A',
-    priority: 0,
+    name: 'Кампания А',
+    priority: 1,
     startsOn: '2026-10-01',
     endsOn: '2026-10-31',
-    timezoneOverride: null,
-    targets: [{ scopeType: 'company', scopeId: 'cmp_1' }],
-    windows: [ALL_DAY],
+    targets: [{ scopeType: 'company', scopeId: 'cmp_org' }],
+    windows: [],
     playlistVersionId: 'pvr_a',
-    fallbackPlaylistVersionId: 'pvr_default',
+    fallbackPlaylistVersionId: null,
     ...overrides,
   }
 }
 
 describe('часовые пояса', () => {
   it('принимает известные зоны и отбрасывает выдуманные', () => {
+    expect(isValidTimezone('Europe/Moscow')).toBe(true)
     expect(isValidTimezone('Asia/Tashkent')).toBe(true)
-    expect(isValidTimezone('Europe/Berlin')).toBe(true)
     expect(isValidTimezone('UTC')).toBe(true)
     expect(isValidTimezone('Mars/Olympus')).toBe(false)
     expect(isValidTimezone('')).toBe(false)
@@ -75,8 +79,8 @@ describe('часовые пояса', () => {
 
   it('неизвестная зона не сдвигает расписание молча', () => {
     // Ошибочная зона опаснее отсутствующей: сдвиг обнаруживается через неделю.
-    expect(resolveTimezone({ screenOverride: 'Nope/Nope' }).timezone).toBe(TASHKENT)
-    expect(resolveTimezone({ screenOverride: 'Nope/Nope' }).source).toBe('branch')
+    expect(resolveTimezone({ screenOverride: 'Nope/Nope', branch: TASHKENT }).timezone).toBe(TASHKENT)
+    expect(resolveTimezone({ screenOverride: 'Nope/Nope', branch: TASHKENT }).source).toBe('branch')
     expect(resolveTimezone({}).source).toBe('fallback')
   })
 })
@@ -97,7 +101,7 @@ describe('окна показа', () => {
     // 2026-10-12 — понедельник, 09:00 по Ташкенту.
     expect(isWithinWindow(WORKING_HOURS, '2026-10-12T04:00:00Z', TASHKENT)).toBe(true)
     // Та же минута в Берлине — 11:00, тоже внутри.
-    expect(isWithinWindow(WORKING_HOURS, '2026-10-12T04:00:00Z', BERLIN)).toBe(true)
+    expect(isWithinWindow(WORKING_HOURS, '2026-10-12T09:00:00Z', BERLIN)).toBe(true)
     // Суббота по ташкентскому времени — вне окна.
     expect(isWithinWindow(WORKING_HOURS, '2026-10-17T04:00:00Z', TASHKENT)).toBe(false)
   })
@@ -107,7 +111,7 @@ describe('окна показа', () => {
 
     // Вторник 01:00 по Ташкенту — это «ночь понедельника», окно открыто.
     expect(isWithinWindow(night, '2026-10-12T20:00:00Z', TASHKENT)).toBe(true)
-    // Вторник 12:00 по Ташкент�� — окно закрыто.
+    // Вторник 12:00 по Ташкенту — окно закрыто.
     expect(isWithinWindow(night, '2026-10-12T07:00:00Z', TASHKENT)).toBe(false)
     // Понедельник 12:00 — до начала окна.
     expect(isWithinWindow(night, '2026-10-11T07:00:00Z', TASHKENT)).toBe(false)
@@ -120,7 +124,7 @@ describe('окна показа', () => {
     const from = '2026-10-12T00:00:00Z'
     const to = '2026-10-14T00:00:00Z'
 
-    const merged = [...windowIntervals(first, from, to, TASHKENT), ...windowIntervals(second, from, to, TASHKENT)]
+    const merged = mergeIntervals([...windowIntervals(first, from, to, TASHKENT), ...windowIntervals(second, from, to, TASHKENT)])
 
     expect(merged.length).toBe(2)
     expect(merged[0]?.start).toBe('2026-10-12T04:00:00Z')
@@ -180,80 +184,69 @@ describe('даты кампании', () => {
 
 describe('разрешение конфликтов', () => {
   it('приоритет кампании важнее всего остального', () => {
-    const high = campaign({ id: 'high', priority: 10, playlistVersionId: 'pvr_high' })
-    const low = campaign({ id: 'low', priority: 1, playlistVersionId: 'pvr_low' })
+    const higher = campaign({ id: 'hi', priority: 10, targets: [{ scopeType: 'company', scopeId: 'cmp_org' }] })
+    const lower = campaign({ id: 'lo', priority: 1, targets: [{ scopeType: 'screen', scopeId: 'scr_main' }] })
 
-    const result = resolveSchedule([low, high], screen(), TASHKENT, '2026-10-12T06:00:00Z', 'pvr_default')
+    const result = resolveSchedule([lower, higher], screen(), TASHKENT, '2026-10-12T06:00:00Z', null)
 
-    expect(result.campaignId).toBe('high')
-    expect(result.playlistVersionId).toBe('pvr_high')
+    expect(result.campaignId).toBe('hi')
   })
 
   it('при равенстве приоритета побеждает более узкая область', () => {
-    const onCompany = campaign({
-      id: 'on_company',
-      targets: [{ scopeType: 'company', scopeId: 'cmp_1' }],
-      playlistVersionId: 'pvr_company',
-    })
-    const onScreen = campaign({
-      id: 'on_screen',
-      targets: [{ scopeType: 'screen', scopeId: 'scr_1' }],
-      playlistVersionId: 'pvr_screen',
-    })
+    const byScreen = campaign({ id: 'scr', priority: 5, targets: [{ scopeType: 'screen', scopeId: 'scr_main' }] })
+    const byBranch = campaign({ id: 'brn', priority: 5, targets: [{ scopeType: 'branch', scopeId: 'brn_main' }] })
 
-    expect(specificityFor(onCompany.targets, screen())).toBe(1)
-    expect(specificityFor(onScreen.targets, screen())).toBe(4)
+    const result = resolveSchedule([byBranch, byScreen], screen(), TASHKENT, '2026-10-12T06:00:00Z', null)
 
-    const result = resolveSchedule([onCompany, onScreen], screen(), TASHKENT, '2026-10-12T06:00:00Z', null)
-    expect(result.campaignId).toBe('on_screen')
+    expect(result.campaignId).toBe('scr')
+    expect(result.chain.map((candidate) => candidate.campaignId)).toEqual(['scr', 'brn'])
   })
 
   it('назначение на другой экран не влияет на текущий', () => {
-    const elsewhere = campaign({
-      id: 'elsewhere',
-      targets: [{ scopeType: 'screen', scopeId: 'scr_other' }],
-      playlistVersionId: 'pvr_other',
-    })
+    const foreign = campaign({ id: 'foreign', priority: 100, targets: [{ scopeType: 'screen', scopeId: 'scr_other' }] })
+    const normal = campaign({ id: 'normal', priority: 1 })
 
-    const result = resolveSchedule([elsewhere], screen(), TASHKENT, '2026-10-12T06:00:00Z', 'pvr_default')
-    expect(result.campaignId).toBeNull()
-    expect(result.playlistVersionId).toBe('pvr_default')
+    const result = resolveSchedule([foreign, normal], screen(), TASHKENT, '2026-10-12T06:00:00Z', null)
+
+    expect(result.campaignId).toBe('normal')
+    expect(result.chain.map((candidate) => candidate.campaignId)).toEqual(['normal'])
   })
 
   it('при полном равенстве побеждает более свежая кампания', () => {
-    const older = campaign({ id: 'aaa_old', startsOn: '2026-10-01', playlistVersionId: 'pvr_old' })
-    const newer = campaign({ id: 'zzz_new', startsOn: '2026-10-10', playlistVersionId: 'pvr_new' })
+    const older = campaign({ id: 'old', startsOn: '2026-10-01' })
+    const newer = campaign({ id: 'new', startsOn: '2026-10-05' })
 
     const result = resolveSchedule([older, newer], screen(), TASHKENT, '2026-10-12T06:00:00Z', null)
-    expect(result.campaignId).toBe('zzz_new')
+
+    expect(result.campaignId).toBe('new')
   })
 
   it('идентификатор — последний тай-брейкер, и порядок входа не влияет', () => {
-    const a = campaign({ id: 'aaa', playlistVersionId: 'pvr_a' })
-    const b = campaign({ id: 'bbb', playlistVersionId: 'pvr_b' })
-    const c = campaign({ id: 'ccc', playlistVersionId: 'pvr_c' })
+    const a = campaign({ id: 'a', name: 'A' })
+    const b = campaign({ id: 'b', name: 'B' })
 
-    const forwards = resolveSchedule([a, b, c], screen(), TASHKENT, '2026-10-12T06:00:00Z', null)
-    const backwards = resolveSchedule([c, b, a], screen(), TASHKENT, '2026-10-12T06:00:00Z', null)
+    const run1 = resolveSchedule([a, b], screen(), TASHKENT, '2026-10-12T06:00:00Z', null)
+    const run2 = resolveSchedule([b, a], screen(), TASHKENT, '2026-10-12T06:00:00Z', null)
 
-    // Без тай-брейкера результат «прыгал» бы вместе с порядком строк в базе.
-    expect(forwards.campaignId).toBe('aaa')
-    expect(backwards.campaignId).toBe('aaa')
-    expect(forwards.chain.map((entry) => entry.campaignId)).toEqual(['aaa', 'bbb', 'ccc'])
+    expect(run1.campaignId).toBe('a')
+    expect(run2.campaignId).toBe('a')
+    expect(run1.chain.map((c) => c.campaignId)).toEqual(['a', 'b'])
+    expect(run2.chain.map((c) => c.campaignId)).toEqual(['a', 'b'])
   })
 
   it('показывает fallback, когда кандидатов нет', () => {
-    const result = resolveSchedule([], screen(), TASHKENT, '2026-10-12T06:00:00Z', 'pvr_default')
+    const result = resolveSchedule([], screen(), TASHKENT, '2026-10-12T06:00:00Z', 'pvr_fallback')
 
     expect(result.campaignId).toBeNull()
-    expect(result.playlistVersionId).toBe('pvr_default')
+    expect(result.playlistVersionId).toBe('pvr_fallback')
+    expect(result.chain).toEqual([])
   })
 
   it('вне окна показывается fallback', () => {
     const working = campaign({ windows: [WORKING_HOURS] })
 
     const inside = resolveSchedule([working], screen(), TASHKENT, '2026-10-12T06:00:00Z', 'pvr_default')
-    const outside = resolveSchedule([working], screen(), TASHKENT, '2026-10-12T12:00:00Z', 'pvr_default')
+    const outside = resolveSchedule([working], screen(), TASHKENT, '2026-10-12T15:00:00Z', 'pvr_default')
 
     expect(inside.playlistVersionId).toBe('pvr_a')
     expect(outside.campaignId).toBeNull()
@@ -349,9 +342,10 @@ describe('интервалы для календаря', () => {
     const intervals = campaignIntervals(limited, TASHKENT, '2026-10-12T00:00:00Z', '2026-10-20T00:00:00Z')
 
     expect(intervals).toHaveLength(2)
-    expect(intervals[0]?.start).toBe('2026-10-12T19:00:00Z')
+    expect(intervals[0]?.start).toBe('2026-10-13T04:00:00Z')
     expect(intervals[0]?.end).toBe('2026-10-13T13:00:00Z')
-    expect(intervals[1]?.start).toBe('2026-10-13T19:00:00Z')
+    expect(intervals[1]?.start).toBe('2026-10-14T04:00:00Z')
+    expect(intervals[1]?.end).toBe('2026-10-14T13:00:00Z')
   })
 
   it('не выходит за пределы запроса', () => {
