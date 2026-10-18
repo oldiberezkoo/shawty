@@ -427,7 +427,11 @@ export function assertSeatAvailable(companyId: string): void {
 
   if (!seats) return
 
-  if (seats.exceeded) {
+  // Строгое `>=`, а не `>`: при двух местах из двух приглашать третьего
+  // нельзя. Состояние «занято ровно по лимиту» — это уже полный тариф, и
+  // проверка `exceeded` (used > limit) его пропускала, позволяя лишнего
+  // сотрудника. Тот же смысл, что в проверке лимита экранов при привязке.
+  if (seats.used >= seats.limit) {
     throw HttpError.conflict(
       'seats_limit_reached',
       `Места по тарифу закончились: ${seats.limit}. Смените тариф или уберите сотрудника.`,

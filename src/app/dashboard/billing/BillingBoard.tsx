@@ -201,8 +201,8 @@ export function BillingBoard({
               label={line.label}
               used={line.used}
               limit={line.limit}
-              kind={line.kind}
-              format={formatValue}
+              usedText={formatValue(line.used, line.kind)}
+              limitText={formatValue(line.limit, line.kind)}
             />
           ))}
         </CardBody>

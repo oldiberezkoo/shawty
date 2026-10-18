@@ -42,6 +42,7 @@ export function FormField({
   max,
   step,
   maxLength,
+  minLength,
   readOnly,
   className = '',
   list,
@@ -71,6 +72,7 @@ export function FormField({
   max?: number
   step?: number
   maxLength?: number
+  minLength?: number
   readOnly?: boolean
   className?: string
   list?: string
@@ -94,6 +96,7 @@ export function FormField({
         max={max}
         step={step}
         maxLength={maxLength}
+        minLength={minLength}
         readOnly={readOnly}
         list={list}
         aria-invalid={error ? true : undefined}

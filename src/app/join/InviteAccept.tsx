@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -38,6 +38,33 @@ export function InviteAccept({ token }: { token: string }) {
   const [notice, setNotice] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+
+  /**
+   * Вошёл ли человек уже сейчас.
+   *
+   * Приглашение живёт неделю, поэтому первый вопрос на странице — «есть ли у
+   * меня учётная запись». Без этого ответа человек, впервые получивший
+   * приглашение, упрётся в «войдите» без способа войти.
+   */
+  const [hasAccount, setHasAccount] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    let stopped = false
+
+    // Проверяется запросом к защищённому маршруту: ответ без 401 означает, что
+    // сессия жива. Отдельного эндпоинта «кто я» для этого жалко.
+    fetch('/api/dashboard/team', { headers: { 'x-company-id': 'probe' } })
+      .then((response) => {
+        if (!stopped) setHasAccount(response.status !== 401)
+      })
+      .catch(() => {
+        if (!stopped) setHasAccount(false)
+      })
+
+    return () => {
+      stopped = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!token) {
@@ -130,6 +157,40 @@ export function InviteAccept({ token }: { token: string }) {
       <Card>
         <CardBody className="flex flex-col gap-3">
           <FormError>Срок приглашения истёк. Попросите администратора прислать новое.</FormError>
+          <Link href="/login">
+            <Button size="sm">Войти</Button>
+          </Link>
+        </CardBody>
+      </Card>
+    )
+  }
+
+  // Приглашение живёт неделю и не переживает уход человека со страницы.
+  // Значит, первый вопрос «есть ли у меня учётная запись» стоит задать здесь:
+  // иначе принять приглашение сможет только тот, кто уже вошёл, а завести его
+  // без приглашения нечем.
+  if (invitation && hasAccount === false) {
+    return (
+      <Card>
+        <CardBody className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5 text-[13px]">
+            <div className="text-[16px] font-semibold">{invitation.companyName}</div>
+            <div className="text-text-muted">
+              Вас пригласили с правом «{invitation.roleLabel}» на адрес {invitation.email}.
+            </div>
+          </div>
+
+          {error ? <FormError onDismiss={() => setError(null)}>{error}</FormError> : null}
+
+          <Link href={`/register?token=${encodeURIComponent(token)}`}>
+            <Button size="sm" variant="primary" className="w-full">
+              Создать учётную запись и принять приглашение
+            </Button>
+          </Link>
+
+          <p className="text-center text-[12px] text-text-subtle">
+            Уже зарегистрированы? Войдите, затем вернитесь по этой ссылке.
+          </p>
         </CardBody>
       </Card>
     )

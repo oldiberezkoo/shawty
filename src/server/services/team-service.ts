@@ -157,10 +157,15 @@ export function createInvitation(params: {
     }
 
     // Пользователь уже зарегистрирован: приглашение ему не нужно, доступ
-    // выдаётся сразу и сразу проверяется в журнале действий.
-    addMember({ companyId: params.companyId, userId: existingUser.id, role: params.role, actorUserId: params.actorUserId })
+    // выдаётся сразу и сразу попадает в журнал действий.
+    const added = addMember({
+      companyId: params.companyId,
+      userId: existingUser.id,
+      role: params.role,
+      actorUserId: params.actorUserId,
+    })
 
-    return { id: already!.id, token: '', alreadyMember: true }
+    return { id: added.membershipId, token: '', alreadyMember: true }
   }
 
   // Незакрытое приглашение на тот же адрес заменяется: иначе по ссылке из
@@ -252,19 +257,37 @@ export function acceptInvitation(params: { token: string; userId: string }): {
       throw HttpError.conflict('invitation_used', 'Это приглашение уже использовано')
     }
 
-    tx.insert(memberships)
-      .values({
-        id: crypto.randomUUID(),
-        userId: params.userId,
-        companyId: invitation.companyId,
-        role: invitation.role,
-        status: 'active',
-      })
-      .onConflictDoUpdate({
-        target: [memberships.userId, memberships.companyId],
-        set: { role: invitation.role, status: 'active' },
-      })
-      .run()
+    // Уже существующего сотрудника приглашение не должно менять роль.
+    //
+    // Раньше здесь стоял `onConflictDoUpdate set: { role }`, и это была
+    // настоящая дыра: владелец, принявший собственное приглашение, молча
+    // становился редактором и терял управление тарифом и командой. Роль
+    // сотрудника меняется только явным действием администратора.
+    const existing = tx
+      .select({ id: memberships.id, role: memberships.role, status: memberships.status })
+      .from(memberships)
+      .where(
+        and(eq(memberships.userId, params.userId), eq(memberships.companyId, invitation.companyId)),
+      )
+      .get()
+
+    if (existing) {
+      // Приостановленного приглашение возвращает в работу — это и есть его
+      // смысл. Роль при этом остаётся прежней.
+      if (existing.status !== 'active') {
+        tx.update(memberships).set({ status: 'active' }).where(eq(memberships.id, existing.id)).run()
+      }
+    } else {
+      tx.insert(memberships)
+        .values({
+          id: crypto.randomUUID(),
+          userId: params.userId,
+          companyId: invitation.companyId,
+          role: invitation.role,
+          status: 'active',
+        })
+        .run()
+    }
 
     tx.insert(auditLog)
       .values({
@@ -473,22 +496,34 @@ export function setScopes(params: {
   })
 }
 
-/** Прямое добавление сотрудника: пользователь уже зарегистрирован. */
+/**
+ * Прямое добавление сотрудника: пользователь уже зарегистрирован.
+ *
+ * Существующему сотруднику роль **не** меняется: добавление в компанию не
+ * должно молча разжаловать или повысить человека. Роль меняется только
+ * явным действием администратора через `changeRole`.
+ */
 export function addMember(params: {
   companyId: string
   userId: string
   role: Role
   actorUserId: string
 }): { membershipId: string } {
-  const id = crypto.randomUUID()
+  const existing = db
+    .select({ id: memberships.id })
+    .from(memberships)
+    .where(and(eq(memberships.userId, params.userId), eq(memberships.companyId, params.companyId)))
+    .get()
 
-  db.insert(memberships)
-    .values({ id, userId: params.userId, companyId: params.companyId, role: params.role, status: 'active' })
-    .onConflictDoUpdate({
-      target: [memberships.userId, memberships.companyId],
-      set: { role: params.role, status: 'active' },
-    })
-    .run()
+  const id = existing?.id ?? crypto.randomUUID()
+
+  if (existing) {
+    db.update(memberships).set({ status: 'active' }).where(eq(memberships.id, existing.id)).run()
+  } else {
+    db.insert(memberships)
+      .values({ id, userId: params.userId, companyId: params.companyId, role: params.role, status: 'active' })
+      .run()
+  }
 
   recordAudit({
     companyId: params.companyId,
@@ -530,6 +565,15 @@ export function countSeats(companyId: string): number {
 }
 
 /** Проверка места: пригласить сверх тарифа нельзя. */
+/**
+ * Проверка места по тарифу.
+ *
+ * `>=`, а не `>`: при двух местах из двух приглашать третьего нельзя.
+ * Состояние «занято ровно по лимиту» — это уже полный тариф.
+ *
+ * Второй источник истины для того же вопроса, что и в биллинге; оставлен
+ * потому, что здесь проверка идёт перед записью в ту же транзакцию.
+ */
 export function assertSeatAvailable(companyId: string, limit: number): void {
   if (countSeats(companyId) >= limit) {
     throw HttpError.conflict(

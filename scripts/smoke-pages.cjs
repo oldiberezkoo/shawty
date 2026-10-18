@@ -24,6 +24,14 @@ async function main() {
     if (pair.startsWith('shawty_csrf=')) csrf = decodeURIComponent(pair.slice('shawty_csrf='.length))
   }
 
+  // Отказ входа обязан останавливать прогон, а не продолжать его. Раньше скрипт
+  // молча уходил дальше и выдавал пятнадцать строк `307`, где на самом деле
+  // была одна причина: не удалось войти.
+  if (login.status !== 200) {
+    console.error(`вход не удался: ${login.status} ${await login.text()}`)
+    process.exit(1)
+  }
+
   const checks = [
     ['/login', ['SHAWTY']],
     ['/dashboard', ['Обзор сети', 'Всего экранов']],
@@ -35,6 +43,8 @@ async function main() {
     ['/dashboard/scheduling', ['Расписание', 'Что и когда идёт на экранах']],
     ['/dashboard/monitoring', ['Мониторинг', 'Лента событий', 'Недоступность за период']],
     ['/dashboard/audit', ['Журнал действий']],
+    ['/dashboard/team', ['Команда', 'Сотрудники', 'Роли и права']],
+    ['/dashboard/billing', ['Тариф и потребление', 'Потребление', 'Смена тарифа']],
     ['/pair', ['Порядок действий']],
     ['/player/pairing', ['SHAWTY']],
   ]

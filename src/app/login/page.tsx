@@ -1,8 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Card, CardBody } from '@/components/ui/card'
 import { FormError, FormField } from '@/components/ui/form'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 
@@ -44,35 +46,55 @@ function LoginForm() {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-6 py-12">
-      <div className="absolute right-5 top-5">
+    <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-12">
+      <div className="absolute right-4 top-4">
         <ThemeToggle />
       </div>
 
-      <div className="w-full max-w-[380px]">
-        <div className="mb-8">
-          <h1 className="text-xl font-semibold tracking-[-0.02em]">SHAWTY</h1>
-          <p className="mt-1 text-[13px] text-text-muted">Вход в панель управления</p>
+      <div className="w-full max-w-[360px] fade-in">
+        <div className="mb-7 text-center">
+          <div className="text-[15px] font-semibold tracking-[-0.02em]">SHAWTY</div>
+          <h1 className="mt-3 text-[19px] font-semibold tracking-[-0.02em]">Вход в панель управления</h1>
+          <p className="mt-1 text-[13px] text-text-muted">Публикация контента на экраны сети</p>
         </div>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
-          {error ? <FormError>{error}</FormError> : null}
+        <Card>
+          <CardBody>
+            <form onSubmit={onSubmit} className="flex flex-col gap-4">
+              {error ? <FormError>{error}</FormError> : null}
 
-          <FormField
-            label="Почта"
-            name="email"
-            type="email"
-            autoComplete="username"
-            required
-            autoFocus
-            placeholder="owner@company.uz"
-          />
-          <FormField label="Пароль" name="password" type="password" autoComplete="current-password" required />
+              <FormField
+                label="Почта"
+                name="email"
+                type="email"
+                autoComplete="username"
+                required
+                autoFocus
+                placeholder="owner@company.uz"
+              />
+              <FormField
+                label="Пароль"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+              />
 
-          <Button type="submit" variant="primary" size="lg" disabled={pending}>
-            {pending ? 'Проверяем…' : 'Войти'}
-          </Button>
-        </form>
+              <Button type="submit" variant="primary" size="lg" disabled={pending} className="mt-1 w-full">
+                {pending ? 'Проверяем…' : 'Войти'}
+              </Button>
+            </form>
+          </CardBody>
+        </Card>
+
+        {/* Ссылка на регистрацию есть не всегда: обычно сотрудника зовут по
+            приглашению, и тогда он приходит по своей ссылке. */}
+        <p className="mt-5 text-center text-[13px] text-text-muted">
+          Получили приглашение?{' '}
+          <Link href="/register" className="underline underline-offset-4">
+            Создать учётную запись
+          </Link>
+        </p>
       </div>
     </main>
   )

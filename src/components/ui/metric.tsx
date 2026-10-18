@@ -1,5 +1,3 @@
-'use client'
-
 import type { ReactNode } from 'react'
 
 /**
@@ -58,29 +56,34 @@ export function MetricTile({
  * Полоса с заливкой по доле лимита и порогом в 80%. Заливка меняет цвет при
  * приближении к пределу: жёлтый до 80%, красный после. Прибавление новых
  * экранов проверяется по этой же шкале, и цвет обязан совпадать с отказом.
+ *
+ * Подписи приходят готовыми строками, а не функцией форматирования. Так
+ * компонент остаётся пригодным для клиентских экранов: функцию с сервера
+ * передать через границу нельзя, а строку можно. Побочный плюс — чтение
+ * чисел остаётся на сервере, где оно и было задумано.
  */
 export function UsageBar({
   used,
   limit,
-  kind = 'count',
   label,
-  format,
+  usedText,
+  limitText,
 }: {
   used: number
   limit: number
-  kind?: 'count' | 'bytes'
   label: string
-  format: (value: number, kind: 'count' | 'bytes') => string
+  usedText: string
+  limitText: string
 }) {
   const percent = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0
   const tone = percent >= 100 ? 'bg-danger' : percent >= 80 ? 'bg-warn' : 'bg-info'
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between gap-3 text-[13px]">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-[13px]">
         <span className="text-text">{label}</span>
         <span className="tnum text-text-muted">
-          {format(used, kind)} <span className="text-text-subtle">из {format(limit, kind)}</span>
+          {usedText} <span className="text-text-subtle">из {limitText}</span>
         </span>
       </div>
 
@@ -90,7 +93,7 @@ export function UsageBar({
         aria-valuenow={percent}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`${label}: ${format(used, kind)} из ${format(limit, kind)}`}
+        aria-label={`${label}: ${usedText} из ${limitText}`}
       >
         <div className={`h-full rounded-full transition-[width] duration-300 ${tone}`} style={{ width: `${percent}%` }} />
       </div>
