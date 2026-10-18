@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { db } from '@/db/client'
 import { branches, deviceCredentials, screenGroups, screenPublications, screens } from '@/db/schema'
+import { computeHealth, silentSeconds, type ScreenHealth } from '@/domain/monitoring/health'
 import type { ScreenState } from '@/components/ui/status-badge'
 
 export type ScreenListItem = {

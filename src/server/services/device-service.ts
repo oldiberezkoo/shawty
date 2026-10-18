@@ -225,6 +225,8 @@ export function enableScreen(screenId: string): void {
 
 /** Полная отвязка: доверие снято, привязка потребуется заново. */
 export function unpairScreen(screenId: string, now = new Date()): void {
+  const companyId = screenCompanyId(screenId)
+
   db.transaction((tx) => {
     tx.update(deviceCredentials)
       .set({ revokedAt: now })
@@ -232,8 +234,39 @@ export function unpairScreen(screenId: string, now = new Date()): void {
       .run()
     tx.update(screens).set({ status: 'revoked', updatedAt: now }).where(eq(screens.id, screenId)).run()
   })
+
+  // Событие в ленту сразу, а не на следующем тике насоса: человек только что
+  // отвязал экран, и пустая лента в этот момент выглядит как потеря события.
+  if (companyId) {
+    recordEventIncident({
+      screenId,
+      companyId,
+      type: 'revoked',
+      detail: 'Доступ отозван администратором',
+      now,
+    })
+  }
 }
 
 export function markScreenUnpaired(screenId: string): void {
+  const companyId = screenCompanyId(screenId)
+
   db.update(screens).set({ status: 'unpaired', updatedAt: new Date() }).where(eq(screens.id, screenId)).run()
+
+  // Экран потерял локальные учётные данные — обычно после очистки данных
+  // браузера на телевизоре. Причина известна сразу, и она важнее «нет связи».
+  if (companyId) {
+    recordEventIncident({
+      screenId,
+      companyId,
+      type: 'unpaired',
+      detail: 'Экран потерял учётные данные и ждёт привязки',
+    })
+  }
+}
+
+function screenCompanyId(screenId: string): string | null {
+  return (
+    db.select({ companyId: screens.companyId }).from(screens).where(eq(screens.id, screenId)).get()?.companyId ?? null
+  )
 }
