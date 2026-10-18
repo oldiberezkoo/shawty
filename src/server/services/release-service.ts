@@ -307,7 +307,17 @@ export function publishScreens(params: {
       const manifest = buildScreenManifest(companyId, screenId, version, now)
       const plan = planForScreen(companyId, screenId, now)
 
-      tx.insert(releaseTargets).values({ id: crypto.randomUUID(), releaseId, screenId }).run()
+      tx.insert(releaseTargets)
+        .values({
+          id: crypto.randomUUID(),
+          releaseId,
+          screenId,
+          // Кампания пишется по факту разрешения, а не по поводу публикации:
+          // один выпуск может нести разные программы разным экранам, и отчёт
+          // по кампании обязан считать именно то, что реально легло на экран.
+          campaignId: plan.resolution.campaignId,
+        })
+        .run()
 
       const set = {
         desiredReleaseId: releaseId,

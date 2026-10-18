@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { MonitoringBoard } from './MonitoringBoard'
 import { AvailabilityReport } from './AvailabilityReport'
+import { CampaignReportCard } from './CampaignReportCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +25,7 @@ export default async function MonitoringPage() {
 
       <MonitoringBoard companyId={membership.companyId} />
       <AvailabilityReport companyId={membership.companyId} />
+      <CampaignReportCard companyId={membership.companyId} />
     </div>
   )
 }

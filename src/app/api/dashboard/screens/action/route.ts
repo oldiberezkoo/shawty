@@ -17,12 +17,12 @@ const bodySchema = z.object({
 })
 
 /** Соответствие действия экрана и записи журнала. */
-const SCREEN_AUDIT: Record<(typeof bodySchema)['shape']['action'], AuditAction> = {
+const SCREEN_AUDIT = {
   disable: 'screen.disabled',
   enable: 'screen.enabled',
   unpair: 'screen.unpaired',
   rotate: 'screen.rotated',
-}
+} as const satisfies Record<'disable' | 'enable' | 'unpair' | 'rotate', AuditAction>
 
 /**
  * Управление парком экранов: отключение, отвязка и ротация.

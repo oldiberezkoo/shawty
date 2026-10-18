@@ -625,10 +625,20 @@ export const releaseTargets = sqliteTable(
     screenId: text('screen_id')
       .notNull()
       .references(() => screens.id, { onDelete: 'cascade' }),
+    /**
+     * Кампания, чей плейлист фактически выложен на этот экран.
+     *
+     * Живёт здесь, а не только в `releases.campaign_id`: одна публикация может
+     * нести разные программы разным экранам (у одного идёт акция, у другого
+     * фоновая), а колонка у публикации описывает лишь повод. С этой связкой
+     * отчёт по кампании точен, а не восстановлен по времени.
+     */
+    campaignId: text('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
   },
   (t) => [
     uniqueIndex('release_targets_idx').on(t.releaseId, t.screenId),
     index('release_targets_screen_idx').on(t.screenId),
+    index('release_targets_campaign_idx').on(t.campaignId),
   ],
 )
 

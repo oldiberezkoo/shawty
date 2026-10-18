@@ -65,6 +65,8 @@ export type AuditInput = {
   targetId?: string | null
   meta?: Record<string, unknown> | null
   ip?: string | null
+  /** Момент записи. По умолчанию — текущий; задаётся при отладке и в тестах. */
+  at?: Date
 }
 
 /**

@@ -34,6 +34,7 @@ async function main() {
     ['/dashboard/campaigns', ['Кампании', 'Новая кампания', 'Окна показа']],
     ['/dashboard/scheduling', ['Расписание', 'Что и когда идёт на экранах']],
     ['/dashboard/monitoring', ['Мониторинг', 'Лента событий', 'Недоступность за период']],
+    ['/dashboard/audit', ['Журнал действий']],
     ['/pair', ['Порядок действий']],
     ['/player/pairing', ['SHAWTY']],
   ]

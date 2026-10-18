@@ -78,7 +78,7 @@ export const GET = route(async (request: Request) => {
 
 /** Назначение плейлиста на область экранов. */
 export const PUT = route(async (request: Request) => {
-  const { companyId, access } = await requireDashboardMutation(request)
+  const { companyId, access, session } = await requireDashboardMutation(request)
   requirePermission(access, PERMISSIONS.releasesPublish, 'Нет прав на назначение контента')
 
   const body = assignSchema.safeParse(await readJsonBody(request))

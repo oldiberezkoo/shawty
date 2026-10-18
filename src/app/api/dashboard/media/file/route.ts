@@ -1,7 +1,8 @@
 import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { Readable } from 'node:stream'
-import { route, jsonResponse } from '@/server/http/request'
+import { route, jsonResponse, clientIp } from '@/server/http/request'
+import { recordAudit } from '@/server/services/audit-service'
 import { requireSessionForApi } from '@/server/auth/require-session'
 import { accessFor } from '@/server/services/auth-service'
 import { PERMISSIONS } from '@/domain/authz/permissions'
@@ -149,7 +150,7 @@ export const DELETE = route(async (request) => {
       targetId: assetId,
       // Принудительное удаление обходит защиту занятости, и именно это важно
       // потом разбирать: файл мог показываться на экранах.
-      meta: { force, name: outcome.asset.name ?? null },
+      meta: { force, sha256: outcome.asset.sha256 },
       ip: clientIp(request),
     })
   }
