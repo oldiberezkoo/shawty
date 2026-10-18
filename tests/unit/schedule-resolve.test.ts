@@ -333,6 +333,38 @@ describe('таймлайн и следующая смена', () => {
 
     expect(next).toBeNull()
   })
+
+  it('календарь различает кампании с одинаковым плейлистом', () => {
+    // Телевизеру смена показов не нужна, но оператор в календаре обязан видеть,
+    // что 13 октября пойдёт другая акция: одинаковая программа под другим
+    // названием — это разные отрезки расписания, а не один длинный.
+    const first = campaign({ id: 'a', playlistVersionId: 'pvr_same' })
+    const second = campaign({ id: 'b', playlistVersionId: 'pvr_same', startsOn: '2026-10-13' })
+
+    const byPlaylist = buildTimeline(
+      [first, second],
+      screen(),
+      TASHKENT,
+      '2026-10-12T00:00:00Z',
+      '2026-10-15T00:00:00Z',
+      'pvr_default',
+      60 * 60_000,
+    )
+
+    const byCampaign = buildTimeline(
+      [first, second],
+      screen(),
+      TASHKENT,
+      '2026-10-12T00:00:00Z',
+      '2026-10-15T00:00:00Z',
+      'pvr_default',
+      60 * 60_000,
+      { attribute: 'campaign' },
+    )
+
+    expect(byPlaylist).toHaveLength(1)
+    expect(byCampaign.filter((segment) => segment.campaignId === 'b').length).toBeGreaterThan(0)
+  })
 })
 
 describe('интервалы для календаря', () => {

@@ -22,6 +22,7 @@
     "smoke:http": "node scripts/smoke-http.cjs",
     "smoke:pairing": "node scripts/smoke-pairing.cjs",
     "smoke:pages": "node scripts/smoke-pages.cjs",
+    "smoke:schedule": "node scripts/smoke-schedule.cjs",
     "check": "pnpm typecheck && pnpm test"
   },
   "dependencies": {

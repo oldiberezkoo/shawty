@@ -31,6 +31,8 @@ async function main() {
     ['/dashboard/media', ['Медиатека', 'Хранилище']],
     ['/dashboard/playlists', ['Плейлисты']],
     ['/dashboard/releases', ['Публикация', 'Отправлено', 'Применили', 'Нет связи']],
+    ['/dashboard/campaigns', ['Кампании', 'Новая кампания', 'Окна показа']],
+    ['/dashboard/scheduling', ['Расписание', 'Что и когда идёт на экранах']],
     ['/pair', ['Порядок действий']],
     ['/player/pairing', ['SHAWTY']],
   ]

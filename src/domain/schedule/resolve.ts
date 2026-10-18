@@ -17,6 +17,16 @@ import type { ScopeType } from '@/db/schema'
 import { addCalendarDays, localMidnight, toInstant, type InstantLike } from './timezone'
 import { isWithinWindow, mergeIntervals, windowIntervals, type ScheduleInterval, type ScheduleWindowInput } from './window'
 
+/**
+ * Статусы, в которых кампания участвует в разрешении.
+ *
+ * `draft` и `in_review` исключены осознанно: несогласованная кампания не
+ * должна попадать на экран даже случайно — иначе «согласование» было бы
+ * украшением интерфейса, а не механизмом. Даты и окна проверяются отдельно,
+ * здесь важен только статус.
+ */
+export const LIVE_CAMPAIGN_STATUSES = ['approved', 'scheduled', 'active'] as const
+
 /** Кампания в том виде, в котором её видит решатель. */
 export type CampaignCandidate = {
   id: string
@@ -277,6 +287,7 @@ export function buildTimeline(
   to: InstantLike,
   fallbackPlaylistVersionId: string | null,
   stepMs = 15 * 60_000,
+  options: { attribute?: 'playlist' | 'campaign' } = {},
 ): ChangeSegment[] {
   const start = toInstant(from)
   const end = toInstant(to)
@@ -294,7 +305,21 @@ export function buildTimeline(
     const at = Temporal.Instant.fromEpochMilliseconds(cursorMs)
     const resolution = resolveSchedule(campaigns, screen, timezone, at, fallbackPlaylistVersionId)
 
-    if (!current || current.playlistVersionId !== resolution.playlistVersionId) {
+    // Что считать сменой программы — по умолчанию смена плейлиста. Именно так
+    // работает `nextChangeAt`: телевизору нужен момент, когда показ другой, и
+    // две кампании с одним плейлистом переключать экран не должны.
+    //
+    // Календарь в интерфейсе, наоборот, различает кампании: оператор смотрит
+    // «что за акция идёт», и одна программа под двумя названиями — это разные
+    // отрезки расписания.
+    const byCampaign = options.attribute === 'campaign'
+    const changed = !current
+      ? true
+      : byCampaign
+        ? current.campaignId !== resolution.campaignId
+        : current.playlistVersionId !== resolution.playlistVersionId
+
+    if (changed) {
       const last = segments[segments.length - 1]
       if (last) last.to = at.toString()
 

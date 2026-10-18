@@ -6,9 +6,12 @@ import { eq } from 'drizzle-orm'
 import { db, sqlite } from '../src/db/client'
 import {
   branches,
+  campaigns,
+  campaignTargets,
   companies,
   memberships,
   plans,
+  scheduleWindows,
   screenGroups,
   screens,
   screenPublications,
@@ -117,6 +120,9 @@ sqlite.transaction(() => {
 
   const branchSeed = [
     { id: 'brn_tashkent', name: 'Ташкент — Южный', code: 'TASH-S', timezone: 'Asia/Tashkent' },
+    // Зона Самарканда на час позже Ташкента. Это не опечатка: окно «с 09:00»
+    // в этих филиалах наступает в разное время, и демо-данные обязаны это
+    // показывать, иначе расписание проверить не на чем.
     { id: 'brn_samarkand', name: 'Самарканд — Центр', code: 'SAM-C', timezone: 'Asia/Samarkand' },
     { id: 'brn_bukhara', name: 'Бухара — Торговый центр', code: 'BUK-T', timezone: 'Asia/Samarkand' },
   ]
@@ -162,6 +168,85 @@ sqlite.transaction(() => {
       .run()
   }
 
+  seedCampaign()
+
   console.log('[seed] демо-данные готовы')
   console.log(`[seed] вход: ${DEMO_EMAIL} / ${DEMO_PASSWORD}`)
 })()
+
+/**
+ * Демо-кампания с окном показа.
+ *
+ * Без неё разделы «Кампании» и «Расписание» открываются пустыми, а именно они
+ * показывают, что продукт умеет решать, что и когда идти на экран.
+ *
+ * Контента у кампании нет: плейлист создаёт оператор. Кампания ссылается на
+ * версию плейлиста, поэтому в демо она живёт без версии — так она видна в
+ * интерфейсе и не превращается в мусор при первом же запуске медиапайплайна.
+ */
+function seedCampaign(): void {
+  const id = 'cmp_demo_autumn'
+  const now = new Date()
+
+  // Даты считаем по календарю компании, а не по часам процесса: «до 15 числа»
+  // в интерфейсе должно совпадать с тем, что видит оператор в Ташкенте.
+  const startsOn = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(now)
+  const endsOn = new Date(Date.parse(`${startsOn}T00:00:00Z`) + 30 * 24 * 60 * 60_000)
+    .toISOString()
+    .slice(0, 10)
+
+  db.insert(campaigns)
+    .values({
+      id,
+      companyId: 'cmp_demo_retail',
+      name: 'Осенняя акция — демо',
+      kind: 'commercial',
+      // Приоритет выше нуля: демо-кампания обязана перебивать постоянную
+      // программу, иначе календарь покажет только назначение.
+      priority: 10,
+      status: 'approved',
+      startsOn,
+      endsOn,
+      approvalRequired: false,
+      createdByUserId: 'usr_demo_owner',
+      approvedByUserId: 'usr_demo_owner',
+      approvedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing()
+    .run()
+
+  db.insert(campaignTargets)
+    .values({
+      id: 'cmt_demo_autumn_company',
+      campaignId: id,
+      scopeType: 'company',
+      scopeId: 'cmp_demo_retail',
+    })
+    .onConflictDoNothing()
+    .run()
+
+  db.insert(campaignTargets)
+    .values({
+      id: 'cmt_demo_autumn_samarkand',
+      campaignId: id,
+      scopeType: 'branch',
+      scopeId: 'brn_samarkand',
+    })
+    .onConflictDoNothing()
+    .run()
+
+  // Окно «рабочие часы». Бит 0 — понедельник, поэтому маска 0b0011111 — пн–пт.
+  db.insert(scheduleWindows)
+    .values({
+      id: 'swd_demo_autumn_workday',
+      campaignId: id,
+      daysOfWeek: 0b0011111,
+      startMinute: 9 * 60,
+      endMinute: 18 * 60,
+      timezoneSource: 'branch',
+    })
+    .onConflictDoNothing()
+    .run()
+}

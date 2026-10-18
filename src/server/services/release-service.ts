@@ -24,6 +24,12 @@ import { serverConfig } from '@/config/server'
 import { buildManifest } from '@/domain/release/manifest'
 import { issueMediaTicket } from '@/domain/release/media-ticket'
 import { extensionForMime } from '@/server/services/media-service'
+import {
+  invalidatePlanCache,
+  pickAssignment as schedulePickAssignment,
+  planForScreen,
+  resolveScreens as resolveScopeScreens,
+} from '@/server/services/schedule-service'
 import type { PlayerManifest } from '@/player/engine'
 import { HttpError } from '@/server/http/errors'
 import { logger } from '@/lib/logger'
@@ -47,33 +53,12 @@ export function playbackUrl(screenId: string, mediaId: string): string {
  * Экраны ищутся напрямую в базе, а не собираются каскадом: так назначение
  * на всю сеть из 80 экранов остаётся одним запросом с индексом, а не
  * семьюдесятью.
+ *
+ * Функция живёт в сервисе расписания: ту же область раскрывают и кампании,
+ * и держать две копии одного правила означало бы, что однажды они разойдутся.
  */
 export function resolveScreens(companyId: string, scopeType: string, scopeId: string): string[] {
-  const conditions = [eq(screens.companyId, companyId), ne(screens.status, 'revoked')]
-
-  switch (scopeType) {
-    case 'company':
-      break
-    case 'branch':
-      conditions.push(eq(screens.branchId, scopeId))
-      break
-    case 'group':
-      conditions.push(eq(screens.groupId, scopeId))
-      break
-    case 'screen':
-      conditions.push(eq(screens.id, scopeId))
-      break
-    default:
-      throw HttpError.badRequest('invalid_scope', 'Неизвестная область назначения')
-  }
-
-  return db
-    .select({ id: screens.id })
-    .from(screens)
-    .where(and(...conditions))
-    .orderBy(asc(screens.id))
-    .all()
-    .map((row) => row.id)
+  return resolveScopeScreens(companyId, scopeType, scopeId)
 }
 
 export type AssignInput = {
@@ -133,6 +118,11 @@ export function assignPlaylist(input: AssignInput): { screens: number } {
       .run()
   })
 
+  // План показа кэшируется на полминуты. После правки назначения кэш надо
+  // сбросить сразу: иначе оператор увидит «показывается старый плейлист»
+  // ещё полминуты после того, как назначил новый.
+  invalidatePlanCache(input.companyId)
+
   return { screens: targetScreens.length }
 }
 
@@ -148,63 +138,32 @@ export function listAssignments(companyId: string) {
 /**
  * Выбор назначения для конкретного экрана.
  *
- * Порядок тот же, что в §7 плана: сначала приоритет, затем специфичность
- * области, затем стабильный тай-брейкер по идентификатору. Без последнего
- * два одинаковых назначения давали бы разный результат в зависимости от
- * порядка строк в базе.
+ * Живёт в сервисе расписания вместе с кампаниями: и то, и другое отвечает на
+ * вопрос «что показывать на этом экране», и разбирать их в разных местах
+ * значило бы однажды получить два разных ответа на один и тот же вопрос.
  */
-const SPECIFICITY: Record<string, number> = {
-  screen: 4,
-  group: 3,
-  branch: 2,
-  company: 1,
-}
+export const pickAssignment = schedulePickAssignment
 
-export function pickAssignment(companyId: string, screenId: string) {
-  const screen = db.select().from(screens).where(eq(screens.id, screenId)).get()
-  if (!screen) return null
+/**
+ * Сборка манифеста экрана.
+ *
+ * Содержимое выбирает решатель расписания: активная кампания имеет приоритет
+ * над постоянным назначением, а если ни одна кампания сейчас не идёт — берётся
+ * назначение филиала, группы или компании.
+ *
+ * `nextChangeAt` кладётся в манифест, чтобы телевизор заранее знал момент
+ * следующей смены программы и подготовил её, вместо того чтобы узнать о ней
+ * в момент переключения.
+ */
+export function buildScreenManifest(
+  companyId: string,
+  screenId: string,
+  version: number,
+  at: Date = new Date(),
+): PlayerManifest | null {
+  const plan = planForScreen(companyId, screenId, at)
 
-  const candidates = db
-    .select()
-    .from(releaseAssignments)
-    .where(eq(releaseAssignments.companyId, companyId))
-    .all()
-
-  if (candidates.length === 0) return null
-
-  const matches = candidates.filter((assignment) => {
-    switch (assignment.scopeType) {
-      case 'company':
-        return true
-      case 'branch':
-        return assignment.scopeId === screen.branchId
-      case 'group':
-        return assignment.scopeId === screen.groupId
-      case 'screen':
-        return assignment.scopeId === screenId
-      default:
-        return false
-    }
-  })
-
-  if (matches.length === 0) return null
-
-  matches.sort((a, b) => {
-    if (b.priority !== a.priority) return b.priority - a.priority
-    const specA = SPECIFICITY[a.scopeType] ?? 0
-    const specB = SPECIFICITY[b.scopeType] ?? 0
-    if (specB !== specA) return specB - specA
-    // Тай-брейкер: результат обязан быть воспроизводимым.
-    return a.id.localeCompare(b.id)
-  })
-
-  return matches[0] ?? null
-}
-
-/** Сборка манифеста экрана из назначенной версии плейлиста. */
-export function buildScreenManifest(companyId: string, screenId: string, version: number): PlayerManifest | null {
-  const assignment = pickAssignment(companyId, screenId)
-  if (!assignment) return null
+  if (!plan.playlistVersionId) return null
 
   const rows = db
     .select({
@@ -218,12 +177,11 @@ export function buildScreenManifest(companyId: string, screenId: string, version
       assetKind: mediaAssets.kind,
       assetDurationMs: mediaAssets.durationMs,
       state: mediaAssets.state,
-      playbackSha256: mediaAssets.playbackSha256,
       mime: mediaAssets.mime,
     })
     .from(playlistVersionItems)
     .innerJoin(mediaAssets, eq(mediaAssets.id, playlistVersionItems.mediaAssetId))
-    .where(eq(playlistVersionItems.versionId, assignment.playlistVersionId))
+    .where(eq(playlistVersionItems.versionId, plan.playlistVersionId))
     .orderBy(asc(playlistVersionItems.position))
     .all()
 
@@ -238,20 +196,26 @@ export function buildScreenManifest(companyId: string, screenId: string, version
       version,
       screenId,
       companyId,
-      nextChangeAt: null,
+      nextChangeAt: plan.nextChangeAt,
       items: playable.map((row) => ({
-      id: row.itemId,
-      kind: row.assetKind === 'video' ? ('video' as const) : ('image' as const),
-      assetDurationMs: row.assetDurationMs,
-      durationMs: row.durationMs,
-      playPolicy: row.playPolicy,
-      url: playbackUrl(screenId, row.assetId),
-      mime: row.mime,
-      transition: row.transition,
-      audio: row.audio,
-    })),
+        id: row.itemId,
+        kind: row.assetKind === 'video' ? ('video' as const) : ('image' as const),
+        assetDurationMs: row.assetDurationMs,
+        durationMs: row.durationMs,
+        playPolicy: row.playPolicy,
+        url: playbackUrl(screenId, row.assetId),
+        mime: row.mime,
+        transition: row.transition,
+        audio: row.audio,
+      })),
     },
+    at,
   )
+}
+
+/** Версия плейлиста, которую решатель назначил экрану прямо сейчас. */
+export function playlistVersionForScreen(companyId: string, screenId: string, at: Date = new Date()): string | null {
+  return planForScreen(companyId, screenId, at).playlistVersionId
 }
 
 export type PublishResult = {
@@ -261,24 +225,34 @@ export type PublishResult = {
 }
 
 /**
- * Публикация назначенного контента на экраны.
+ * Публикация на указанные экраны.
  *
  * Номер версии растёт на компанию, а не на экран: экран получает ту же
  * версию, что и соседние, и публикация «на всю сеть» остаётся одной
  * операцией с одним набором receipts.
+ *
+ * Содержимое берётся из решателя расписания, поэтому один и тот же вызов
+ * обслуживает и ручную публикацию оператора, и смену программы по расписанию.
+ * Разница только в том, кто инициировал вызов.
+ *
+ * Экраны без пригодного содержимого получают и манифест, и запись о
+ * желаемой версии: экран с пустой программой обязан честно показать
+ * «нет назначенного контента», а не молча остаться на старой публикации.
  */
-export function publishCompany(companyId: string, actorUserId: string, reason?: string): PublishResult {
-  const companyScreens = db
-    .select({ id: screens.id, offlineAfterSec: screens.offlineAfterSec, lastSeenAt: screens.lastSeenAt })
-    .from(screens)
-    .where(and(eq(screens.companyId, companyId), ne(screens.status, 'revoked')))
-    .all()
+export function publishScreens(params: {
+  companyId: string
+  screenIds: string[]
+  actorUserId?: string
+  reason?: string
+  campaignId?: string | null
+  at?: Date
+}): PublishResult {
+  const { companyId, screenIds } = params
+  const now = params.at ?? new Date()
 
-  const assigned = companyScreens
-    .map((screen) => ({ screen, assignment: pickAssignment(companyId, screen.id) }))
-    .filter((entry) => entry.assignment !== null)
+  const uniqueScreens = [...new Set(screenIds)].sort()
 
-  if (assigned.length === 0) {
+  if (uniqueScreens.length === 0) {
     throw HttpError.badRequest('nothing_assigned', 'Ни одному экрану не назначен плейлист')
   }
 
@@ -299,45 +273,39 @@ export function publishCompany(companyId: string, actorUserId: string, reason?: 
       .values({
         id: releaseId,
         companyId,
+        campaignId: params.campaignId ?? null,
         manifestVersion: version,
         manifestJson: '{}',
         manifestHash: '',
         itemCount: 0,
-        reason: reason ?? null,
-        createdByUserId: actorUserId,
+        reason: params.reason ?? null,
+        createdByUserId: params.actorUserId ?? null,
       })
       .run()
 
-    const now = new Date()
     let itemCount = 0
 
-    for (const { screen } of assigned) {
-      const manifest = buildScreenManifest(companyId, screen.id, version)
+    for (const screenId of uniqueScreens) {
+      const manifest = buildScreenManifest(companyId, screenId, version, now)
+      const plan = planForScreen(companyId, screenId, now)
 
-      tx.insert(releaseTargets).values({ id: crypto.randomUUID(), releaseId, screenId: screen.id }).run()
+      tx.insert(releaseTargets).values({ id: crypto.randomUUID(), releaseId, screenId }).run()
+
+      const set = {
+        desiredReleaseId: releaseId,
+        desiredVersion: version,
+        playlistVersionId: plan.playlistVersionId,
+        nextChangeAt: plan.nextChangeAt,
+        updatedAt: now,
+      }
 
       tx.insert(screenPublications)
-        .values({
-          screenId: screen.id,
-          companyId,
-          desiredReleaseId: releaseId,
-          desiredVersion: version,
-          updatedAt: now,
-        })
-        .onConflictDoUpdate({
-          target: screenPublications.screenId,
-          set: { desiredReleaseId: releaseId, desiredVersion: version, updatedAt: now },
-        })
+        .values({ screenId, companyId, ...set })
+        .onConflictDoUpdate({ target: screenPublications.screenId, set })
         .run()
 
       tx.insert(deliveryReceipts)
-        .values({
-          id: crypto.randomUUID(),
-          releaseId,
-          screenId: screen.id,
-          state: 'queued',
-          updatedAt: now,
-        })
+        .values({ id: crypto.randomUUID(), releaseId, screenId, state: 'queued', updatedAt: now })
         .onConflictDoNothing()
         .run()
 
@@ -347,11 +315,33 @@ export function publishCompany(companyId: string, actorUserId: string, reason?: 
     }
 
     tx.update(releases)
-      .set({ itemCount, manifestHash: hashAll(assigned.map((entry) => entry.screen.id), version) })
+      .set({ itemCount, manifestHash: hashAll(uniqueScreens, version) })
       .where(eq(releases.id, releaseId))
       .run()
 
-    return { releaseId, version, screens: assigned.length }
+    return { releaseId, version, screens: uniqueScreens.length }
+  })
+}
+
+/**
+ * Ручная публикация на всю сеть компании.
+ *
+ * Отличается от `publishScreens` только отбором экранов: публикуем всё, что
+ * не отозвано, а решатель сам решит, есть ли для экрана что показывать.
+ */
+export function publishCompany(companyId: string, actorUserId: string, reason?: string): PublishResult {
+  const companyScreens = db
+    .select({ id: screens.id })
+    .from(screens)
+    .where(and(eq(screens.companyId, companyId), ne(screens.status, 'revoked')))
+    .orderBy(asc(screens.id))
+    .all()
+
+  return publishScreens({
+    companyId,
+    screenIds: companyScreens.map((screen) => screen.id),
+    actorUserId,
+    reason,
   })
 }
 

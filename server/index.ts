@@ -14,6 +14,7 @@ import { serverConfig } from '../src/config/server'
 import { handleDeviceConnection } from '../src/server/ws/device'
 import { deviceHub } from '../src/server/ws/hub'
 import { startDeliveryPump, stopDeliveryPump } from '../src/server/ws/delivery-pump'
+import { startSchedulePump, stopSchedulePump } from '../src/server/ws/schedule-pump'
 import { expireStaleSessions } from '../src/server/services/pairing-service'
 import { pruneRateLimitBuckets } from '../src/server/http/rate-limit'
 import { logger } from '../src/lib/logger'
@@ -109,6 +110,10 @@ async function main(): Promise<void> {
   // это разные изоляции. Общий носитель между ними — база (см. §3.2 плана).
   startDeliveryPump()
 
+  // Смена программы по расписанию происходит сама, без клика. Публикацию для
+  // неё создаёт этот насос; развозит её насос доставки.
+  startSchedulePump()
+
   const cleanupTimer = setInterval(() => {
     try {
       const expired = expireStaleSessions()
@@ -140,6 +145,7 @@ async function main(): Promise<void> {
     clearInterval(sweepTimer)
     clearInterval(cleanupTimer)
     stopDeliveryPump()
+    stopSchedulePump()
     deviceHub.closeAll()
     server.close(() => process.exit(0))
     // Страховка: если сокеты держат соединение, выходим по таймауту.

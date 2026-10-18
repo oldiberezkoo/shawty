@@ -73,6 +73,29 @@ const RECONNECT_DELAYS_MS = [1_000, 2_000, 5_000, 10_000, 20_000, 30_000, 60_000
  */
 const STATE_POLL_MS = 15 * 60_000
 
+/**
+ * За сколько до смены программы экран готовит следующую публикацию.
+ *
+ * Без этого экран узнавал бы о смене только на ближайшем пятнадцатиминутном
+ * опросе и показывал бы старую акцию ещё до десяти минут после её конца.
+ * Знание момента смены лежит в самом манифесте, поэтому регламент здесь
+ * сводится к одному таймеру.
+ */
+const SCHEDULE_PREFETCH_BEFORE_MS = 10 * 60_000
+
+/** Как часто перепроверять, пока смена не произошла. */
+const CHANGE_POLL_MS = 60_000
+
+/**
+ * Сколько ждать после момента смены, прежде чем вернуться к обычному опросу.
+ *
+ * Публикацию выпускает насос расписания на сервере, и он делает это не
+ * мгновенно. Экран не должен опрашивать сервер каждую минуту вечно: если по
+ * какой-то причине смены так и не случилось, дальше работает обычный
+ * пятнадцатиминутный опрос.
+ */
+const CHANGE_GRACE_MS = 30 * 60_000
+
 export function PlayerDisplay() {
   const [phase, setPhase] = useState<Phase>('authenticating')
   const [message, setMessage] = useState<string | null>(null)
@@ -96,6 +119,15 @@ export function PlayerDisplay() {
   const tokenExpiryRef = useRef(0)
   const socketRef = useRef<WebSocket | null>(null)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+
+  /**
+   * Версия применённого манифеста.
+   *
+   * Отдельное состояние нужно ради таймера смены программы: сам манифест живёт
+   * в ссылке, и без «счётчика изменений» эффект не понял бы, что пришла новая
+   * публикация, и не перевёл бы таймер на её `nextChangeAt`.
+   */
+  const [manifestVersion, setManifestVersion] = useState<number | null>(null)
 
   // ── Учётные данные и токен ────────────────────────────────────────────────
 
@@ -156,6 +188,7 @@ export function PlayerDisplay() {
    */
   const applyManifest = useCallback((manifest: PlayerManifest) => {
     manifestRef.current = manifest
+    setManifestVersion(manifest.version)
 
     if (manifest.items.length === 0) {
       setPhase('empty')
@@ -464,6 +497,59 @@ export function PlayerDisplay() {
 
     return () => clearInterval(timer)
   }, [phase, loadState])
+
+  // ── Подготовка смены программы по расписанию ──────────────────────────────
+
+  /**
+   * Смена программы по расписанию.
+   *
+   * Момент смены приходит в манифесте, поэтому экран не обязан угадывать
+   * время: он просто просит состояние незадолго до `nextChangeAt`, а пока смена
+   * не подтверждена — проверяет раз в минуту вместо обычных пятнадцати.
+   *
+   * Обновление адресов здесь безопасно: программа не меняется, а если смена
+   * уже произошла, `applyManifest` пересчитает позицию и переключит показ.
+   */
+  useEffect(() => {
+    if (phase !== 'ready') return
+
+    const nextChangeAt = manifestRef.current?.nextChangeAt
+    if (!nextChangeAt) return
+
+    const changeAt = new Date(nextChangeAt).getTime()
+    if (!Number.isFinite(changeAt)) return
+
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let cancelled = false
+
+    const check = async () => {
+      if (cancelled) return
+
+      await loadState({ isRefresh: true })
+
+      if (cancelled) return
+
+      const current = manifestRef.current?.nextChangeAt ? new Date(manifestRef.current.nextChangeAt).getTime() : null
+
+      // Смена состоялась — момент исчез или уехал вперёд, и следующая проверка
+      // не нужна. Не состоялась — ждём дальше, но не дольше получаса после
+      // смены: дальше работает обычный опрос.
+      const stillDue = current !== null && current <= Date.now()
+      const graceLeft = Date.now() - changeAt < CHANGE_GRACE_MS
+
+      if (stillDue && graceLeft) {
+        timer = setTimeout(() => void check(), CHANGE_POLL_MS)
+      }
+    }
+
+    const firstDelay = changeAt - Date.now() - SCHEDULE_PREFETCH_BEFORE_MS
+    timer = setTimeout(() => void check(), Math.max(30_000, firstDelay))
+
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
+  }, [phase, manifestVersion, loadState])
 
   // ── Wake Lock ─────────────────────────────────────────────────────────────
 

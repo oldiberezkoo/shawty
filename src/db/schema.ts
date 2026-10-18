@@ -506,6 +506,21 @@ export const campaigns = sqliteTable(
     startsOn: text('starts_on').notNull(),
     endsOn: text('ends_on'),
     approvalRequired: integer('approval_required', { mode: 'boolean' }).notNull().default(false),
+    /**
+     * Версия плейлиста, которую кампания выводит на экран.
+     *
+     * Ссылка на неизменяемую версию, а не на плейлист: правка состава после
+     * запуска кампании не должна молча менять то, что уже показывается в
+     * магазине. Смена материала — новая кампания или явная перепубликация.
+     */
+    playlistVersionId: text('playlist_version_id').references(() => playlistVersions.id),
+    /** Что показывать, когда файлы основной версии недоступны. */
+    fallbackPlaylistVersionId: text('fallback_playlist_version_id').references(() => playlistVersions.id),
+    /**
+     * Явная зона кампании. `null` — окна считаются в зоне филиала экрана,
+     * и смена часового пояса филиала сдвигает окно вместе с ним.
+     */
+    timezoneOverride: text('timezone_override'),
     createdByUserId: text('created_by_user_id').references(() => users.id),
     approvedByUserId: text('approved_by_user_id').references(() => users.id),
     approvedAt: integer('approved_at', { mode: 'timestamp_ms' }),
@@ -682,6 +697,15 @@ export const screenPublications = sqliteTable(
     appliedAt: integer('applied_at', { mode: 'timestamp_ms' }),
     /** Когда расписание требует следующей публикации: плеер готовит её заранее. */
     nextChangeAt: integer('next_change_at', { mode: 'timestamp_ms' }),
+    /**
+     * Версия плейлиста, из которой собрано желаемое состояние.
+     *
+     * По ней насос расписания узнаёт, что программа экрана должна смениться:
+     * иначе пришлось бы заново разбирать манифест, а сравнение версий
+     * достаточно — показывать пересобранный манифест с тем же плейлистом
+     * незачем.
+     */
+    playlistVersionId: text('playlist_version_id').references(() => playlistVersions.id, { onDelete: 'set null' }),
     updatedAt: updatedAt(),
   },
   (t) => [index('screen_publications_company_idx').on(t.companyId)],
