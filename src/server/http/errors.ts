@@ -34,6 +34,17 @@ export class HttpError extends Error {
     return new HttpError(409, code, message, details)
   }
 
+  /**
+   * Ресурс был и исчез по времени: истёкшее приглашение, отозванный ключ.
+   *
+   * Отдельный код, потому что действие разное: 404 означает «проверьте адрес,
+   * возможно опечатка», а 410 — «это было, но теперь недоступно, нужно новое».
+   * Приглашение, на которое отвечают 404, посчитают битым и перестанут искать.
+   */
+  static gone(code: string, message: string, details?: Record<string, unknown>): HttpError {
+    return new HttpError(410, code, message, details)
+  }
+
   static tooManyRequests(message: string, retryAfterMs: number): HttpError {
     return new HttpError(429, 'rate_limited', message, { retryAfterMs })
   }

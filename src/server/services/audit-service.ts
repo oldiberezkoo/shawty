@@ -41,6 +41,17 @@ export const AUDIT_ACTIONS = {
   'campaign.published': 'Кампания опубликована',
   'assignment.changed': 'Назначение контента изменено',
   'release.published': 'Публикация выпущена',
+  'team.invited': 'Приглашение отправлено',
+  'team.invitation_revoked': 'Приглашение отозвано',
+  'team.joined': 'Сотрудник принял приглашение',
+  'team.member_added': 'Сотрудник добавлен',
+  'team.member_removed': 'Сотрудник удалён',
+  'team.member_suspended': 'Доступ сотрудника приостановлен',
+  'team.member_restored': 'Доступ сотрудника восстановлен',
+  'team.role_changed': 'Роль изменена',
+  'team.scopes_changed': 'Область доступа изменена',
+  'team.owner_transferred': 'Права владельца переданы',
+  'billing.plan_changed': 'Тариф изменён',
 } as const
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS
@@ -55,6 +66,8 @@ export const AUDIT_GROUPS: { label: string; prefix: string }[] = [
   { label: 'Кампании', prefix: 'campaign.' },
   { label: 'Публикация', prefix: 'release.' },
   { label: 'Назначения', prefix: 'assignment.' },
+  { label: 'Команда', prefix: 'team.' },
+  { label: 'Оплата', prefix: 'billing.' },
 ]
 
 export type AuditInput = {
