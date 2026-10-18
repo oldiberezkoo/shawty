@@ -145,7 +145,8 @@ export function CampaignReportCard({ companyId }: { companyId: string }) {
           <p className="text-[13px] text-text-subtle">Кампаний пока нет.</p>
         ) : (
           <>
-            <table className="w-full text-[13px]">
+            <div className="@container w-full overflow-x-auto">
+            <table className="stack-table w-full border-collapse text-[13px]">
               <thead>
                 <tr className="border-b border-border text-left text-[12px] text-text-subtle">
                   <th className="py-2 font-normal">Кампания</th>
@@ -158,7 +159,7 @@ export function CampaignReportCard({ companyId }: { companyId: string }) {
               <tbody>
                 {report.campaigns.map((row) => (
                   <tr key={row.campaignId} className="border-b border-border last:border-0">
-                    <td className="py-2">
+                    <td data-primary className="py-2">
                       <div className="font-medium">{row.campaignName}</div>
                       {row.branches.length > 0 ? (
                         <div className="text-[12px] text-text-subtle">
@@ -166,18 +167,19 @@ export function CampaignReportCard({ companyId }: { companyId: string }) {
                         </div>
                       ) : null}
                     </td>
-                    <td className="tnum py-2 text-right text-text-muted">
+                    <td data-label="Экранов" className="tnum py-2 text-right text-text-muted">
                       {row.screensApplied} / {row.screensReached}
                     </td>
-                    <td className="tnum py-2 text-right">{row.started}</td>
-                    <td className="tnum py-2 text-right text-text-muted">{minutes(row.playedMs)}</td>
-                    <td className={`tnum py-2 text-right ${row.skipped + row.errors > 0 ? 'text-warn' : 'text-text-subtle'}`}>
+                    <td data-label="Стартов подтверждено" className="tnum py-2 text-right">{row.started}</td>
+                    <td data-label="Показано" className="tnum py-2 text-right text-text-muted">{minutes(row.playedMs)}</td>
+                    <td data-label="Пропущено" className={`tnum py-2 text-right ${row.skipped + row.errors > 0 ? 'text-warn' : 'text-text-subtle'}`}>
                       {row.skipped + row.errors}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
 
             {report.totals.unattributed > 0 ? (
               <p className="text-[12px] text-text-subtle">

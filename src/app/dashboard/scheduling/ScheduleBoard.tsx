@@ -150,7 +150,8 @@ export function ScheduleBoard({ companyId }: { companyId: string }) {
           description="Расписание считает сервер. «Ожидает смены» значит, что программа по расписанию отличается от выложенной — публикацию выпустит насос расписания в ближайшие секунды."
         />
         <CardBody className="p-0">
-          <table className="w-full text-[13px]">
+          <div className="@container w-full overflow-x-auto">
+          <table className="stack-table w-full border-collapse text-[13px]">
             <thead>
               <tr className="border-b border-border text-left text-[12px] text-text-subtle">
                 <th className="px-5 py-2 font-normal">Экран</th>
@@ -169,11 +170,11 @@ export function ScheduleBoard({ companyId }: { companyId: string }) {
                     screen.screenId === selectedId ? 'bg-surface-2' : ''
                   }`}
                 >
-                  <td className="px-5 py-2">
+                  <td data-primary className="px-5 py-2">
                     <div className="font-medium">{screen.screenName}</div>
                     <div className="text-[12px] text-text-subtle">{zoneLabel(screen.timezone, screen.timezoneSource)}</div>
                   </td>
-                  <td className="px-5 py-2">
+                  <td data-label="Сейчас идёт" className="px-5 py-2">
                     {screen.playlist ? (
                       <>
                         <div>
@@ -190,7 +191,7 @@ export function ScheduleBoard({ companyId }: { companyId: string }) {
                       <span className="text-text-subtle">ничего не назначено</span>
                     )}
                   </td>
-                  <td className="px-5 py-2 text-text-muted">
+                  <td data-label="Источник" className="px-5 py-2 text-text-muted">
                     {screen.chain.length === 0 ? (
                       <span className="text-text-subtle">только постоянная программа</span>
                     ) : (
@@ -201,10 +202,10 @@ export function ScheduleBoard({ companyId }: { companyId: string }) {
                       ))
                     )}
                   </td>
-                  <td className="px-5 py-2 text-text-muted">
+                  <td data-label="Смена программы" className="px-5 py-2 text-text-muted">
                     {formatTime(screen.nextChangeAt, screen.timezone)}
                   </td>
-                  <td className="tnum px-5 py-2 text-right">
+                  <td data-label="Состояние" className="tnum px-5 py-2 text-right">
                     {screen.needsChange ? (
                       <span className="text-warn">ожидает смены</span>
                     ) : screen.appliedVersion != null ? (
@@ -217,6 +218,7 @@ export function ScheduleBoard({ companyId }: { companyId: string }) {
               ))}
             </tbody>
           </table>
+          </div>
 
           {screens.length === 0 ? (
             <p className="px-5 py-4 text-[13px] text-text-subtle">В компании пока нет экранов.</p>

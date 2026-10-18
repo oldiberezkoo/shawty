@@ -1,7 +1,10 @@
 import { requireSession } from '@/server/auth/require-session'
 import { listScreens } from '@/server/services/screen-service'
-import { Card, CardBody, CardHeader } from '@/components/ui/card'
+import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ui/status-badge'
+import { DataTable, type TableColumn } from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 import { formatDeviceId } from '@/lib/ids'
 
 export const dynamic = 'force-dynamic'
@@ -16,6 +19,35 @@ function relativeTime(seconds: number | null): string {
   return `${Math.floor(hours / 24)} дн назад`
 }
 
+function plural(value: number, one: string, few: string, many: string): string {
+  const mod10 = value % 10
+  const mod100 = value % 100
+
+  if (mod10 === 1 && mod100 !== 11) return one
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
+
+  return many
+}
+
+const COLUMNS: TableColumn[] = [
+  { key: 'name', label: 'Экран', primary: true },
+  { key: 'group', label: 'Группа' },
+  // Идентификатор и версия плеера — справочные: нужны при разборе «экран не
+  // обновляется», но на телефоне занимают место и съедают читаемость.
+  { key: 'deviceId', label: 'Идентификатор', secondary: true },
+  { key: 'player', label: 'Плеер', secondary: true },
+  { key: 'heartbeat', label: 'Связь', align: 'right' },
+  { key: 'state', label: 'Состояние', align: 'right' },
+]
+
+/**
+ * Парк экранов.
+ *
+ * Список разбит по филиалам, а не отсортирован в одну таблицу: экран без
+ * филиала и экран филиала — это разные вещи, и в общем списке связь между ними
+ * теряется. Внутри филиала таблица сворачивается в карточки, когда места
+ * перестаёт хватать.
+ */
 export default async function ScreensPage() {
   const session = await requireSession()
   const membership = session.companies[0]
@@ -23,7 +55,32 @@ export default async function ScreensPage() {
 
   const screens = listScreens(membership.companyId)
 
+  if (screens.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Экраны</h1>
+        </div>
+
+        <Card>
+          <EmptyState
+            title="Экранов пока нет"
+            hint="Откройте страницу подключения на телевизоре — он покажет QR-код. Отсканируйте его телефоном и подтвердите привязку здесь."
+            action={
+              <Link href="/pair">
+                <Button size="sm" variant="primary">
+                  Подключить экран
+                </Button>
+              </Link>
+            }
+          />
+        </Card>
+      </div>
+    )
+  }
+
   const byBranch = new Map<string, typeof screens>()
+
   for (const screen of screens) {
     const key = screen.branchName ?? 'Без филиала'
     const list = byBranch.get(key) ?? []
@@ -33,68 +90,53 @@ export default async function ScreensPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Экраны</h1>
-        <p className="mt-1 text-[13px] text-text-muted">
-          Парк устройств компании: {screens.length} шт.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Экраны</h1>
+          <p className="mt-1 text-[13px] text-text-muted">
+            {screens.length} {plural(screens.length, 'экран', 'экрана', 'экранов')} в {byBranch.size}{' '}
+            {plural(byBranch.size, 'филиале', 'филиалах', 'филиалах')}. Состояние считается по времени
+            последнего heartbeat, а не по наличию соединения на сервере.
+          </p>
+        </div>
+
+        <Link href="/pair">
+          <Button size="sm" variant="primary">
+            Подключить экран
+          </Button>
+        </Link>
       </div>
 
       {[...byBranch.entries()].map(([branchName, items]) => (
         <Card key={branchName}>
           <CardHeader
             title={branchName}
-            description={`${items.length} экран(ов)`}
+            description={`${items.length} ${plural(items.length, 'экран', 'экрана', 'экранов')}`}
           />
           <CardBody className="p-0">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-border text-left text-[12px] text-text-subtle">
-                  <th className="px-5 py-2 font-normal">Название</th>
-                  <th className="px-5 py-2 font-normal">Группа</th>
-                  <th className="px-5 py-2 font-normal">Идентификатор</th>
-                  <th className="px-5 py-2 font-normal">Плеер</th>
-                  <th className="px-5 py-2 text-right font-normal">Heartbeat</th>
-                  <th className="px-5 py-2 text-right font-normal">Состояние</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((screen) => (
-                  <tr key={screen.id} className="border-b border-border last:border-0">
-                    <td className="px-5 py-2.5 font-medium">{screen.name}</td>
-                    <td className="px-5 py-2.5 text-text-muted">{screen.groupName ?? '—'}</td>
-                    <td className="px-5 py-2.5">
-                      {screen.deviceId ? (
-                        <span className="font-mono text-[12px] text-text-muted">
-                          {formatDeviceId(screen.deviceId)}
-                        </span>
-                      ) : (
-                        <span className="text-[12px] text-text-subtle">учётные данные не выданы</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-2.5 text-text-muted">{screen.playerVersion ?? '—'}</td>
-                    <td className="tnum px-5 py-2.5 text-right text-text-muted">
-                      {relativeTime(screen.lastSeenSecondsAgo)}
-                    </td>
-                    <td className="px-5 py-2.5 text-right">
-                      <StatusBadge state={screen.onlineState} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable
+              columns={COLUMNS}
+              caption={`Экраны филиала «${branchName}»`}
+              rowKey={(row) => String(row.id)}
+              rows={items.map((screen) => ({
+                id: screen.id,
+                name: <span className="font-medium">{screen.name}</span>,
+                group: screen.groupName ?? <span className="text-text-subtle">—</span>,
+                deviceId: screen.deviceId ? (
+                  <span className="font-mono text-[12px] text-text-muted">{formatDeviceId(screen.deviceId)}</span>
+                ) : (
+                  <span className="text-[12px] text-text-subtle">не выданы</span>
+                ),
+                player: screen.playerVersion ?? <span className="text-text-subtle">—</span>,
+                heartbeat: (
+                  <span className="tnum text-text-muted">{relativeTime(screen.lastSeenSecondsAgo)}</span>
+                ),
+                state: <StatusBadge state={screen.onlineState} />,
+              }))}
+            />
           </CardBody>
         </Card>
       ))}
-
-      {screens.length === 0 ? (
-        <Card>
-          <CardBody className="text-[13px] text-text-muted">
-            Экранов пока нет. Подключите первый телевизор: он покажет QR-код, который нужно
-            подтвердить в этой панели.
-          </CardBody>
-        </Card>
-      ) : null}
     </div>
   )
 }

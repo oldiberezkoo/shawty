@@ -154,7 +154,8 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
             description="Простой считается от последнего heartbeat, а не от момента обнаружения: в отчёте время вёрно, даже если насос отстал."
           />
           <CardBody className="p-0">
-            <table className="w-full text-[13px]">
+            <div className="@container w-full overflow-x-auto">
+            <table className="stack-table w-full border-collapse text-[13px]">
               <thead>
                 <tr className="border-b border-border text-left text-[12px] text-text-subtle">
                   <th className="px-5 py-2 font-normal">Экран</th>
@@ -166,20 +167,21 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
               <tbody>
                 {open.map((row) => (
                   <tr key={row.screenId} className="border-b border-border last:border-0">
-                    <td className="px-5 py-2 font-medium">
+                    <td data-primary className="px-5 py-2 font-medium">
                       <Link href="/dashboard/screens" className="hover:underline underline-offset-4">
                         {row.screenName}
                       </Link>
                     </td>
-                    <td className="px-5 py-2 text-text-muted">{row.branchName ?? '—'}</td>
-                    <td className="tnum px-5 py-2 text-right text-warn">
+                    <td data-label="Филиал" className="px-5 py-2 text-text-muted">{row.branchName ?? '—'}</td>
+                    <td data-label="Молчит" className="tnum px-5 py-2 text-right text-warn">
                       {row.silentSeconds === null ? '—' : formatDuration(row.silentSeconds)}
                     </td>
-                    <td className="px-5 py-2 text-text-muted">{formatTime(row.openedAt)}</td>
+                    <td data-label="С" className="px-5 py-2 text-text-muted">{formatTime(row.openedAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           </CardBody>
         </Card>
       ) : null}
@@ -192,7 +194,8 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
               Событий пока нет. Это хороший знак: значит, сеть не теряла экраны.
             </p>
           ) : (
-            <table className="w-full text-[13px]">
+            <div className="@container w-full overflow-x-auto">
+            <table className="stack-table w-full border-collapse text-[13px]">
               <tbody>
                 {feed.map((item) => (
                   <tr key={item.id} className="border-b border-border last:border-0">
@@ -213,6 +216,7 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </CardBody>
       </Card>
@@ -224,7 +228,8 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
             description="Что не смог показать плеер. Ошибка файла — это не простой: сеть жива, но материал не грузится."
           />
           <CardBody className="p-0">
-            <table className="w-full text-[13px]">
+            <div className="@container w-full overflow-x-auto">
+            <table className="stack-table w-full border-collapse text-[13px]">
               <tbody>
                 {errors.map((row, index) => (
                   <tr key={index} className="border-b border-border last:border-0">
@@ -235,6 +240,7 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
                 ))}
               </tbody>
             </table>
+            </div>
           </CardBody>
         </Card>
       ) : null}

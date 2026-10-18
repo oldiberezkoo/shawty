@@ -3,27 +3,37 @@ import type { ReactNode } from 'react'
 /**
  * Таблица данных.
  *
- * Главное изменение против прежней разметки: на узком экране таблица
- * превращается в строки-карточки. Раньше на телефоне таблица уезжала по
- * горизонтали, и колонку «состояние» приходилось искать пальцем.
+ * Главное здесь — адаптация. Таблица переключается на карточки, когда
+ * **контейнер** становится узким, а не когда окно браузера: панель занимает
+ * часть ширины на широком мониторе, и таблица внутри неё точно так же не
+ * помещается, как на телефоне. Проверка по окну в этой ситуации врала бы.
  *
- * Реализация без JS: CSS переключает раскладку по ширине контейнера через
- * контейнерные запросы, поэтому таблица остаётся таблицей для скринридеров.
+ * Реализация без JavaScript: разметка таблицы остаётся таблицей, поэтому
+ * скринридер по-прежнему читает строку как строку. Сворачивание — это стили,
+ * а не подмена `<table>` на `<div>`.
+ *
+ * Класс `stack-table` разворачивается в `globals.css`: правила контейнерных
+ * запросов не пишутся в разметке, потому что относятся сразу ко всем
+ * экземплярам таблицы и их копирование приводит к расхождению.
  */
 
 export type TableColumn = {
   /** Ключ поля в строке. */
   key: string
   label: string
-  /** Что показывать вместо данных в узкой раскладке. */
-  mobileLabel?: string
-  /** Выравнивание. Числа и метрики — вправо. */
+  /**
+   * Первая колонка. На узкой раскладке её подпись не выводится: она сама
+   * становится названием строки, и повторять её над значением незачем.
+   */
+  primary?: boolean
   align?: 'left' | 'right'
-  /** Ширина колонки: числом, а не классом, чтобы не расползлось при доработках. */
+  /** Ширина колонки. Числом, а не классом, чтобы не расползлось при доработках. */
   width?: string
-  /** Прячется на самой узкой раскладке: редкие колонки не занимают место. */
+  /** Прячется на самой узкой раскладке: редкая колонка не должна мешать. */
   secondary?: boolean
 }
+
+export type TableRow = Record<string, ReactNode>
 
 export function DataTable({
   columns,
@@ -34,9 +44,9 @@ export function DataTable({
   caption,
 }: {
   columns: TableColumn[]
-  rows: Record<string, ReactNode>[]
-  rowKey: (row: Record<string, ReactNode>, index: number) => string
-  onRowClick?: (row: Record<string, ReactNode>) => void
+  rows: TableRow[]
+  rowKey: (row: TableRow, index: number) => string
+  onRowClick?: (row: TableRow) => void
   empty?: ReactNode
   caption?: string
 }) {
@@ -45,8 +55,8 @@ export function DataTable({
   }
 
   return (
-    <div className="w-full overflow-x-auto">
-      <table className="w-full border-collapse text-[13px]">
+    <div className="@container w-full overflow-x-auto">
+      <table className="stack-table w-full border-collapse text-[13px]">
         {caption ? <caption className="sr-only">{caption}</caption> : null}
 
         <thead>
@@ -58,7 +68,7 @@ export function DataTable({
                 style={column.width ? { width: column.width } : undefined}
                 className={`px-4 py-2.5 text-[11px] font-semibold tracking-[0.03em] text-text-subtle uppercase ${
                   column.align === 'right' ? 'text-right' : 'text-left'
-                } ${column.secondary ? 'hidden md:table-cell' : ''}`}
+                }`}
               >
                 {column.label}
               </th>
@@ -71,20 +81,17 @@ export function DataTable({
             <tr
               key={rowKey(row, index)}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
-              className={`row border-b border-border last:border-0 ${
-                onRowClick ? 'cursor-pointer' : ''
-              }`}
+              className={`row border-b border-border last:border-0 ${onRowClick ? 'cursor-pointer' : ''}`}
             >
-              {columns.map((column, position) => (
+              {columns.map((column) => (
                 <td
                   key={column.key}
-                  data-label={column.mobileLabel ?? column.label}
+                  data-label={column.label}
+                  data-primary={column.primary ? '' : undefined}
+                  data-secondary={column.secondary ? '' : undefined}
                   className={`px-4 py-2.5 align-middle ${
                     column.align === 'right' ? 'text-right' : 'text-left'
-                  } ${column.secondary ? 'hidden md:table-cell' : ''}`}
-                  // Первая ячейка строки объявляет строку целиком: на узкой
-                  // раскладке именно она отвечает за её название.
-                  headers={position === 0 ? undefined : undefined}
+                  }`}
                 >
                   {row[column.key]}
                 </td>
@@ -98,10 +105,11 @@ export function DataTable({
 }
 
 /**
- * Тот же список, но в виде карточек.
+ * Список-карточки.
  *
- * Используется там, где на телефоне таблица нечитаема: иерархия «филиал →
- * экраны» в три уровня шириной 320px превращается в кашу из колонок.
+ * Отдельный компонент там, где таблица нечитаема в любой раскладке: иерархия
+ * «филиал → группа → экран» в три уровня на ширине 320px превращается в кашу
+ * из колонок, и сворачивать её некуда.
  */
 export function CardList({
   items,
@@ -118,7 +126,7 @@ export function CardList({
     <ul className="divide-y divide-[var(--border)]">
       {items.map((item) => (
         <li key={item.key} className="px-4 py-3.5">
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <div className="min-w-0 font-medium">{item.header}</div>
             {item.meta ? <div className="shrink-0 text-[12px] text-text-muted">{item.meta}</div> : null}
           </div>

@@ -195,7 +195,8 @@ export function CampaignsBoard(props: {
           description="Кампания задаёт, что и когда идёт на экранах. При пересечении расписаний побеждает приоритет, затем более узкая область, а при равенстве — более свежая кампания."
         />
         <CardBody className="p-0">
-          <table className="w-full text-[13px]">
+          <div className="@container w-full overflow-x-auto">
+          <table className="stack-table w-full border-collapse text-[13px]">
             <thead>
               <tr className="border-b border-border text-left text-[12px] text-text-subtle">
                 <th className="px-5 py-2 font-normal">Кампания</th>
@@ -214,22 +215,22 @@ export function CampaignsBoard(props: {
                     campaign.id === selectedId ? 'bg-surface-2' : ''
                   }`}
                 >
-                  <td className="px-5 py-2">
+                  <td data-primary className="px-5 py-2">
                     <span className="font-medium">{campaign.name}</span>
                     {campaign.kind === 'commercial' ? (
                       <span className="ml-2 rounded bg-surface-3 px-1.5 py-0.5 text-[11px] text-text-muted">реклама</span>
                     ) : null}
                   </td>
-                  <td className={`px-5 py-2 ${STATUS_TONE[campaign.status] ?? 'text-text-muted'}`}>
+                  <td data-label="Состояние" className={`px-5 py-2 ${STATUS_TONE[campaign.status] ?? 'text-text-muted'}`}>
                     {STATUS_LABEL[campaign.status] ?? campaign.status}
                     {!campaign.withinDates && campaign.status !== 'ended' ? (
                       <span className="ml-2 text-[12px] text-text-subtle">вне сроков</span>
                     ) : null}
                   </td>
-                  <td className="px-5 py-2 text-text-muted">
+                  <td data-label="Сроки" className="px-5 py-2 text-text-muted">
                     {campaign.startsOn} — {campaign.endsOn ?? 'бессрочно'}
                   </td>
-                  <td className="px-5 py-2 text-text-muted">
+                  <td data-label="Расписание" className="px-5 py-2 text-text-muted">
                     {campaign.windows.length === 0 ? (
                       'круглосуточно'
                     ) : (
@@ -238,11 +239,12 @@ export function CampaignsBoard(props: {
                       ))
                     )}
                   </td>
-                  <td className="tnum px-5 py-2 text-right text-text-muted">{campaign.priority}</td>
+                  <td data-label="Приоритет" className="tnum px-5 py-2 text-right text-text-muted">{campaign.priority}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
 
           {props.campaigns.length === 0 ? (
             <p className="px-5 py-4 text-[13px] text-text-subtle">

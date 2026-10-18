@@ -350,7 +350,8 @@ export function DeliveryBoard(props: {
             } материалов · ${receipts.length} экранов`}
           />
           <CardBody className="p-0">
-            <table className="w-full text-[13px]">
+            <div className="@container w-full overflow-x-auto">
+            <table className="stack-table w-full border-collapse text-[13px]">
               <thead>
                 <tr className="border-b border-border text-left text-[12px] text-text-subtle">
                   <th className="px-5 py-2 font-normal">Экран</th>
@@ -361,7 +362,7 @@ export function DeliveryBoard(props: {
               <tbody>
                 {receipts.map((receipt) => (
                   <tr key={receipt.screenId} className="border-b border-border last:border-0">
-                    <td className="px-5 py-2">
+                    <td data-primary className="px-5 py-2">
                       <Link
                         href="/dashboard/screens"
                         className="font-medium hover:underline underline-offset-4"
@@ -369,17 +370,18 @@ export function DeliveryBoard(props: {
                         {receipt.screenName}
                       </Link>
                     </td>
-                    <td className={`px-5 py-2 ${STATE_TONE[receipt.state] ?? 'text-text-muted'}`}>
+                    <td data-label="Состояние доставки" className={`px-5 py-2 ${STATE_TONE[receipt.state] ?? 'text-text-muted'}`}>
                       {STATE_LABEL[receipt.state] ?? receipt.state}
                       {receipt.errorCode ? (
                         <span className="ml-2 text-[12px] text-text-subtle">{receipt.errorCode}</span>
                       ) : null}
                     </td>
-                    <td className="px-5 py-2 text-right text-text-muted">{relativeTime(receipt.ackedAt)}</td>
+                    <td data-label="Подтверждено" className="px-5 py-2 text-right text-text-muted">{relativeTime(receipt.ackedAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           </CardBody>
         </Card>
       ) : null}

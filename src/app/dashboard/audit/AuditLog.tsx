@@ -263,7 +263,8 @@ export function AuditLog({ companyId }: { companyId: string }) {
               клик.
             </p>
           ) : (
-            <table className="w-full text-[13px]">
+            <div className="@container w-full overflow-x-auto">
+            <table className="stack-table w-full border-collapse text-[13px]">
               <thead>
                 <tr className="border-b border-border text-left text-[12px] text-text-subtle">
                   <th className="w-32 py-2 font-normal">Когда</th>
@@ -275,14 +276,15 @@ export function AuditLog({ companyId }: { companyId: string }) {
               <tbody>
                 {(data?.rows ?? []).map((row) => (
                   <tr key={row.id} className="border-b border-border last:border-0">
-                    <td className="py-2 text-text-subtle">{formatTime(row.at)}</td>
-                    <td className="py-2">{row.actorName ?? 'Система'}</td>
-                    <td className="py-2 font-medium">{row.actionLabel}</td>
-                    <td className="py-2 text-text-muted">{describe(row)}</td>
+                    <td data-primary className="py-2 text-text-subtle">{formatTime(row.at)}</td>
+                    <td data-label="Кто" className="py-2">{row.actorName ?? 'Система'}</td>
+                    <td data-label="Действие" className="py-2 font-medium">{row.actionLabel}</td>
+                    <td data-label="Подробности" className="py-2 text-text-muted">{describe(row)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           )}
 
           {data && data.total > data.rows.length ? (

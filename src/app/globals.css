@@ -289,6 +289,77 @@
   }
 }
 
+/*
+ * Сворачивание таблицы в карточки.
+ *
+ * Ширина проверяется у контейнера, а не у окна: панель занимает часть ширины
+ * на широком мониторе, и таблица внутри неё не помещается точно так же, как на
+ * телефоне. Проверка по окну здесь врала бы.
+ *
+ * Порог в 40rem — не «ширина телефона», а ширина, ниже которой шесть колонок
+ * в ряд перестают читаться. На телефоне это срабатывает с большим запасом, а на
+ * планшете — ровно тогда, когда таблица действительно начинает жаться.
+ *
+ * Разметка остаётся таблицей: скринридер читает строку как строку в обеих
+ * раскладках. Сворачиваются только стили.
+ */
+@container (max-width: 40rem) {
+  .stack-table thead {
+    /* Заголовки колонок в карточках бессмысленны: подпись переносится к
+       каждому значению через `attr(data-label)`. */
+    display: none;
+  }
+
+  .stack-table,
+  .stack-table tbody,
+  .stack-table tr,
+  .stack-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .stack-table tr {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stack-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 3px 0;
+    border: 0;
+    text-align: right;
+  }
+
+  .stack-table td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    color: var(--text-subtle);
+    text-transform: uppercase;
+    text-align: left;
+  }
+
+  /* Первая колонка становится названием строки: она подпись не выводит, но
+     остаётся заметной — с неё начинается чтение карточки. */
+  .stack-table td[data-primary] {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 500;
+    text-align: left;
+  }
+
+  /* Редкие колонки на самой узкой раскладке убираются целиком: лучше не
+     показать второстепенное поле, чем показать его в урезанном виде. */
+  .stack-table td[data-secondary] {
+    display: none;
+  }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
