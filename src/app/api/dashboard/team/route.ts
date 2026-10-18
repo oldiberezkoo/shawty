@@ -143,14 +143,14 @@ export const PATCH = route(async (request: Request) => {
       if (!scopes.success) throw HttpError.badRequest('invalid_input', 'Некорректная область доступа')
 
       // `company` в области не хранится: он означал бы «без ограничений», а
-      // пустой список уже означает то же самое. Отбрасываем на границе,
-      // чтобы сервис принимал только то, что умеет хранить.
-      setScopes({
-        companyId,
-        membershipId: body.membershipId,
-        scopes: scopes.data.filter((scope) => scope.scopeType !== 'company'),
-        actorUserId: session.userId,
-      })
+      // пустой список уже означает то же самое. Отбрасываем на границе, чтобы
+      // сервис принимал только то, что умеет хранить.
+      const storable = scopes.data.filter(
+        (scope): scope is { scopeType: 'screen' | 'group' | 'branch'; scopeId: string } =>
+          scope.scopeType !== 'company',
+      )
+
+      setScopes({ companyId, membershipId: body.membershipId, scopes: storable, actorUserId: session.userId })
       break
     }
 

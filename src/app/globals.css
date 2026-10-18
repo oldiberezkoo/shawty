@@ -1,7 +1,11 @@
 @import 'tailwindcss';
 
 /*
- * Темы. Ровно две: светлая и тёмная.
+ * Дизайн-система.
+ *
+ * Ориентир — Notion и Airbnb: много воздуха, 1px границы, один акцент и
+ * никаких теней в духе «дизайн-системы». Тени остались только у всплывающих
+ * элементов — там они означают «это поверх страницы», а не украшение.
  *
  * Токены живут в обычных переменных, а в Tailwind попадают через `@theme inline`,
  * потому что значения должны переключаться вместе с классом `.dark` на <html>.
@@ -16,65 +20,96 @@
   --surface: #ffffff;
   --surface-2: #f7f7f8;
   --surface-3: #f1f1f3;
-  --border: #e8e8ea;
-  --border-strong: #d4d4d8;
+  --surface-hover: #efefef;
+  --border: #ebebed;
+  --border-strong: #dcdcde;
 
-  --text: #1c1c1e;
+  --text: #191919;
   --text-muted: #6b6b70;
-  --text-subtle: #9a9aa0;
+  --text-subtle: #9b9ba1;
 
-  /* Основное действие — чёрная кнопка, как в Notion. Цвет оставлен для статусов. */
-  --primary: #1c1c1e;
+  /* Акцент — чернильный, как у Notion. Цвет оставлен для смысловых статусов. */
+  --primary: #191919;
   --primary-hover: #343438;
   --primary-text: #ffffff;
 
-  --success: #14804a;
-  --success-bg: #e8f5ee;
-  --warn: #a45a06;
-  --warn-bg: #fdf1e2;
-  --danger: #c9372c;
-  --danger-bg: #fdecea;
+  --success: #0f7b48;
+  --success-bg: #eaf6ef;
+  --success-border: #c3e5d3;
+  --warn: #995609;
+  --warn-bg: #fdf4e7;
+  --warn-border: #f5dfba;
+  --danger: #c4392f;
+  --danger-bg: #fdeeed;
+  --danger-border: #f7d3d0;
   --info: #1f6feb;
-  --info-bg: #e8f0fe;
+  --info-bg: #eaf1fe;
+  --info-border: #c9dbfd;
 
   --ring: #1f6feb;
   --overlay: rgb(20 20 22 / 0.4);
-  --shadow-sm: 0 1px 2px rgb(16 16 18 / 0.06);
-  --shadow-md: 0 4px 16px rgb(16 16 18 / 0.1);
+
+  --shadow-sm: 0 1px 2px rgb(16 16 18 / 0.05);
+  --shadow-md: 0 6px 24px rgb(16 16 18 / 0.12), 0 1px 3px rgb(16 16 18 / 0.08);
+  --shadow-lg: 0 12px 48px rgb(16 16 18 / 0.16);
+
+  /*
+   * Шкала пространства.
+   *
+   * Раньше отступы набирались произвольными классами `[13px]`, `gap-3`, `p-5`.
+   * Теперь ритм задан числами, и разные страницы выглядят одинаково:
+   * отступы кратны четырём, плотность текста одна.
+   */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  --density-row: 40px;
 }
 
 .dark {
   color-scheme: dark;
 
-  --bg: #17181a;
-  --surface: #1d1e20;
-  --surface-2: #252628;
-  --surface-3: #2e2f32;
-  --border: #2e2f32;
-  --border-strong: #414245;
+  --bg: #191919;
+  --surface: #202020;
+  --surface-2: #252525;
+  --surface-3: #2f2f2f;
+  --surface-hover: #303030;
+  --border: #2f2f2f;
+  --border-strong: #414141;
 
-  --text: #ececee;
-  --text-muted: #9d9da3;
-  --text-subtle: #6e6e74;
+  --text: #e9e9e9;
+  --text-muted: #9b9b9b;
+  --text-subtle: #6f6f6f;
 
-  /* Кнопка инвертируется: в тёмной теме она светлая, как в Notion. */
-  --primary: #f4f4f5;
-  --primary-hover: #e4e4e7;
-  --primary-text: #17181a;
+  /* Кнопка инвертируется: в тёмной теме она светлая, как у Notion. */
+  --primary: #f1f1f1;
+  --primary-hover: #e0e0e0;
+  --primary-text: #191919;
 
-  --success: #3fb27f;
-  --success-bg: #14281f;
-  --warn: #e0a44a;
-  --warn-bg: #2b2113;
-  --danger: #f0776b;
-  --danger-bg: #2e1917;
-  --info: #62a0f7;
+  --success: #4bb782;
+  --success-bg: #16281f;
+  --success-border: #234534;
+  --warn: #d9a04a;
+  --warn-bg: #2a2114;
+  --warn-border: #4a3a1e;
+  --danger: #e9705f;
+  --danger-bg: #2c1917;
+  --danger-border: #4d2a26;
+  --info: #5b9bf8;
   --info-bg: #16233a;
+  --info-border: #243c5e;
 
-  --ring: #62a0f7;
-  --overlay: rgb(0 0 0 / 0.6);
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.5);
+  --ring: #5b9bf8;
+  --overlay: rgb(0 0 0 / 0.65);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow-md: 0 6px 24px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 12px 48px rgb(0 0 0 / 0.6);
 }
 
 @theme inline {
@@ -82,6 +117,7 @@
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
+  --color-surface-hover: var(--surface-hover);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
 
@@ -95,20 +131,25 @@
 
   --color-success: var(--success);
   --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
   --color-warn: var(--warn);
   --color-warn-bg: var(--warn-bg);
+  --color-warn-border: var(--warn-border);
   --color-danger: var(--danger);
   --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
   --color-info: var(--info);
   --color-info-bg: var(--info-bg);
+  --color-info-border: var(--info-border);
 
   --color-overlay: var(--overlay);
 
-  /* Небольшие радиусы: минимализм, а не «скруглённый пузырь». */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  /* Радиусы скромные: минимализм, а не «скруглённый пузырь». */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 9px;
+  --radius-xl: 13px;
 
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
@@ -135,22 +176,54 @@
 
   body {
     font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Интерфейс — рабочий инструмент, а не витрина: курсор не должен
+       мигать при наведении на строки таблиц. */
+    text-rendering: optimizeLegibility;
   }
 
-  /* Числа в таблицах метрик выравниваем по разрядам. */
+  /* Числа в метриках выравниваем по разрядам: колонки цифр должны читаться. */
   .tnum {
     font-variant-numeric: tabular-nums;
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.01em;
   }
 
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
+    border-radius: var(--radius-xs);
   }
 
   ::selection {
     background-color: color-mix(in srgb, var(--ring) 25%, transparent);
+  }
+
+  /*
+   * Поля ввода не увеличены системной настройкой.
+   *
+   * iOS увеличивает их до 16px при фокусе, из-за чего страница «прыгает» при
+   * заполнении формы. Для панели управления это раздражает заметно.
+   */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  @media (min-width: 768px) {
+    input,
+    select,
+    textarea {
+      font-size: 14px;
+    }
   }
 
   ::-webkit-scrollbar {
@@ -175,6 +248,13 @@
 }
 
 @layer utilities {
+  /*
+   * Карточка.
+   *
+   * Граница и фон, без тени. Тень на каждой карточке — признак того, что
+   * элементов стало слишком много, и разбираться надо с содержимым, а не с
+   * оформлением.
+   */
   .card {
     background-color: var(--surface);
     border: 1px solid var(--border);
@@ -183,6 +263,40 @@
 
   .hairline {
     border-bottom: 1px solid var(--border);
+  }
+
+  /* Заголовок раздела: мелкий, спокойный, с приглушённым цветом. */
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+  }
+
+  /* Строка таблицы: единая высота, смена фона на наведении и выборе. */
+  .row {
+    transition: background-color 100ms ease;
+  }
+
+  .row:hover {
+    background-color: var(--surface-2);
+  }
+
+  /* Плавное появление содержимого: один раз, без зацикливания. */
+  .fade-in {
+    animation: fade-in 160ms ease-out;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
