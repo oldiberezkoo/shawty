@@ -2,10 +2,11 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/db/client'
 import { screens } from '@/db/schema'
-import { route, readJsonBody, jsonResponse } from '@/server/http/request'
+import { route, readJsonBody, jsonResponse, clientIp } from '@/server/http/request'
 import { requireSessionForApi } from '@/server/auth/require-session'
 import { accessFor, assertCsrf } from '@/server/services/auth-service'
 import { disableScreen, enableScreen, requestRotation, unpairScreen } from '@/server/services/device-service'
+import { recordAudit, type AuditAction } from '@/server/services/audit-service'
 import { PERMISSIONS } from '@/domain/authz/permissions'
 import { HttpError } from '@/server/http/errors'
 import { logger } from '@/lib/logger'
@@ -14,6 +15,14 @@ const bodySchema = z.object({
   companyId: z.string().min(1).max(64),
   action: z.enum(['disable', 'enable', 'unpair', 'rotate']),
 })
+
+/** Соответствие действия экрана и записи журнала. */
+const SCREEN_AUDIT: Record<(typeof bodySchema)['shape']['action'], AuditAction> = {
+  disable: 'screen.disabled',
+  enable: 'screen.enabled',
+  unpair: 'screen.unpaired',
+  rotate: 'screen.rotated',
+}
 
 /**
  * Управление парком экранов: отключение, отвязка и ротация.
@@ -69,6 +78,20 @@ export const POST = route(async (request) => {
       requestRotation(screenId)
       break
   }
+
+  // Журнал пишется здесь, а не в сервисах экрана: у сервиса нет понятия
+  // «кто это сделал», а журнал без исполнителя — просто список фактов.
+  // Отвязка и ротация секрета — самые чувствительные действия в продукте,
+  // и именно они обязаны быть видны в журнале.
+  recordAudit({
+    companyId: body.data.companyId,
+    actorUserId: session.userId,
+    action: SCREEN_AUDIT[body.data.action],
+    targetType: 'screen',
+    targetId: screenId,
+    meta: { name: screen.name, branchId: screen.branchId },
+    ip: clientIp(request),
+  })
 
   logger.info(
     { screenId, action: body.data.action, actor: session.userId },

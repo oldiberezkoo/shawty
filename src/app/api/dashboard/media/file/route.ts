@@ -138,6 +138,22 @@ export const DELETE = route(async (request) => {
 
   const outcome = await deleteMedia(companyId, assetId, force)
 
+  // Запись только после успеха: журнал должен показывать то, что произошло,
+  // а не то, что кто-то попытался сделать.
+  if (outcome.ok) {
+    recordAudit({
+      companyId,
+      actorUserId: session.userId,
+      action: force ? 'media.forced_deleted' : 'media.deleted',
+      targetType: 'media_asset',
+      targetId: assetId,
+      // Принудительное удаление обходит защиту занятости, и именно это важно
+      // потом разбирать: файл мог показываться на экранах.
+      meta: { force, name: outcome.asset.name ?? null },
+      ip: clientIp(request),
+    })
+  }
+
   if (!outcome.ok) {
     // 409: файл занят. Это конфликт состояния, а не ошибка запроса.
     // Тело собирается через общий jsonResponse, чтобы формат ответа

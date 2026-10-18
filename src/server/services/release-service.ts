@@ -32,6 +32,7 @@ import {
 } from '@/server/services/schedule-service'
 import type { PlayerManifest } from '@/player/engine'
 import { HttpError } from '@/server/http/errors'
+import { recordAudit, recordAuditTx } from '@/server/services/audit-service'
 import { logger } from '@/lib/logger'
 
 /**
@@ -69,6 +70,8 @@ export type AssignInput = {
   /** Запасной плейлист, когда основной недоступен. */
   fallbackPlaylistVersionId?: string | null
   priority?: number
+  /** Кто менял назначение: без этого в журнале не было бы исполнителя. */
+  actorUserId?: string
 }
 
 /**
@@ -116,6 +119,19 @@ export function assignPlaylist(input: AssignInput): { screens: number } {
         priority: input.priority ?? 0,
       })
       .run()
+  })
+
+  recordAudit({
+    companyId: input.companyId,
+    actorUserId: input.actorUserId,
+    action: 'assignment.changed',
+    targetType: input.scopeType,
+    targetId: input.scopeId,
+    meta: {
+      playlistVersionId: input.playlistVersionId,
+      fallbackPlaylistVersionId: input.fallbackPlaylistVersionId ?? null,
+      screens: targetScreens.length,
+    },
   })
 
   // План показа кэшируется на полминуты. После правки назначения кэш надо
@@ -246,6 +262,8 @@ export function publishScreens(params: {
   reason?: string
   campaignId?: string | null
   at?: Date
+  /** Писать ли в журнал действий. Фоновая публикация расписания — не действие человека. */
+  audit?: boolean
 }): PublishResult {
   const { companyId, screenIds } = params
   const now = params.at ?? new Date()
@@ -319,6 +337,23 @@ export function publishScreens(params: {
       .where(eq(releases.id, releaseId))
       .run()
 
+    if (params.audit !== false && params.actorUserId) {
+      recordAuditTx(tx, {
+        companyId,
+        actorUserId: params.actorUserId,
+        action: params.campaignId ? 'campaign.published' : 'release.published',
+        targetType: params.campaignId ? 'campaign' : 'release',
+        targetId: params.campaignId ?? releaseId,
+        meta: {
+          version,
+          screens: uniqueScreens.length,
+          reason: params.reason ?? null,
+          // Источник инициативы: человек нажал кнопку или сработало расписание.
+          trigger: params.campaignId ? 'campaign_manual' : 'manual',
+        },
+      })
+    }
+
     return { releaseId, version, screens: uniqueScreens.length }
   })
 }
@@ -342,6 +377,7 @@ export function publishCompany(companyId: string, actorUserId: string, reason?: 
     screenIds: companyScreens.map((screen) => screen.id),
     actorUserId,
     reason,
+    audit: true,
   })
 }
 

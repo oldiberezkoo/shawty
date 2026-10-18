@@ -86,7 +86,7 @@ export const PUT = route(async (request: Request) => {
     throw HttpError.badRequest('invalid_input', 'Проверьте область назначения и плейлист')
   }
 
-  const result = assignPlaylist({ companyId, ...body.data })
+  const result = assignPlaylist({ companyId, actorUserId: session.userId, ...body.data })
 
   return jsonResponse({ ok: true, ...result, assignments: listAssignments(companyId) })
 })
