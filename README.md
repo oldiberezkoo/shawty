@@ -64,7 +64,7 @@ pnpm dev                 # http://localhost:3000
 
 ```bash
 pnpm check               # типы + все тесты
-pnpm test                # 282 теста: домен и интеграция с настоящей базой
+pnpm test                # 300 тестов: домен и интеграция с настоящей базой
 pnpm smoke:pairing       # сквозной протокол привязки: HTTP + WebSocket + база
 pnpm smoke:schedule      # сквозная проверка кампаний и расписания
 pnpm smoke:pages         # все страницы дашборда отдаются с живыми данными
