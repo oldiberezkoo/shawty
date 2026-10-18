@@ -16,7 +16,13 @@ const bodySchema = z.object({
   action: z.enum(['disable', 'enable', 'unpair', 'rotate']),
 })
 
-/** Соответствие действия экрана и записи журнала. */
+/**
+ * Соответствие действия экрана и записи журнала.
+ *
+ * Оставлено как проверка: `recordAudit` требует `AuditAction`, и если бы
+ * действие экрана не было в каталоге, компилятор указал бы на это здесь, а не
+ * на молча пропавший фильтр в интерфейсе.
+ */
 const SCREEN_AUDIT = {
   disable: 'screen.disabled',
   enable: 'screen.enabled',
@@ -64,34 +70,22 @@ export const POST = route(async (request) => {
     throw HttpError.forbidden('Недостаточно прав для этой операции')
   }
 
+  // Запись в журнал делает сам сервис: забыть её в вызывающем коде было бы
+  // слишком легко, а отвязка без следа — это худший вид потери данных.
   switch (body.data.action) {
     case 'disable':
-      disableScreen(screenId)
+      disableScreen(screenId, session.userId)
       break
     case 'enable':
-      enableScreen(screenId)
+      enableScreen(screenId, session.userId)
       break
     case 'unpair':
-      unpairScreen(screenId)
+      unpairScreen(screenId, new Date(), session.userId)
       break
     case 'rotate':
-      requestRotation(screenId)
+      requestRotation(screenId, session.userId)
       break
   }
-
-  // Журнал пишется здесь, а не в сервисах экрана: у сервиса нет понятия
-  // «кто это сделал», а журнал без исполнителя — просто список фактов.
-  // Отвязка и ротация секрета — самые чувствительные действия в продукте,
-  // и именно они обязаны быть видны в журнале.
-  recordAudit({
-    companyId: body.data.companyId,
-    actorUserId: session.userId,
-    action: SCREEN_AUDIT[body.data.action],
-    targetType: 'screen',
-    targetId: screenId,
-    meta: { name: screen.name, branchId: screen.branchId },
-    ip: clientIp(request),
-  })
 
   logger.info(
     { screenId, action: body.data.action, actor: session.userId },

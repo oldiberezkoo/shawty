@@ -9,6 +9,7 @@ import { loadOrCreateSecret } from '@/lib/secret-store'
 import { serverConfig } from '@/config/server'
 import { HttpError } from '@/server/http/errors'
 import { recordEventIncident } from '@/server/services/incident-service'
+import { recordAudit } from '@/server/services/audit-service'
 
 /**
  * Секрет подписи токенов устройств выводится из серверного секрета.
@@ -204,29 +205,53 @@ export function rotateDeviceSecret(identity: DeviceIdentity): { deviceSecret: st
 }
 
 /**
- * Запрос ротации из панели.
+ * Отключение, включение, отвязка и ротация.
  *
- * Если телевизор сейчас на связи, команда уходит сразу. Если офлайн —
- * помечаем ротацию как отложенную, и она применится при следующем обмене
- * токена: устройство обнаружит, что его версия устарела, и запросит новый секрет.
+ * Запись в журнал действий живёт здесь, а не в маршруте, и это не стилистическое
+ * решение. Отвязка и ротация секрета — самые чувствительные операции в
+ * продукте, и вызывающий код просто обязан не суметь про них забыть: иначе
+ * отвязка из скрипта или из будущего маршрута прошла бы без следа, а журнал
+ * выглядел бы полным. Поэтому исполнитель передаётся параметром, и запись
+ * неотделима от действия.
  */
-export function requestRotation(screenId: string): { pending: boolean } {
-  db.update(deviceCredentials).set({ rotationPending: true }).where(eq(deviceCredentials.screenId, screenId)).run()
-  return { pending: true }
-}
+export function disableScreen(screenId: string, actorUserId?: string | null): void {
+  const companyId = screenCompanyId(screenId)
 
-/** Временное отключение: учётные данные живы, устройство не получает публикации. */
-export function disableScreen(screenId: string): void {
   db.update(screens).set({ status: 'disabled', updatedAt: new Date() }).where(eq(screens.id, screenId)).run()
+
+  if (companyId) {
+    recordAudit({
+      companyId,
+      actorUserId,
+      action: 'screen.disabled',
+      targetType: 'screen',
+      targetId: screenId,
+      meta: { name: screenNameOf(screenId) },
+    })
+  }
 }
 
-export function enableScreen(screenId: string): void {
+export function enableScreen(screenId: string, actorUserId?: string | null): void {
+  const companyId = screenCompanyId(screenId)
+
   db.update(screens).set({ status: 'paired', updatedAt: new Date() }).where(eq(screens.id, screenId)).run()
+
+  if (companyId) {
+    recordAudit({
+      companyId,
+      actorUserId,
+      action: 'screen.enabled',
+      targetType: 'screen',
+      targetId: screenId,
+      meta: { name: screenNameOf(screenId) },
+    })
+  }
 }
 
 /** Полная отвязка: доверие снято, привязка потребуется заново. */
-export function unpairScreen(screenId: string, now = new Date()): void {
+export function unpairScreen(screenId: string, now = new Date(), actorUserId?: string | null): void {
   const companyId = screenCompanyId(screenId)
+  const screenName = screenNameOf(screenId)
 
   db.transaction((tx) => {
     tx.update(deviceCredentials)
@@ -246,7 +271,45 @@ export function unpairScreen(screenId: string, now = new Date()): void {
       detail: 'Доступ отозван администратором',
       now,
     })
+
+    recordAudit({
+      companyId,
+      actorUserId,
+      action: 'screen.unpaired',
+      targetType: 'screen',
+      targetId: screenId,
+      meta: { name: screenName },
+      at: now,
+    })
   }
+}
+
+/** Запрос ротации секрета: экран должен быть на связи, чтобы подтвердить смену. */
+export function requestRotation(screenId: string, actorUserId?: string | null): { pending: boolean } {
+  const companyId = screenCompanyId(screenId)
+
+  db.update(deviceCredentials)
+    .set({ rotationPending: true })
+    .where(and(eq(deviceCredentials.screenId, screenId), isNull(deviceCredentials.revokedAt)))
+    .run()
+
+  if (companyId) {
+    recordAudit({
+      companyId,
+      actorUserId,
+      action: 'screen.rotated',
+      targetType: 'screen',
+      targetId: screenId,
+      meta: { name: screenNameOf(screenId), pending: true },
+    })
+  }
+
+  return { pending: true }
+}
+
+/** Имя экрана для журнала: без него запись «отвязан» бесполезна при разборе. */
+function screenNameOf(screenId: string): string | null {
+  return db.select({ name: screens.name }).from(screens).where(eq(screens.id, screenId)).get()?.name ?? null
 }
 
 export function markScreenUnpaired(screenId: string): void {

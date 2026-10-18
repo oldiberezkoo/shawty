@@ -140,7 +140,9 @@ export function listAudit(query: AuditQuery): { rows: AuditRow[]; total: number 
   if (query.from) conditions.push(gte(auditLog.at, query.from))
   if (query.to) conditions.push(lte(auditLog.at, query.to))
   if (query.actorUserId) conditions.push(eq(auditLog.actorUserId, query.actorUserId))
-  if (query.prefix) conditions.push(sql`${auditLog.action} LIKE ${query.prefix}%`)
+  // Маска собирается в JS, а не конкатенацией в шаблоне: `LIKE ?%` — это
+  // невалидный SQL, и SQLite падает на нём, а не молча ищет не то.
+  if (query.prefix) conditions.push(sql`${auditLog.action} LIKE ${`${query.prefix}%`}`)
 
   const where = and(...conditions)
 
