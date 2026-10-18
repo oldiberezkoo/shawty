@@ -196,15 +196,23 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
           ) : (
             <div className="@container w-full overflow-x-auto">
             <table className="stack-table w-full border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b border-border text-left text-[12px] text-text-subtle">
+                  <th className="px-5 py-2 font-normal">Когда</th>
+                  <th className="px-5 py-2 font-normal">Что произошло</th>
+                  <th className="px-5 py-2 font-normal">Экран</th>
+                  <th className="px-5 py-2 font-normal">Подробности</th>
+                </tr>
+              </thead>
               <tbody>
                 {feed.map((item) => (
                   <tr key={item.id} className="border-b border-border last:border-0">
-                    <td className="w-32 px-5 py-2 text-text-subtle">{formatTime(item.openedAt)}</td>
-                    <td className={`px-5 py-2 ${INCIDENT_TONE[item.type] ?? 'text-text-muted'}`}>
+                    <td data-primary className="w-32 px-5 py-2 text-text-subtle">{formatTime(item.openedAt)}</td>
+                    <td data-label="Что произошло" className={`px-5 py-2 ${INCIDENT_TONE[item.type] ?? 'text-text-muted'}`}>
                       {INCIDENT_LABEL[item.type] ?? item.type}
                     </td>
-                    <td className="px-5 py-2 font-medium">{item.screenName}</td>
-                    <td className="px-5 py-2 text-text-muted">
+                    <td data-label="Экран" className="px-5 py-2 font-medium">{item.screenName}</td>
+                    <td data-label="Подробности" className="px-5 py-2 text-text-muted">
                       {item.detail ?? '—'}
                       {item.durationMs !== null && item.type === 'offline' ? (
                         <span className="ml-2 text-text-subtle">
@@ -230,12 +238,19 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
           <CardBody className="p-0">
             <div className="@container w-full overflow-x-auto">
             <table className="stack-table w-full border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b border-border text-left text-[12px] text-text-subtle">
+                  <th className="px-5 py-2 font-normal">Когда</th>
+                  <th className="px-5 py-2 font-normal">Код</th>
+                  <th className="px-5 py-2 font-normal">Сообщение плеера</th>
+                </tr>
+              </thead>
               <tbody>
                 {errors.map((row, index) => (
                   <tr key={index} className="border-b border-border last:border-0">
-                    <td className="w-32 px-5 py-2 text-text-subtle">{formatTime(row.at)}</td>
-                    <td className="w-32 px-5 py-2 text-danger">{row.code}</td>
-                    <td className="px-5 py-2 text-text-muted">{row.message}</td>
+                    <td data-primary className="w-32 px-5 py-2 text-text-subtle">{formatTime(row.at)}</td>
+                    <td data-label="Код" className="w-32 px-5 py-2 text-danger">{row.code}</td>
+                    <td data-label="Сообщение плеера" className="px-5 py-2 text-text-muted">{row.message}</td>
                   </tr>
                 ))}
               </tbody>
