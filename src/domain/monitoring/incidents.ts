@@ -29,6 +29,21 @@ export const INCIDENT_TYPES = [
 ] as const
 export type IncidentType = (typeof INCIDENT_TYPES)[number]
 
+/**
+ * Типы-события, а не интервалы.
+ *
+ * У них нет длительности: «экран вернулся» — это точка во времени, и держать
+ * такую запись открытой нельзя. Иначе лента вечно показывала бы «возврат
+ * идёт уже полчаса», а расчёт доступности считал бы незакрытый интервал
+ * простоя и завышал время недоступности.
+ */
+export const EVENT_INCIDENT_TYPES: readonly IncidentType[] = ['reconnected']
+
+/** Есть ли у этого типа длительность вообще. */
+export function isIntervalIncident(type: IncidentType): boolean {
+  return !EVENT_INCIDENT_TYPES.includes(type)
+}
+
 /** Инцидент, который ещё не закрыт. */
 export type OpenIncident = {
   type: IncidentType

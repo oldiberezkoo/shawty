@@ -29,16 +29,16 @@ export type ScreenListItem = {
 }
 
 /**
- * Итоговое состояние экрана.
+ * Итоговое состояние экрана для интерфейса.
  *
- * Источник истины — время последнего heartbeat в базе, а не наличие сокета:
- * обработчики маршрутов Next и кастомный сервер работают в разных изоляциях
- * процесса и не разделяют память, поэтому in-memory реестр сокетов в панели
- * недоступен и был бы источником ложных «все экраны офлайн».
+ * Правило «нет связи» живёт в `domain/monitoring/health`, потому что тем же
+ * правилом считает простой насос мониторинга. Две копии этого правила
+ * разошлись бы за неделю: список показывал бы «онлайн», а отчёт о простое —
+ * «недоступность», и согласовать их было бы невозможно.
  *
  * Порог `offlineAfterSec` (по умолчанию 90 секунд) существует для терпимости:
- * сеть торгового центра мигает постоянно, и по одному heartbeat экран
- * выглядел бы «нет связи» каждые несколько секунд.
+ * сеть торгового центра мигает постоянно, и по одному пропущенному heartbeat
+ * экран выглядел бы «нет связи» каждые полторы минуты.
  */
 function computeOnlineState(params: {
   recordStatus: ScreenListItem['recordStatus']
@@ -46,18 +46,12 @@ function computeOnlineState(params: {
   offlineAfterSec: number
   now: number
 }): ScreenState {
-  const { recordStatus, lastSeenAt, offlineAfterSec, now } = params
-
-  if (recordStatus === 'revoked') return 'revoked'
-  if (recordStatus === 'disabled') return 'disabled'
-  if (recordStatus === 'unpaired') return 'unpaired'
-
-  if (lastSeenAt) {
-    const ageSeconds = Math.floor((now - lastSeenAt.getTime()) / 1000)
-    if (ageSeconds <= offlineAfterSec) return 'online'
-  }
-
-  return 'offline'
+  return computeHealth({
+    recordStatus: params.recordStatus,
+    lastSeenAt: params.lastSeenAt,
+    offlineAfterSec: params.offlineAfterSec,
+    now: new Date(params.now),
+  })
 }
 
 export function listScreens(companyId: string, options: { branchId?: string | null } = {}): ScreenListItem[] {

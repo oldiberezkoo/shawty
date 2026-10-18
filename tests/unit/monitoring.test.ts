@@ -85,9 +85,13 @@ describe('инциденты', () => {
     expect(first).toHaveLength(1)
     expect(first[0]).toMatchObject({ action: 'open', type: 'offline' })
 
+    const opened = first[0]
+    expect(opened?.action === 'open' && opened.openedAt).toBeInstanceOf(Date)
+
     // Тот же тик при уже открытом инциденте не должен ничего делать, иначе
     // лента событий засорялась бы одной и той же записью каждые полминуты.
-    const again = decideIncidents({ ...silent, open: [{ type: 'offline', openedAt: first[0]!.openedAt as Date }] })
+    const openedAt = opened?.action === 'open' ? opened.openedAt : NOW
+    const again = decideIncidents({ ...silent, open: [{ type: 'offline', openedAt }] })
     expect(again).toEqual([])
   })
 

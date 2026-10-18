@@ -7,8 +7,8 @@
  */
 import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import { db, withImmediateTransaction } from '@/db/client'
-import { deviceIncidents, screens, type IncidentType } from '@/db/schema'
-import { decideIncidents, type IncidentAction } from '@/domain/monitoring/incidents'
+import { branches, deviceIncidents, screens } from '@/db/schema'
+import { decideIncidents, isIntervalIncident, type IncidentAction, type IncidentType } from '@/domain/monitoring/incidents'
 import type { ScreenRecordStatus } from '@/domain/monitoring/health'
 import { HttpError } from '@/server/http/errors'
 
@@ -58,9 +58,8 @@ export function applyIncidentActions(
     for (const action of actions) {
       if (action.action === 'open') {
         // Условная вставка по отсутствию открытого инцидента того же типа.
-        // Решатель уже это проверяет, но между проверкой и записью проходит
-        // время, а насос один — гонки нет. Дубликаты всё равно исключаются на
-        // уровне запроса: лента не должна принимать одно и то же событие дважды.
+        // Дубликаты исключаются на уровне запроса: лента не должна принимать
+        // одно и то же событие дважды.
         const existing = tx
           .select({ id: deviceIncidents.id })
           .from(deviceIncidents)
@@ -75,6 +74,10 @@ export function applyIncidentActions(
 
         if (existing) continue
 
+        // Событие рождается закрытым: у него нет длительности, и открытая
+        // запись «возврат» тянулась бы дальше любого простоя.
+        const closedAt = isIntervalIncident(action.type) ? null : action.openedAt
+
         tx.insert(deviceIncidents)
           .values({
             id: crypto.randomUUID(),
@@ -82,6 +85,7 @@ export function applyIncidentActions(
             companyId,
             type: action.type,
             openedAt: action.openedAt,
+            closedAt,
             detail: action.detail ?? null,
           })
           .run()
@@ -256,10 +260,13 @@ export function listIncidents(
 
   return rows.map((row) => ({
     ...row,
-    // Открытый инцидент имеет длительность «пока не закрыт», и она растёт
-    // по мере чтения. Показывается как «с открытия» — в интерфейсе это честнее,
-    // чем показывать застывшее число, которое ещё никто не посчитал.
-    durationMs: row.closedAt ? row.closedAt.getTime() - row.openedAt.getTime() : now - row.openedAt.getTime(),
+    // У события (возврат) длительности нет вовсе: показывать «0 мин» значит
+    // выдумать измеренную величину. Для простоя длительность настоящая.
+    durationMs: isIntervalIncident(row.type)
+      ? row.closedAt
+        ? row.closedAt.getTime() - row.openedAt.getTime()
+        : now - row.openedAt.getTime()
+      : null,
   }))
 }
 
@@ -301,10 +308,13 @@ export function openOfflineIncidents(companyId: string) {
     .select({
       screenId: deviceIncidents.screenId,
       screenName: screens.name,
+      branchName: branches.name,
+      lastSeenAt: screens.lastSeenAt,
       openedAt: deviceIncidents.openedAt,
     })
     .from(deviceIncidents)
     .innerJoin(screens, eq(screens.id, deviceIncidents.screenId))
+    .leftJoin(branches, eq(branches.id, screens.branchId))
     .where(
       and(
         eq(deviceIncidents.companyId, companyId),
@@ -314,6 +324,12 @@ export function openOfflineIncidents(companyId: string) {
     )
     .orderBy(asc(deviceIncidents.openedAt))
     .all()
+    .map((row) => ({
+      ...row,
+      // Сколько молчит: считаем от последнего heartbeat, а не от начала
+      // инцидента. Они совпадают не всегда, и оператору нужна именно эта цифра.
+      silentSeconds: row.lastSeenAt ? Math.floor((Date.now() - row.lastSeenAt.getTime()) / 1000) : null,
+    }))
 }
 
 /** Сколько секунд экран молчит — для таблицы здоровья. */

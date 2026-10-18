@@ -15,6 +15,7 @@ import { handleDeviceConnection } from '../src/server/ws/device'
 import { deviceHub } from '../src/server/ws/hub'
 import { startDeliveryPump, stopDeliveryPump } from '../src/server/ws/delivery-pump'
 import { startSchedulePump, stopSchedulePump } from '../src/server/ws/schedule-pump'
+import { startMonitoringPump, stopMonitoringPump } from '../src/server/ws/monitoring-pump'
 import { expireStaleSessions } from '../src/server/services/pairing-service'
 import { pruneRateLimitBuckets } from '../src/server/http/rate-limit'
 import { logger } from '../src/lib/logger'
@@ -114,6 +115,10 @@ async function main(): Promise<void> {
   // неё создаёт этот насос; развозит её насос доставки.
   startSchedulePump()
 
+  // Интервалы простоя: без них в отчёте есть «экран упал», но нет «сколько
+  // он лежал». Источник — время последнего heartbeat, а не наличие сокета.
+  startMonitoringPump()
+
   const cleanupTimer = setInterval(() => {
     try {
       const expired = expireStaleSessions()
@@ -146,6 +151,7 @@ async function main(): Promise<void> {
     clearInterval(cleanupTimer)
     stopDeliveryPump()
     stopSchedulePump()
+    stopMonitoringPump()
     deviceHub.closeAll()
     server.close(() => process.exit(0))
     // Страховка: если сокеты держат соединение, выходим по таймауту.

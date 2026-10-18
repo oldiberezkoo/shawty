@@ -8,6 +8,7 @@ import { signJwt, verifyJwt } from '@/lib/jwt'
 import { loadOrCreateSecret } from '@/lib/secret-store'
 import { serverConfig } from '@/config/server'
 import { HttpError } from '@/server/http/errors'
+import { recordEventIncident } from '@/server/services/incident-service'
 
 /**
  * Секрет подписи токенов устройств выводится из серверного секрета.

@@ -14,7 +14,7 @@ const NAV: NavItem[] = [
   { href: '/dashboard/releases', label: 'Публикация', ready: true },
   { href: '/dashboard/campaigns', label: 'Кампании', ready: true },
   { href: '/dashboard/scheduling', label: 'Расписание', ready: true },
-  { href: '/dashboard/monitoring', label: 'Мониторинг', ready: false },
+  { href: '/dashboard/monitoring', label: 'Мониторинг', ready: true },
 ]
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

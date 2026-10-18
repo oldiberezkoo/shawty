@@ -76,9 +76,11 @@ export function measureDowntime(intervals: readonly DowntimeInterval[]): number 
 
   const sorted = [...intervals].sort((a, b) => a.start.getTime() - b.start.getTime())
 
+  const first = sorted[0]!
+
   let total = 0
-  let currentStart = sorted[0].start.getTime()
-  let currentEnd = sorted[0].end.getTime()
+  let currentStart = first.start.getTime()
+  let currentEnd = first.end.getTime()
 
   for (let index = 1; index < sorted.length; index += 1) {
     const interval = sorted[index]!
