@@ -62,6 +62,9 @@ export const POST = route(async (request) => {
       companyId,
       actorUserId: session.userId,
       temporaryPath: temporary,
+      // Имя файла сохраняется как есть: оператор должен узнавать свой файл в
+      // медиатеке, а не гадать по разрешению и размеру.
+      fileName: file.name,
       folderId,
     })
 

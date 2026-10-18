@@ -374,6 +374,15 @@ export const mediaAssets = sqliteTable(
     playbackSha256: text('playback_sha256'),
     transcoded: integer('transcoded', { mode: 'boolean' }).notNull().default(false),
     error: text('error'),
+    /**
+     * Имя файла, как его прислал оператор.
+     *
+     * Без него в медиатеке две карточки выглядят одинаково — отличаются только
+     * размером и разрешением, — и выбрать нужный файл невозможно. Хранится
+     * ровно то, что прислали: путь и имя файла на диске у пользователя не
+     * имеют отношения к тому, что он видит в библиотеке.
+     */
+    fileName: text('file_name'),
     folderId: text('folder_id').references(() => mediaFolders.id, { onDelete: 'set null' }),
     createdByUserId: text('created_by_user_id').references(() => users.id),
     createdAt: createdAt(),

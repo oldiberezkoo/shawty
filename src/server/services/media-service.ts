@@ -178,6 +178,8 @@ export async function ingestUpload(params: {
   actorUserId: string
   temporaryPath: string
   folderId?: string | null
+  /** Имя файла от оператора: без него карточки в медиатеке неразличимы. */
+  fileName?: string | null
 }): Promise<IngestResult> {
   // Владение временным файлом передаётся задаче обработки: она переносит его
   // в хранилище. Поэтому удаляем файл только если до постановки в очередь
@@ -209,8 +211,24 @@ export async function ingestUpload(params: {
       .where(and(eq(mediaAssets.companyId, params.companyId), eq(mediaAssets.sha256, sha256)))
       .get()
 
-    if (existing && existing.state === 'ready') {
-      return { assetId: existing.id, deduplicated: true, state: 'ready' }
+    if (existing) {
+      // Duplicate is determined by content, not by readiness: the same file
+      // that is still being processed is the same file. Checking only `ready`
+      // fell through to the insert, which then hit the unique index and
+      // returned 500 - so dragging five files of which two matched reported
+      // a server error instead of quietly ignoring the second one.
+      if (existing.state === 'ready') {
+        return { assetId: existing.id, deduplicated: true, state: 'ready' }
+      }
+
+      // A failed asset occupies the same hash. Re-uploading the same file after
+      // a failure must work, so the previous one is removed: it is useless to
+      // anyone, since processing never finished and it could not have been used.
+      if (existing.state === 'failed' || existing.state === 'archived') {
+        db.delete(mediaAssets).where(eq(mediaAssets.id, existing.id)).run()
+      } else {
+        return { assetId: existing.id, deduplicated: true, state: existing.state }
+      }
     }
 
     assertStorageQuota(params.companyId, bytes)
@@ -253,6 +271,9 @@ export async function ingestUpload(params: {
           probe?.durationMs ?? (detected.kind === 'image' ? serverConfig.media.defaultImageDurationMs : null),
         probeJson: probe ? JSON.stringify(probe) : null,
         transcoded: false,
+        // Имя обрезается по длине колонки: путь оператора может быть длиннее,
+        // и обрезка на уровне вставки предсказуемее, чем усечение интерфейса.
+        fileName: params.fileName ? params.fileName.slice(0, 255) : null,
         folderId: params.folderId ?? null,
         createdByUserId: params.actorUserId,
       })
@@ -440,11 +461,13 @@ export function listMedia(companyId: string, filter: MediaListFilter = {}) {
   }
 
   if (filter.search) {
-    // Поиск идёт по типу и разрешению: имени файла у ассета нет,
-    // он идентифицируется содержимым.
+    // Поиск идёт по имени файла прежде всего: это то, что человек помнит.
+    // Тип и разрешение оставлены как запасной вариант — ими пользуются,
+    // когда имя потерялось, а «найти все 1920×1080» действительно нужно.
     const pattern = `%${filter.search.trim().toLowerCase()}%`
     conditions.push(
       or(
+        like(sql`lower(${mediaAssets.fileName})`, pattern),
         like(sql`lower(${mediaAssets.mime})`, pattern),
         like(sql`cast(${mediaAssets.width} as text)`, pattern),
       ) as never,

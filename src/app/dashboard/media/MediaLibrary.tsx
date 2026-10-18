@@ -2,11 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardBody } from '@/components/ui/card'
+import { Card, EmptyState } from '@/components/ui/card'
+import { FormError } from '@/components/ui/form'
+import { Notice } from '@/components/ui/status-badge'
 import { CSRF_COOKIE } from '@/lib/cookie-names'
 
 export type MediaItem = {
   id: string
+  /** Имя файла, как его прислал оператор. */
+  fileName: string | null
   kind: 'image' | 'video'
   state: 'processing' | 'ready' | 'failed'
   mime: string
@@ -50,6 +54,14 @@ export function MediaLibrary(props: {
   const [kind, setKind] = useState<'all' | 'image' | 'video'>('all')
   const [search, setSearch] = useState('')
   const [uploading, setUploading] = useState(0)
+  /**
+   * Файлы, которые уже были в медиатеке.
+   *
+   * Отдельное состояние, а не ошибка: файл загрузился успешно, его просто
+   * не добавили второй раз. Молчание здесь читается как «загрузка не
+   * сработала», и оператор начинает перезагружать файл по кругу.
+   */
+  const [duplicates, setDuplicates] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   /** Файл занят: показываем разбор и спрашиваем подтверждение явно. */
   const [blocked, setBlocked] = useState<{ assetId: string; message: string } | null>(null)
@@ -91,11 +103,13 @@ export function MediaLibrary(props: {
   const upload = useCallback(
     async (files: FileList | File[]) => {
       setError(null)
+      setDuplicates([])
 
       const list = Array.from(files)
       if (list.length === 0) return
 
       setUploading((count) => count + list.length)
+      const seen: string[] = []
 
       for (const file of list) {
         const body = new FormData()
@@ -111,7 +125,12 @@ export function MediaLibrary(props: {
           if (!response.ok) {
             const data = (await response.json().catch(() => null)) as { error?: { message?: string } } | null
             setError(data?.error?.message ?? `Не удалось загрузить ${file.name}`)
+            continue
           }
+
+          const data = (await response.json().catch(() => null)) as { deduplicated?: boolean } | null
+
+          if (data?.deduplicated) seen.push(file.name)
         } catch {
           setError(`Сервер недоступен при загрузке ${file.name}`)
         } finally {
@@ -119,6 +138,7 @@ export function MediaLibrary(props: {
         }
       }
 
+      setDuplicates(seen)
       await refresh()
     },
     [props.companyId, refresh],
@@ -165,7 +185,7 @@ export function MediaLibrary(props: {
     if (kind !== 'all' && asset.kind !== kind) return false
     if (search.trim()) {
       const needle = search.trim().toLowerCase()
-      const haystack = `${asset.mime} ${asset.width ?? ''}x${asset.height ?? ''}`.toLowerCase()
+      const haystack = `${asset.fileName ?? ''} ${asset.mime} ${asset.width ?? ''}x${asset.height ?? ''}`.toLowerCase()
       if (!haystack.includes(needle)) return false
     }
     return true
@@ -173,13 +193,19 @@ export function MediaLibrary(props: {
 
   return (
     <div className="flex flex-col gap-4">
-      {error ? (
-        <div
-          role="alert"
-          className="rounded-[var(--radius-md)] border border-danger/30 bg-danger-bg px-3 py-2 text-[13px] text-danger"
+      {error ? <FormError onDismiss={() => setError(null)}>{error}</FormError> : null}
+
+      {duplicates.length > 0 ? (
+        <Notice
+          tone="info"
+          onDismiss={() => setDuplicates([])}
+          title={duplicates.length === 1 ? 'Такой файл уже есть' : `Таких файлов уже ${duplicates.length}`}
         >
-          {error}
-        </div>
+          Повторно не добавляются:{' '}
+          <span className="font-medium">{duplicates.slice(0, 3).join(', ')}</span>
+          {duplicates.length > 3 ? ` и ещё ${duplicates.length - 3}` : ''}. Если нужен другой вариант — измените
+          содержимое, дедупликация сравнивает именно его.
+        </Notice>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
@@ -202,7 +228,7 @@ export function MediaLibrary(props: {
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Поиск по типу или разрешению"
+          placeholder="Поиск по имени файла"
           className="h-9 w-full max-w-[280px] rounded-[var(--radius-md)] border border-border bg-surface px-3 text-[13px]"
         />
 
@@ -243,20 +269,33 @@ export function MediaLibrary(props: {
             setDragActive(false)
             if (event.dataTransfer.files.length > 0) void upload(event.dataTransfer.files)
           }}
-          className={`rounded-[var(--radius-lg)] border border-dashed px-4 py-6 text-center text-[13px] transition-colors ${
+          className={`rounded-[var(--radius-lg)] border border-dashed px-4 py-3 text-center text-[13px] transition-colors ${
             dragActive ? 'border-text-muted bg-surface-2 text-text' : 'border-border text-text-subtle'
           }`}
         >
-          Перетащите файлы сюда или нажмите «Загрузить файлы»
+          {/* Подпись меняется при наведении файла: покоящаяся полоса занимает
+              место, а работает только в момент перетаскивания. */}
+          {dragActive ? 'Отпустите, чтобы загрузить' : 'Перетащите файлы сюда или нажмите «Загрузить файлы»'}
         </div>
       ) : null}
 
       {visible.length === 0 ? (
         <Card>
-          <CardBody className="py-10 text-center text-[13px] text-text-muted">
-            Медиатека пуста. Загрузите изображение или ролик — файл сразу попадёт
-            в библиотеку и станет доступен для плейлистов.
-          </CardBody>
+          <EmptyState
+            title={assets.length === 0 ? 'В медиатеке пока пусто' : 'Ничего не нашлось'}
+            hint={
+              assets.length === 0
+                ? 'Загрузите изображение или ролик — файл сразу попадёт в библиотеку и станет доступен для плейлистов.'
+                : 'Попробуйте другое слово или снимите фильтр по типу.'
+            }
+            action={
+              assets.length === 0 && props.canUpload ? (
+                <Button variant="primary" size="sm" onClick={() => inputRef.current?.click()}>
+                  Загрузить файлы
+                </Button>
+              ) : null
+            }
+          />
         </Card>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -327,7 +366,11 @@ function MediaCard(props: {
 
       <div className="flex flex-col gap-1 px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-[12px] text-text">{asset.mime.replace(/^(image|video)\//, '').toUpperCase()}</span>
+          {/* Имя файла — то, что помнит оператор. Формат без него остаётся
+              вторым: без расширения имя «logo-v2» и «logo-final» сливаются. */}
+          <span className="truncate text-[12px] text-text" title={asset.fileName ?? undefined}>
+            {asset.fileName ?? asset.mime.replace(/^(image|video)\//, '').toUpperCase()}
+          </span>
           {asset.transcoded ? (
             <span
               title="Файл приведён к профилю MP4/H.264"

@@ -90,11 +90,20 @@ export function Notice({
   title,
   children,
   action,
+  onDismiss,
 }: {
   tone?: 'info' | 'warn' | 'danger' | 'success'
   title?: string
   children: ReactNode
   action?: ReactNode
+  /**
+   * Закрытие.
+   *
+   * Обязательное для сообщений, которые сообщают факт и не требуют действия:
+   * закрытый факт уже прочитан, а незакрытое уведомление о дубликате так и
+   * будет висеть над следующей загрузкой.
+   */
+  onDismiss?: () => void
 }) {
   const border: Record<string, string> = {
     info: 'border-info-border bg-info-bg',
@@ -117,6 +126,16 @@ export function Notice({
         <div className={`text-[13px] leading-relaxed ${title ? 'mt-0.5 opacity-90' : ''}`}>{children}</div>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
+      {onDismiss ? (
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Скрыть сообщение"
+          className="-my-0.5 shrink-0 rounded px-1 text-[16px] leading-none opacity-60 transition-opacity hover:opacity-100"
+        >
+          ×
+        </button>
+      ) : null}
     </div>
   )
 }

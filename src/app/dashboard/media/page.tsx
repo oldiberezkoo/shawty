@@ -67,6 +67,7 @@ export default async function MediaPage() {
           .filter((asset) => asset.kind !== 'template' && asset.state !== 'archived')
           .map((asset) => ({
             id: asset.id,
+            fileName: asset.fileName,
             kind: asset.kind === 'video' ? ('video' as const) : ('image' as const),
             state:
               asset.state === 'processing'

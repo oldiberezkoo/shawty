@@ -1,0 +1,1 @@
+ALTER TABLE `media_assets` ADD `file_name` text;
