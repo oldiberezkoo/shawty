@@ -2,11 +2,10 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/db/client'
 import { screens } from '@/db/schema'
-import { route, readJsonBody, jsonResponse, clientIp } from '@/server/http/request'
+import { route, readJsonBody, jsonResponse } from '@/server/http/request'
 import { requireSessionForApi } from '@/server/auth/require-session'
 import { accessFor, assertCsrf } from '@/server/services/auth-service'
 import { disableScreen, enableScreen, requestRotation, unpairScreen } from '@/server/services/device-service'
-import { recordAudit, type AuditAction } from '@/server/services/audit-service'
 import { PERMISSIONS } from '@/domain/authz/permissions'
 import { HttpError } from '@/server/http/errors'
 import { logger } from '@/lib/logger'
@@ -15,20 +14,6 @@ const bodySchema = z.object({
   companyId: z.string().min(1).max(64),
   action: z.enum(['disable', 'enable', 'unpair', 'rotate']),
 })
-
-/**
- * Соответствие действия экрана и записи журнала.
- *
- * Оставлено как проверка: `recordAudit` требует `AuditAction`, и если бы
- * действие экрана не было в каталоге, компилятор указал бы на это здесь, а не
- * на молча пропавший фильтр в интерфейсе.
- */
-const SCREEN_AUDIT = {
-  disable: 'screen.disabled',
-  enable: 'screen.enabled',
-  unpair: 'screen.unpaired',
-  rotate: 'screen.rotated',
-} as const satisfies Record<'disable' | 'enable' | 'unpair' | 'rotate', AuditAction>
 
 /**
  * Управление парком экранов: отключение, отвязка и ротация.
