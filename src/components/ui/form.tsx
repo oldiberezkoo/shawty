@@ -11,52 +11,100 @@ import type { ReactNode } from 'react'
  * Голые примитивы дают доступность и поведение (фокус, клавиатура, ARIA),
  * а вид полностью наш. Слой существует, чтобы замена или обновление Base UI
  * затрагивала только этот каталог.
+ *
+ * Общий стиль поля вынесен в константу: раньше он был повторён в семи местах
+ * и разъехался по высоте от компонента к компоненту.
  */
+
+const FIELD_CLASS =
+  'w-full rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm text-text placeholder:text-text-subtle transition-colors focus:border-border-strong focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/25 disabled:opacity-50 aria-invalid:border-danger'
+
+const INPUT_CLASS = `${FIELD_CLASS} h-9`
+
+const LABEL_CLASS = 'text-[12px] font-medium text-text-muted'
+const DESCRIPTION_CLASS = 'text-[12px] leading-relaxed text-text-subtle'
 
 export function FormField({
   label,
   name,
   type = 'text',
   defaultValue,
+  value,
+  onValueChange,
   placeholder,
   required,
   autoComplete,
   autoFocus,
   description,
+  error,
   inputMode,
+  min,
+  max,
+  step,
   maxLength,
   readOnly,
+  className = '',
+  list,
 }: {
   label: string
   name: string
   type?: string
-  defaultValue?: string
+  defaultValue?: string | number
+  /**
+   * Управляемое значение.
+   *
+   * Нужно там, где поле живёт в диалоге и отправляется по кнопке, а не формой.
+   * Оба режима оставлены: неуправляемое поле внутри диалога не обновится после
+   * серверной ошибки, а управляемое внутри обычной формы мешает нативной валидации.
+   */
+  value?: string
+  onValueChange?: (value: string) => void
   placeholder?: string
   required?: boolean
   autoComplete?: string
   autoFocus?: boolean
   description?: string
-  inputMode?: 'text' | 'numeric'
+  /** Ошибка поля: подсказка под полем, а не только красная рамка. */
+  error?: string | null
+  inputMode?: 'text' | 'numeric' | 'decimal' | 'email'
+  min?: number
+  max?: number
+  step?: number
   maxLength?: number
   readOnly?: boolean
+  className?: string
+  list?: string
 }) {
   return (
-    <Field.Root className="flex flex-col gap-1.5">
-      <Field.Label className="text-[13px] font-medium text-text">{label}</Field.Label>
+    <Field.Root className={`flex flex-col gap-1.5 ${className}`}>
+      <Field.Label className={LABEL_CLASS}>{label}</Field.Label>
+
       <Input
         name={name}
         type={type}
-        defaultValue={defaultValue}
+        defaultValue={value === undefined ? defaultValue : undefined}
+        value={value}
+        onValueChange={onValueChange}
         placeholder={placeholder}
         required={required}
         autoComplete={autoComplete}
         autoFocus={autoFocus}
         inputMode={inputMode}
+        min={min}
+        max={max}
+        step={step}
         maxLength={maxLength}
         readOnly={readOnly}
-        className="h-10 w-full rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm text-text placeholder:text-text-subtle focus:border-border-strong focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/30"
+        list={list}
+        aria-invalid={error ? true : undefined}
+        className={INPUT_CLASS}
       />
-      {description ? <Field.Description className="text-[12px] text-text-subtle">{description}</Field.Description> : null}
+
+      {error ? (
+        <Field.Error className="text-[12px] text-danger">{error}</Field.Error>
+      ) : description ? (
+        <Field.Description className={DESCRIPTION_CLASS}>{description}</Field.Description>
+      ) : null}
     </Field.Root>
   )
 }
@@ -72,28 +120,44 @@ export function SelectField({
   name,
   options,
   defaultValue,
+  value,
   placeholder = 'Выберите значение',
   required,
+  error,
+  onValueChange,
+  className = '',
 }: {
   label: string
   name: string
   options: SelectOption[]
   defaultValue?: string
+  /** Управляемое значение — для диалогов, где список меняется по ходу. */
+  value?: string
   placeholder?: string
   required?: boolean
+  error?: string | null
+  /** Обработчик выбора: нужен там, где список не отправляется формой. */
+  onValueChange?: (value: string | null) => void
+  className?: string
 }) {
   return (
-    <Field.Root className="flex flex-col gap-1.5">
-      <Field.Label className="text-[13px] font-medium text-text">{label}</Field.Label>
+    <Field.Root className={`flex flex-col gap-1.5 ${className}`}>
+      <Field.Label className={LABEL_CLASS}>{label}</Field.Label>
+
       <Select.Root
         name={name}
-        defaultValue={defaultValue ?? null}
+        defaultValue={value === undefined ? (defaultValue ?? null) : null}
         items={options}
+        value={value === undefined ? null : value}
+        onValueChange={onValueChange}
         required={required}
       >
-        <Select.Trigger className="flex h-10 w-full items-center justify-between gap-2 rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm text-text data-[placeholder]:text-text-subtle focus:border-border-strong focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/30">
+        <Select.Trigger
+          aria-invalid={error ? true : undefined}
+          className={`${FIELD_CLASS} flex h-9 items-center justify-between gap-2 text-left data-[placeholder]:text-text-subtle`}
+        >
           <Select.Value placeholder={placeholder} />
-          <Select.Icon className="text-text-subtle">
+          <Select.Icon className="shrink-0 text-text-subtle">
             <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
               <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
@@ -124,17 +188,96 @@ export function SelectField({
           </Select.Positioner>
         </Select.Portal>
       </Select.Root>
+
+      {error ? <Field.Error className="text-[12px] text-danger">{error}</Field.Error> : null}
     </Field.Root>
   )
 }
 
-export function FormError({ children }: { children: ReactNode }) {
+/**
+ * Переключатель «да/нет».
+ *
+ * Отдельный компонент, а не две радиокнопки: у бинарного вопроса всегда два
+ * состояния, и переключатель помещается в одну строку вместо двух.
+ */
+export function ToggleField({
+  name,
+  label,
+  description,
+  defaultChecked = false,
+  disabled,
+  onChange,
+}: {
+  name: string
+  label: string
+  description?: string
+  defaultChecked?: boolean
+  disabled?: boolean
+  onChange?: (checked: boolean) => void
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2.5 py-1">
+      <input
+        type="checkbox"
+        name={name}
+        defaultChecked={defaultChecked}
+        disabled={disabled}
+        onChange={(event) => onChange?.(event.target.checked)}
+        className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[var(--primary)]"
+      />
+      <span className="flex flex-col gap-0.5">
+        <span className="text-[13px] leading-tight text-text">{label}</span>
+        {description ? <span className={DESCRIPTION_CLASS}>{description}</span> : null}
+      </span>
+    </label>
+  )
+}
+
+/**
+ * Ошибка формы целиком.
+ *
+ * Без неё пользователь видит на экране «что-то пошло не так» и ищет, где именно.
+ * Текст ошибки обязан говорить, что делать, а не что сломалось.
+ */
+export function FormError({ children, onDismiss }: { children: ReactNode; onDismiss?: () => void }) {
   return (
     <div
       role="alert"
-      className="rounded-[var(--radius-md)] border border-danger/30 bg-danger-bg px-3 py-2 text-[13px] text-danger"
+      className="flex items-start justify-between gap-3 rounded-[var(--radius-md)] border border-danger-border bg-danger-bg px-3 py-2.5 text-[13px] text-danger"
     >
-      {children}
+      <span className="leading-relaxed">{children}</span>
+      {onDismiss ? (
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Скрыть сообщение"
+          className="-my-0.5 -mr-1 shrink-0 rounded px-1 opacity-70 transition-opacity hover:opacity-100"
+        >
+          ×
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+/** Успешное сообщение: подтверждает, что действие прошло. */
+export function FormSuccess({ children, onDismiss }: { children: ReactNode; onDismiss?: () => void }) {
+  return (
+    <div
+      role="status"
+      className="flex items-start justify-between gap-3 rounded-[var(--radius-md)] border border-success-border bg-success-bg px-3 py-2.5 text-[13px] text-success"
+    >
+      <span className="leading-relaxed">{children}</span>
+      {onDismiss ? (
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Скрыть сообщение"
+          className="-my-0.5 -mr-1 shrink-0 rounded px-1 opacity-70 transition-opacity hover:opacity-100"
+        >
+          ×
+        </button>
+      ) : null}
     </div>
   )
 }
