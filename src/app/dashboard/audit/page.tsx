@@ -19,7 +19,7 @@ export default async function AuditPage() {
   if (!access.can(PERMISSIONS.auditRead)) {
     return (
       <div className="flex flex-col gap-2">
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Журнал действий</h1>
+        <h1 className="page-title">Журнал действий</h1>
         <p className="text-[13px] text-text-muted">
           У вашей роли нет доступа к журналу. Он показывает, кто отвязывал экраны, удалял файлы и публиковал
           контент, — и доступен администраторам и владельцу.
@@ -31,7 +31,7 @@ export default async function AuditPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Журнал действий</h1>
+        <h1 className="page-title">Журнал действий</h1>
         <p className="mt-1 text-[13px] text-text-muted">
           Кто и когда отвязывал экраны, удалял файлы, согласовывал кампании и выпускал публикации. Запись
           появляется только после успешного действия и живёт в той же транзакции, что и само действие.

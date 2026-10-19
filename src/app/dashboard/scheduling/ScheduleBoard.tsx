@@ -1,5 +1,6 @@
 'use client'
 
+import { Notice } from '@/components/ui/status-badge'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card'
@@ -141,9 +142,7 @@ export function ScheduleBoard({ companyId }: { companyId: string }) {
   return (
     <div className="flex flex-col gap-6">
       {error ? (
-        <div className="rounded-[var(--radius-md)] border border-danger/30 bg-danger-bg px-3 py-2 text-[13px] text-danger">
-          {error}
-        </div>
+        <Notice tone="danger">{error}</Notice>
       ) : null}
 
       <Card>

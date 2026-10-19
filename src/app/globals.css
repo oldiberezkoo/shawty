@@ -163,15 +163,15 @@
   --color-overlay: var(--overlay);
 
   /* Радиусы скромные: минимализм, а не «скруглённый пузырь». */
-  --radius-xs: 3px;
-  --radius-sm: 5px;
-  --radius-md: 7px;
-  --radius-lg: 9px;
-  --radius-xl: 13px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
 
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', sans-serif;
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 }
 
@@ -196,10 +196,17 @@
     font-family: var(--font-sans);
     font-size: 14px;
     line-height: 1.5;
+    /*
+     * Лёгкое сжатие трекинга.
+     *
+     * Inter при 13–14px выглядит шире, чем нужно для плотных подписей, и без
+     * этого строка «Состояние считается по времени последнего heartbeat»
+     * растягивается на две строки там, где помещается в одну. Отрицательный
+     * трекинг не мельчит текст: он убирает лишний воздух между буквами.
+     */
+    letter-spacing: -0.006em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Интерфейс — рабочий инструмент, а не витрина: курсор не должен
-       мигать при наведении на строки таблиц. */
     text-rendering: optimizeLegibility;
   }
 
@@ -308,6 +315,43 @@
 
   .hairline {
     border-bottom: 1px solid var(--border);
+  }
+
+  /*
+   * Шапка таблицы.
+   *
+   * Фон отделяет названия колонок от данных. Без него шапка читается как
+   * первая строка таблицы, и глаз каждый раз заново проверяет, где кончаются
+   * заголовки. Правило общее для всех таблиц: часть из них собрана на
+   * `DataTable`, часть — вручную, и оформлять их в двух местах означает
+   * получить две разные шапки.
+   */
+  .stack-table thead {
+    background-color: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  }
+
+  .stack-table tbody tr {
+    transition: background-color 100ms ease;
+  }
+
+  .stack-table tbody tr:hover {
+    background-color: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  }
+
+  /*
+   * Заголовок страницы.
+   *
+   * Один класс вместо строки утилит в тринадцати файлах: пока размер и
+   * трекинг набраны в разметке, любая правка «сделать заголовки на пиксель
+   * меньше» превращается в тринадцать правок и одну забытую.
+   */
+  .page-title {
+    font-size: 20px;
+    line-height: 1.25;
+    font-weight: 600;
+    letter-spacing: -0.028em;
+    color: var(--text);
+    text-wrap: balance;
   }
 
   /* Заголовок раздела: мелкий, спокойный, с приглушённым цветом. */
@@ -477,6 +521,16 @@
   }
 }
 
+/* Появление боковой колонки: она выезжает, а не возникает на месте. */
+@keyframes slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 /*
  * Уважаем системную настройку: если пользователь просил меньше анимации,
  * сокращения и переходы не нужны.
@@ -488,5 +542,6 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

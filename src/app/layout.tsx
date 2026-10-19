@@ -1,5 +1,25 @@
 import type { Metadata, Viewport } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
+
+/**
+ * Интерфейсный шрифт.
+ *
+ * Системный шрифт на Windows — Segoe UI, и он заметно грубее на мелких
+ * размерах: цифры разной ширины, плотные межбуквенные просветы, тонкие
+ * начертания слипаются. Inter держит мелкий текст чистым и одинаково
+ * выглядит на всех платформах, поэтому панель не зависит от того, чей
+ * компьютер её открыл.
+ *
+ * `cyrillic` подключён отдельно: без него кириллица падала на системный
+ * шрифт, и половина интерфейса выглядела иначе, чем вторая.
+ */
+const inter = Inter({
+  subsets: ['latin', 'cyrillic'],
+  display: 'swap',
+  variable: '--font-inter',
+  fallback: ['ui-sans-serif', 'system-ui', 'Segoe UI', 'sans-serif'],
+})
 
 export const metadata: Metadata = {
   title: {
@@ -40,7 +60,7 @@ const themeInitScript = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" suppressHydrationWarning>
+    <html lang="ru" className={inter.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

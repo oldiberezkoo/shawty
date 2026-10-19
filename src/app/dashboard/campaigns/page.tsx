@@ -24,7 +24,7 @@ export default async function CampaignsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Кампании</h1>
+        <h1 className="page-title">Кампании</h1>
         <p className="mt-1 text-[13px] text-text-muted">
           Кампания — это не файл, а правило: кому, когда и что показывать. Расписание считает сервер, и при
           пересечении кампаний результат один и тот же на всей сети — приоритет, затем более узкая область, затем

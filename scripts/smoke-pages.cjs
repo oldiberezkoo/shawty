@@ -34,6 +34,8 @@ async function main() {
 
   const checks = [
     ['/login', ['SHAWTY']],
+    ['/register', ['Создание учётной записи']],
+    ['/join', ['Приглашение в компанию']],
     ['/dashboard', ['Обзор сети', 'Всего экранов']],
     ['/dashboard/screens', ['Экраны', 'Demo Retail']],
     ['/dashboard/media', ['Медиатека', 'Хранилище']],

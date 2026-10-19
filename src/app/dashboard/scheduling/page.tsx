@@ -14,7 +14,7 @@ export default async function SchedulingPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Расписание</h1>
+        <h1 className="page-title">Расписание</h1>
         <p className="mt-1 text-[13px] text-text-muted">
           Что должно идти на каждом экране сейчас и когда программа сменится. Окна считаются в часовом поясе
           филиала: «с 09:00» в Самарканде и в Ташкенте — это разное время.

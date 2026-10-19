@@ -4,7 +4,6 @@ import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
 import { listPlaylists } from '@/server/services/playlist-service'
 import { listMedia } from '@/server/services/media-service'
 import { PlaylistList } from './PlaylistList'
-import { Card, CardBody } from '@/components/ui/card'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +21,7 @@ export default async function PlaylistsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Плейлисты</h1>
+        <h1 className="page-title">Плейлисты</h1>
         <p className="mt-1 text-[13px] text-text-muted">
           Порядок показа и длительность слайдов. Публикация фиксирует версию:
           после этого правки черновика не меняют то, что уже играет на экранах.
@@ -54,11 +53,9 @@ export default async function PlaylistsPage() {
       />
 
       {playlists.length === 0 ? (
-        <Card>
-          <CardBody className="py-10 text-center text-[13px] text-text-muted">
-            Плейлистов пока нет. Создайте первый и добавьте в него файлы из медиатеки.
-          </CardBody>
-        </Card>
+        <p className="text-[13px] text-text-muted">
+          Плейлистов пока нет. Нажмите «Создать плейлист» выше и добавьте в него файлы из медиатеки.
+        </p>
       ) : null}
     </div>
   )

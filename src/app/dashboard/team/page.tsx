@@ -19,7 +19,7 @@ export default async function TeamPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Команда</h1>
+        <h1 className="page-title">Команда</h1>
         <p className="mt-1 max-w-[70ch] text-[13px] text-text-muted">
           Кто работает с контентом и экранами и за что отвечает. Роль действует только в этой компании: один человек
           может вести две компании и нигде не иметь доступа к оплате.

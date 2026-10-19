@@ -1,5 +1,6 @@
 'use client'
 
+import { Notice } from '@/components/ui/status-badge'
 import { useCallback, useState } from 'react'
 import Link from 'next/link'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
@@ -132,9 +133,7 @@ export function CampaignReportCard({ companyId }: { companyId: string }) {
       />
       <CardBody className="flex flex-col gap-4">
         {error ? (
-          <div className="rounded-[var(--radius-md)] border border-danger/30 bg-danger-bg px-3 py-2 text-[13px] text-danger">
-            {error}
-          </div>
+          <Notice tone="danger">{error}</Notice>
         ) : null}
 
         {!report ? (

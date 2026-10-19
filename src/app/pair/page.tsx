@@ -42,7 +42,7 @@ export default async function PairStartPage() {
           Назад в панель
         </Link>
 
-        <h1 className="mt-6 text-[22px] font-semibold tracking-[-0.02em]">Подключение экрана</h1>
+        <h1 className="mt-6 page-title">Подключение экрана</h1>
         <p className="mt-1.5 max-w-[56ch] text-[13px] leading-relaxed text-text-muted">
           Телевизор показывает код. Введите его здесь — экран привяжется к выбранному филиалу и сам получит
           ключи доступа.

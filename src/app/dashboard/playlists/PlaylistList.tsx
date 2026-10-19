@@ -1,5 +1,6 @@
 'use client'
 
+import { Notice } from '@/components/ui/status-badge'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardBody } from '@/components/ui/card'
@@ -245,14 +246,10 @@ export function PlaylistList(props: {
   return (
     <div className="flex flex-col gap-4">
       {error ? (
-        <div className="rounded-[var(--radius-md)] border border-danger/30 bg-danger-bg px-3 py-2 text-[13px] text-danger">
-          {error}
-        </div>
+        <Notice tone="danger">{error}</Notice>
       ) : null}
       {notice ? (
-        <div className="rounded-[var(--radius-md)] border border-border bg-surface-2 px-3 py-2 text-[13px] text-text-muted">
-          {notice}
-        </div>
+        <Notice>{notice}</Notice>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">

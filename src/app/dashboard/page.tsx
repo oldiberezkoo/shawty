@@ -1,11 +1,13 @@
 import Link from 'next/link'
+import { ArrowRight, CalendarClock, Megaphone, MonitorSmartphone, RefreshCw, Send, Wifi, WifiOff } from 'lucide-react'
 import { requireSession } from '@/server/auth/require-session'
 import { listBranches, listScreens, summarizeScreens } from '@/server/services/screen-service'
 import { getSubscription } from '@/server/services/billing-service'
 import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card'
-import { Badge, Dot, StatusBadge } from '@/components/ui/status-badge'
+import { Notice, StatusBadge } from '@/components/ui/status-badge'
 import { MetricTile, UsageBar } from '@/components/ui/metric'
 import { Button } from '@/components/ui/button'
+import { PageHeader } from '@/components/ui/page-header'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,75 +59,82 @@ export default async function DashboardPage() {
   const unpairedScreens = screens.filter((screen) => screen.recordStatus === 'unpaired')
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Обзор сети</h1>
-          <p className="mt-1 text-[13px] text-text-muted">
-            {membership.companyName} · {branches.length} {plural(branches.length, 'филиал', 'филиала', 'филиалов')} ·{' '}
-            {summary.total} {plural(summary.total, 'экран', 'экрана', 'экранов')}
-          </p>
-        </div>
-
-        <div className="flex gap-2">
+    <div className="flex flex-col gap-7">
+      <PageHeader
+        title="Обзор сети"
+        description={`${membership.companyName} · ${branches.length} ${plural(branches.length, 'филиал', 'филиала', 'филиалов')} · ${summary.total} ${plural(summary.total, 'экран', 'экрана', 'экранов')}`}
+        actions={
           <Link href="/pair">
-            <Button size="sm" variant="primary">
+            <Button size="md" variant="primary">
               Подключить экран
             </Button>
           </Link>
-        </div>
-      </div>
+        }
+      />
 
       {summary.needsAttention > 0 ? (
         // Предупреждение о состоянии сети: говорит, что не так и куда идти.
-        <Card>
-          <CardBody className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-2.5">
-              <span className="mt-1.5">
-                <Dot state="offline" />
-              </span>
-              <div className="text-[13px]">
-                <div className="font-medium">
-                  {summary.needsAttention}{' '}
-                  {plural(summary.needsAttention, 'экран требует', 'экрана требуют', 'экранов требуют')} внимания
-                </div>
-                <div className="mt-0.5 leading-relaxed text-text-muted">
-                  {offlineScreens.length > 0
-                    ? `${offlineScreens.length} ${plural(offlineScreens.length, 'без связи', 'без связи', 'без связи')}. `
-                    : ''}
-                  {unpairedScreens.length > 0
-                    ? `${unpairedScreens.length} ${plural(unpairedScreens.length, 'ждёт', 'ждут', 'ждут')} повторной привязки.`
-                    : ''}
-                </div>
-              </div>
-            </div>
-
+        // Раньше это была карточка с точкой, по весу равная обычному блоку
+        // данных. Тон отказа делает её заметной до того, как её прочитают.
+        <Notice
+          tone={offlineScreens.length > 0 ? 'warn' : 'info'}
+          title={`${summary.needsAttention} ${plural(summary.needsAttention, 'экран требует', 'экрана требуют', 'экранов требуют')} внимания`}
+          action={
             <Link href="/dashboard/monitoring">
-              <Button size="sm">К мониторингу</Button>
+              <Button size="sm">
+                К мониторингу
+                <ArrowRight className="size-3.5" strokeWidth={1.9} />
+              </Button>
             </Link>
-          </CardBody>
-        </Card>
+          }
+        >
+          {offlineScreens.length > 0
+            ? `${offlineScreens.length} ${plural(offlineScreens.length, 'экран', 'экрана', 'экранов')} без связи. `
+            : ''}
+          {unpairedScreens.length > 0
+            ? `${unpairedScreens.length} ${plural(unpairedScreens.length, 'ждёт', 'ждут', 'ждут')} повторной привязки.`
+            : ''}
+        </Notice>
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricTile label="Всего экранов" value={summary.total} />
-        <MetricTile label="Онлайн" value={summary.online} tone="success" />
-        <MetricTile label="Синхронизируют" value={summary.syncing} tone={summary.syncing > 0 ? 'info' : 'default'} />
+        <MetricTile
+          label="Всего экранов"
+          value={summary.total}
+          icon={<MonitorSmartphone className="size-4" strokeWidth={1.75} />}
+        />
+        <MetricTile
+          label="Онлайн"
+          value={summary.online}
+          tone="success"
+          icon={<Wifi className="size-4" strokeWidth={1.75} />}
+        />
+        <MetricTile
+          label="Синхронизируют"
+          value={summary.syncing}
+          tone={summary.syncing > 0 ? 'info' : 'default'}
+          icon={<RefreshCw className="size-4" strokeWidth={1.75} />}
+        />
         <MetricTile
           label="Нет связи"
           value={summary.offline}
           tone={summary.offline > 0 ? 'warn' : 'default'}
+          icon={<WifiOff className="size-4" strokeWidth={1.75} />}
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="grid items-start gap-6 lg:grid-cols-[1fr_320px]">
         <Card>
           <CardHeader
             title="Экраны"
             description="Состояние считается по времени последнего heartbeat, а не по наличию соединения на сервере."
             action={
-              <Link href="/dashboard/screens" className="text-[13px] text-text-muted transition-colors hover:text-text">
+              <Link
+                href="/dashboard/screens"
+                className="inline-flex items-center gap-1 text-[12.5px] text-text-muted transition-colors hover:text-text"
+              >
                 Все экраны
+                <ArrowRight className="size-3.5" strokeWidth={1.9} />
               </Link>
             }
           />
@@ -145,7 +154,10 @@ export default async function DashboardPage() {
             ) : (
               <ul className="divide-y divide-[var(--border)]">
                 {screens.slice(0, 6).map((screen) => (
-                  <li key={screen.id} className="flex items-center gap-3 px-5 py-3">
+                  <li
+                    key={screen.id}
+                    className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-surface-2/60"
+                  >
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13px] font-medium">{screen.name}</div>
                       <div className="truncate text-[12px] text-text-subtle">
@@ -171,7 +183,10 @@ export default async function DashboardPage() {
             <CardHeader
               title="Запас тарифа"
               action={
-                <Link href="/dashboard/billing" className="text-[13px] text-text-muted transition-colors hover:text-text">
+                <Link
+                  href="/dashboard/billing"
+                  className="text-[12.5px] text-text-muted transition-colors hover:text-text"
+                >
                   Тариф
                 </Link>
               }
@@ -210,44 +225,47 @@ export default async function DashboardPage() {
 
           <Card>
             <CardHeader title="Быстрые действия" />
-            <CardBody className="flex flex-col gap-2">
-              <Link href="/pair">
-                <Button size="sm" className="w-full justify-start">
-                  Подключить экран по QR
-                </Button>
-              </Link>
-              <Link href="/dashboard/campaigns">
-                <Button size="sm" className="w-full justify-start">
-                  Создать кампанию
-                </Button>
-              </Link>
-              <Link href="/dashboard/releases">
-                <Button size="sm" className="w-full justify-start">
-                  Опубликовать контент
-                </Button>
-              </Link>
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="Разделы" />
-            <CardBody className="flex flex-wrap gap-2">
-              <Link href="/dashboard/campaigns">
-                <Badge>Кампании</Badge>
-              </Link>
-              <Link href="/dashboard/scheduling">
-                <Badge>Расписание</Badge>
-              </Link>
-              <Link href="/dashboard/media">
-                <Badge>Медиатека</Badge>
-              </Link>
-              <Link href="/dashboard/team">
-                <Badge>Команда</Badge>
-              </Link>
+            <CardBody className="flex flex-col gap-1">
+              <QuickAction href="/pair" icon={<MonitorSmartphone className="size-4" strokeWidth={1.75} />}>
+                Подключить экран
+              </QuickAction>
+              <QuickAction href="/dashboard/campaigns" icon={<Megaphone className="size-4" strokeWidth={1.75} />}>
+                Создать кампанию
+              </QuickAction>
+              <QuickAction href="/dashboard/scheduling" icon={<CalendarClock className="size-4" strokeWidth={1.75} />}>
+                Настроить расписание
+              </QuickAction>
+              <QuickAction href="/dashboard/releases" icon={<Send className="size-4" strokeWidth={1.75} />}>
+                Опубликовать контент
+              </QuickAction>
             </CardBody>
           </Card>
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Строка быстрого действия.
+ *
+ * Ссылка, а не кнопка: уход на другой экран — это переход, а не действие,
+ * которое что-то меняет здесь. Кнопка обещала бы мгновенный результат, а
+ * человек получал бы новую страницу — и это ровно тот разрыв между
+ * обещанием и поведением, из-за которого интерфейс кажется обманчивым.
+ */
+function QuickAction({ href, icon, children }: { href: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="group -mx-1 flex items-center gap-2.5 rounded-[var(--radius-md)] px-2 py-2 text-[13px] text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
+    >
+      <span className="text-text-subtle transition-colors group-hover:text-text-muted">{icon}</span>
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+      <ArrowRight
+        className="size-3.5 shrink-0 text-text-subtle opacity-0 transition-opacity group-hover:opacity-100"
+        strokeWidth={1.9}
+      />
+    </Link>
   )
 }

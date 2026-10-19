@@ -1,11 +1,15 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
+import { Clock, MonitorCheck, ShieldAlert } from 'lucide-react'
 import { loadSessionContext, accessFor } from '@/server/services/auth-service'
 import { readSessionCookie } from '@/server/http/cookies'
 import { hasScopeAccess, ROLE_LABELS } from '@/domain/authz/permissions'
 import { watchPairing } from '@/server/services/pairing-service'
 import { getBranchOptions, getGroupOptions } from '@/server/services/screen-service'
 import { PERMISSIONS } from '@/domain/authz/permissions'
+import { Card, CardBody } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { ConfirmForm } from './ConfirmForm'
 import { LinkToLogin } from './LinkToLogin'
 
@@ -14,6 +18,43 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
   title: 'Подтверждение подключения экрана',
   robots: { index: false, follow: false },
+}
+
+/**
+ * Завершающее состояние вместо тупика.
+ *
+ * Экран подтверждения открывают один раз и в спешке. Любое сообщение здесь —
+ * «истекло», «уже подключено», «нет прав» — человек читает, уже стоя у
+ * телевизора. Поэтому у каждого исхода есть кнопка, а не только объяснение:
+ * иначе возвращаться в панель приходится через адресную строку.
+ */
+function TerminalState({
+  icon,
+  title,
+  hint,
+  children,
+}: {
+  icon: React.ReactNode
+  title: string
+  hint: string
+  children: React.ReactNode
+}) {
+  return (
+    <main className="flex min-h-dvh items-center justify-center px-5 py-12">
+      <Card className="w-full max-w-[420px]">
+        <CardBody className="flex flex-col items-center px-6 py-8 text-center">
+          <div className="mb-3 flex size-10 items-center justify-center rounded-[var(--radius-lg)] border border-border bg-surface-2 text-text-subtle">
+            {icon}
+          </div>
+
+          <h1 className="text-[15px] font-semibold tracking-[-0.015em]">{title}</h1>
+          <p className="mt-1.5 max-w-[36ch] text-[13px] leading-relaxed text-text-muted">{hint}</p>
+
+          <div className="mt-5 flex flex-wrap justify-center gap-2">{children}</div>
+        </CardBody>
+      </Card>
+    </main>
+  )
 }
 
 export default async function PairConfirmPage({
@@ -39,28 +80,39 @@ export default async function PairConfirmPage({
 
   if (state.state === 'expired') {
     return (
-      <main className="flex min-h-dvh items-center justify-center px-6">
-        <div className="card max-w-[420px] px-6 py-6 text-center">
-          <h1 className="text-[17px] font-semibold">Срок кода истёк</h1>
-          <p className="mt-2 text-[13px] text-text-muted">
-            Экран показывает, что время подтверждения вышло. Включите на нём получение
-            нового кода и отсканируйте QR заново.
-          </p>
-        </div>
-      </main>
+      <TerminalState
+        icon={<Clock className="size-4" strokeWidth={1.8} />}
+        title="Срок кода истёк"
+        hint="Экран показывает, что время подтверждения вышло. Включите на нём получение нового кода — и введите его здесь."
+      >
+        <Link href="/pair">
+          <Button size="sm" variant="primary">
+            Ввести новый код
+          </Button>
+        </Link>
+        <Link href="/dashboard">
+          <Button size="sm">В панель</Button>
+        </Link>
+      </TerminalState>
     )
   }
 
   if (state.state === 'confirmed') {
     return (
-      <main className="flex min-h-dvh items-center justify-center px-6">
-        <div className="card max-w-[420px] px-6 py-6 text-center">
-          <h1 className="text-[17px] font-semibold">Экран уже подключён</h1>
-          <p className="mt-2 text-[13px] text-text-muted">
-            Эта сессия уже подтверждена. Вернитесь в панель и посмотрите список экранов.
-          </p>
-        </div>
-      </main>
+      <TerminalState
+        icon={<MonitorCheck className="size-4" strokeWidth={1.8} />}
+        title="Экран уже подключён"
+        hint="Эта сессия уже подтверждена. Экран появился в списке и получает публикации."
+      >
+        <Link href="/dashboard/screens">
+          <Button size="sm" variant="primary">
+            Посмотреть экраны
+          </Button>
+        </Link>
+        <Link href="/dashboard">
+          <Button size="sm">В панель</Button>
+        </Link>
+      </TerminalState>
     )
   }
 
@@ -70,14 +122,15 @@ export default async function PairConfirmPage({
 
   if (memberships.length === 0) {
     return (
-      <main className="flex min-h-dvh items-center justify-center px-6">
-        <div className="card max-w-[420px] px-6 py-6">
-          <h1 className="text-[17px] font-semibold">Недостаточно прав</h1>
-          <p className="mt-2 text-[13px] text-text-muted">
-            Подтверждать привязку экранов могут только владелец компании и администратор.
-          </p>
-        </div>
-      </main>
+      <TerminalState
+        icon={<ShieldAlert className="size-4" strokeWidth={1.8} />}
+        title="Недостаточно прав"
+        hint="Подтверждать привязку экранов могут только владелец компании и администратор. Попросите их подтвердить подключение."
+      >
+        <Link href="/dashboard">
+          <Button size="sm">В панель</Button>
+        </Link>
+      </TerminalState>
     )
   }
 
@@ -95,11 +148,11 @@ export default async function PairConfirmPage({
   const groups = getGroupOptions(firstMembership.companyId)
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-[520px] flex-col justify-center px-6 py-12">
-      <div className="mb-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[540px] flex-col justify-center px-5 py-12">
+      <div className="mb-7">
         <LinkToLogin href="/dashboard" />
-        <h1 className="mt-6 text-[22px] font-semibold tracking-[-0.02em]">Подключение экрана</h1>
-        <p className="mt-1.5 text-[13px] text-text-muted">
+        <h1 className="mt-6 page-title">Подключение экрана</h1>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-text-muted">
           Вы вошли как {ROLE_LABELS[firstAccess.role]}. Выберите, куда привязать экран.
         </p>
       </div>

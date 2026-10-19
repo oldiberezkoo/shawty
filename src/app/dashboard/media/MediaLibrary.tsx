@@ -298,7 +298,7 @@ export function MediaLibrary(props: {
           />
         </Card>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="stagger grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {visible.map((asset) => (
             <MediaCard
               key={asset.id}
@@ -336,7 +336,7 @@ function MediaCard(props: {
   }, [asset.width, asset.height])
 
   return (
-    <div className="card overflow-hidden">
+    <div className="card overflow-hidden transition-colors hover:border-border-strong">
       <div className="relative aspect-video bg-surface-2">
         {asset.state === 'ready' && asset.hasPoster ? (
           // eslint-disable-next-line @next/next/no-img-element

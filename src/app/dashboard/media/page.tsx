@@ -29,7 +29,7 @@ export default async function MediaPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-end justify-between gap-6">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Медиатека</h1>
+          <h1 className="page-title">Медиатека</h1>
           <p className="mt-1 text-[13px] text-text-muted">
             Файлы хранятся один раз по содержимому: повторная загрузка того же файла
             не создаёт новый ассет.

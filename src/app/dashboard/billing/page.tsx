@@ -20,7 +20,7 @@ export default async function BillingPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Тариф и потребление</h1>
+        <h1 className="page-title">Тариф и потребление</h1>
         <p className="mt-1 max-w-[70ch] text-[13px] text-text-muted">
           Сколько экранов, сотрудников и места осталось по тарифу. Оплата вносится вручную: подключение
           платёжного провайдера — отдельное решение и не входит в эту версию.

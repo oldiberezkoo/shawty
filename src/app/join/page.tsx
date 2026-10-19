@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
+import { AuthShell } from '@/components/ui/auth-shell'
 import { InviteAccept } from './InviteAccept'
 
 export const dynamic = 'force-dynamic'
@@ -20,15 +22,23 @@ export default async function JoinPage({
   const { token } = await searchParams
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md fade-in">
-        <div className="mb-6 text-center">
-          <div className="text-[15px] font-semibold tracking-[-0.02em]">SHAWTY</div>
-          <h1 className="mt-4 text-[20px] font-semibold tracking-[-0.02em]">Приглашение в компанию</h1>
-        </div>
-
-        <InviteAccept token={token ?? ''} />
-      </div>
-    </main>
+    <AuthShell
+      title="Приглашение в компанию"
+      description="Проверьте, в какую компанию вас приглашают, и примите приглашение."
+      width="md"
+      footer={
+        <>
+          Передумали?{' '}
+          <Link
+            href="/login"
+            className="font-medium text-text underline underline-offset-4 transition-colors hover:text-text-muted"
+          >
+            Вернуться к входу
+          </Link>
+        </>
+      }
+    >
+      <InviteAccept token={token ?? ''} />
+    </AuthShell>
   )
 }

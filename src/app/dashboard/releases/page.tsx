@@ -44,7 +44,7 @@ export default async function ReleasesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Публикация</h1>
+        <h1 className="page-title">Публикация</h1>
         <p className="mt-1 text-[13px] text-text-muted">
           Не «опубликовано», а что произошло на экранах: отправлено, применили, грузят, нет связи. Числа
           обновляются сами — после публикации они меняются в течение нескольких секунд.

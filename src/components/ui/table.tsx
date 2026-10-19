@@ -66,7 +66,7 @@ export function DataTable({
                 key={column.key}
                 scope="col"
                 style={column.width ? { width: column.width } : undefined}
-                className={`px-4 py-2.5 text-[11px] font-semibold tracking-[0.03em] text-text-subtle uppercase ${
+                className={`px-5 py-2.5 text-[10.5px] font-semibold tracking-[0.06em] text-text-subtle uppercase ${
                   column.align === 'right' ? 'text-right' : 'text-left'
                 }`}
               >
@@ -89,7 +89,7 @@ export function DataTable({
                   data-label={column.label}
                   data-primary={column.primary ? '' : undefined}
                   data-secondary={column.secondary ? '' : undefined}
-                  className={`px-4 py-2.5 align-middle ${
+                  className={`px-5 py-3 align-middle ${
                     column.align === 'right' ? 'text-right' : 'text-left'
                   }`}
                 >
@@ -125,7 +125,7 @@ export function CardList({
   return (
     <ul className="divide-y divide-[var(--border)]">
       {items.map((item) => (
-        <li key={item.key} className="px-4 py-3.5">
+        <li key={item.key} className="px-5 py-3.5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <div className="min-w-0 font-medium">{item.header}</div>
             {item.meta ? <div className="shrink-0 text-[12px] text-text-muted">{item.meta}</div> : null}

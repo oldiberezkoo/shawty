@@ -9,21 +9,26 @@ type Size = 'sm' | 'md' | 'lg'
  * Три состояния по важности, а не пять по цвету. Основное действие на экране
  * должно быть ровно одно — иначе взгляд не знает, куда нажать. Вторичные
  * действия уходят в приглушённый вид, опасные — подтверждением.
+ *
+ * У основной кнопки есть собственная тень: на белом фоне тёмная плашка и без
+ * неё читается, но тень отделяет её от страницы в тот момент, когда кнопка
+ * стоит рядом с карточкой того же цвета.
  */
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-primary text-primary-text border border-transparent hover:bg-primary-hover',
+  primary:
+    'bg-primary text-primary-text border border-transparent shadow-[var(--shadow-xs)] hover:bg-primary-hover active:bg-primary',
   secondary:
-    'bg-surface text-text border border-border hover:bg-surface-2 hover:border-border-strong active:bg-surface-3',
+    'bg-surface text-text border border-border shadow-[var(--shadow-xs)] hover:bg-surface-2 hover:border-border-strong active:bg-surface-3',
   ghost: 'bg-transparent text-text-muted border border-transparent hover:bg-surface-2 hover:text-text',
-  danger: 'bg-transparent text-danger border border-danger-border hover:bg-danger-bg',
+  danger: 'bg-transparent text-danger border border-danger-border hover:bg-danger-bg active:bg-danger-bg',
   link: 'bg-transparent text-text border border-transparent underline underline-offset-4 hover:text-text-muted p-0 h-auto',
 }
 
 const SIZES: Record<Size, string> = {
   // Минимальная высота 32px — минимум для попадания пальцем на телефоне.
-  sm: 'h-8 px-2.5 text-[13px] gap-1.5 rounded-[var(--radius-sm)]',
-  md: 'h-9 px-3.5 text-sm gap-2 rounded-[var(--radius-md)]',
-  lg: 'h-10 px-5 text-[15px] gap-2 rounded-[var(--radius-md)]',
+  sm: 'h-8 px-2.5 text-[12.5px] gap-1.5 rounded-[var(--radius-sm)]',
+  md: 'h-9 px-3.5 text-[13px] gap-2 rounded-[var(--radius-md)]',
+  lg: 'h-10 px-5 text-[14px] gap-2 rounded-[var(--radius-md)]',
 }
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -46,7 +51,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={`inline-flex shrink-0 items-center justify-center font-medium whitespace-nowrap transition-colors duration-100 disabled:pointer-events-none disabled:opacity-45 ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,transform] duration-150 select-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]/35 focus-visible:ring-offset-1 focus-visible:ring-offset-bg focus-visible:outline-none active:translate-y-px disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
       {...props}
     />
   )

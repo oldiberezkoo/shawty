@@ -1,5 +1,6 @@
 import { requireSession } from '@/server/auth/require-session'
 import { listScreens } from '@/server/services/screen-service'
+import { MonitorSmartphone } from 'lucide-react'
 import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { DataTable, type TableColumn } from '@/components/ui/table'
@@ -59,13 +60,14 @@ export default async function ScreensPage() {
     return (
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Экраны</h1>
+          <h1 className="page-title">Экраны</h1>
         </div>
 
         <Card>
           <EmptyState
             title="Экранов пока нет"
-            hint="Откройте страницу подключения на телевизоре — он покажет QR-код. Отсканируйте его телефоном и подтвердите привязку здесь."
+            hint="Телевизор показывает код — введите его на странице подключения. QR нужен, только если удобнее отсканировать камерой телефона."
+            icon={<MonitorSmartphone className="size-5" strokeWidth={1.75} />}
             action={
               <Link href="/pair">
                 <Button size="sm" variant="primary">
@@ -92,7 +94,7 @@ export default async function ScreensPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Экраны</h1>
+          <h1 className="page-title">Экраны</h1>
           <p className="mt-1 text-[13px] text-text-muted">
             {screens.length} {plural(screens.length, 'экран', 'экрана', 'экранов')} в {byBranch.size}{' '}
             {plural(byBranch.size, 'филиале', 'филиалах', 'филиалах')}. Состояние считается по времени

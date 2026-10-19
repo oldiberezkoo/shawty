@@ -13,15 +13,26 @@ export function MetricTile({
   hint,
   tone = 'default',
   trend,
+  icon,
 }: {
   label: string
   value: string | number
   hint?: ReactNode
   tone?: 'default' | 'success' | 'warn' | 'danger' | 'info'
   trend?: { value: string; tone: 'good' | 'bad' | 'flat' }
+  /** Значок метрики. Без него ряд из четырёх плиток читается как четыре числа. */
+  icon?: ReactNode
 }) {
   const toneClass: Record<string, string> = {
     default: 'text-text',
+    success: 'text-success',
+    warn: 'text-warn',
+    danger: 'text-danger',
+    info: 'text-info',
+  }
+
+  const iconClass: Record<string, string> = {
+    default: 'text-text-muted',
     success: 'text-success',
     warn: 'text-warn',
     danger: 'text-danger',
@@ -35,14 +46,23 @@ export function MetricTile({
   }
 
   return (
-    <div className="card flex flex-col gap-1.5 px-4 py-3.5">
-      <span className="text-[12px] leading-tight text-text-muted">{label}</span>
+    <div className="card flex flex-col gap-2 p-4">
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[12px] leading-tight font-medium text-text-muted">{label}</span>
+        {icon ? (
+          <span
+            className={`-mt-0.5 -mr-0.5 flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-surface-2 ${iconClass[tone]}`}
+          >
+            {icon}
+          </span>
+        ) : null}
+      </div>
 
       <div className="flex items-baseline gap-2">
-        <span className={`tnum text-[26px] leading-none font-semibold tracking-[-0.02em] ${toneClass[tone]}`}>{value}</span>
-        {trend ? (
-          <span className={`text-[12px] font-medium ${trendClass[trend.tone]}`}>{trend.value}</span>
-        ) : null}
+        <span className={`tnum text-[27px] leading-none font-semibold tracking-[-0.035em] ${toneClass[tone]}`}>
+          {value}
+        </span>
+        {trend ? <span className={`text-[12px] font-medium ${trendClass[trend.tone]}`}>{trend.value}</span> : null}
       </div>
 
       {hint ? <span className="text-[12px] leading-snug text-text-subtle">{hint}</span> : null}

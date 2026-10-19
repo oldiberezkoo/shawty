@@ -1,5 +1,6 @@
 'use client'
 
+import { Notice } from '@/components/ui/status-badge'
 import { useCallback, useEffect, useState } from 'react'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -183,12 +184,10 @@ export function AuditLog({ companyId }: { companyId: string }) {
   return (
     <div className="flex flex-col gap-6">
       {error ? (
-        <div className="rounded-[var(--radius-md)] border border-danger/30 bg-danger-bg px-3 py-2 text-[13px] text-danger">
-          {error}
-        </div>
+        <Notice tone="danger">{error}</Notice>
       ) : null}
       {notice ? (
-        <div className="rounded-[var(--radius-md)] border border-border bg-surface-2 px-3 py-2 text-[13px]">{notice}</div>
+        <Notice>{notice}</Notice>
       ) : null}
 
       <Card>

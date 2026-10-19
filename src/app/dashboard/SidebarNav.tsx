@@ -1,17 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
+  Activity,
   CalendarClock,
-  Clapperboard,
   Images,
   LayoutDashboard,
   ListMusic,
   LogOut,
   Megaphone,
   Menu,
+  MonitorPlay,
   MonitorSmartphone,
   ScrollText,
   Send,
@@ -30,6 +31,15 @@ export type NavItem = {
 
 export type NavGroup = { title: string; items: NavItem[] }
 
+function initials(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
 /**
  * Навигация.
  *
@@ -41,7 +51,13 @@ export type NavGroup = { title: string; items: NavItem[] }
  * активного пункта есть и заливка, и цвет текста — по одному признаку
  * активность читается плохо, особенно людям с нарушениями зрения.
  */
-export function SidebarNav({ groups, companyName, roleLabel, userName, onSignOut }: {
+export function SidebarNav({
+  groups,
+  companyName,
+  roleLabel,
+  userName,
+  onSignOut,
+}: {
   groups: NavGroup[]
   companyName: string
   roleLabel: string
@@ -51,11 +67,11 @@ export function SidebarNav({ groups, companyName, roleLabel, userName, onSignOut
   const pathname = usePathname()
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-3 py-4">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-2.5 pb-4">
         {groups.map((group) => (
           <div key={group.title} className="flex flex-col gap-0.5">
-            <div className="px-2 pb-1.5 text-[11px] font-semibold tracking-wide text-text-subtle uppercase">
+            <div className="px-2.5 pt-1 pb-1.5 text-[10.5px] font-semibold tracking-[0.08em] text-text-subtle uppercase">
               {group.title}
             </div>
 
@@ -66,22 +82,29 @@ export function SidebarNav({ groups, companyName, roleLabel, userName, onSignOut
         ))}
       </div>
 
-      <div className="border-t border-border px-3 py-3">
-        <div className="px-2 pb-2">
-          <div className="truncate text-[13px] font-medium">{userName}</div>
-          <div className="truncate text-[11.5px] text-text-subtle">
-            {companyName} · {roleLabel}
-          </div>
-        </div>
+      <div className="border-t border-border p-2.5">
+        <div className="flex items-center gap-2.5 rounded-[var(--radius-lg)] px-1.5 py-1.5">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-3 text-[10.5px] font-semibold text-text-muted">
+            {initials(userName) || '—'}
+          </span>
 
-        <button
-          type="button"
-          onClick={onSignOut}
-          className="flex w-full items-center gap-2.5 rounded-[var(--radius-md)] px-2 py-1.5 text-[13px] text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
-        >
-          <LogOut className="size-4 shrink-0" strokeWidth={1.75} />
-          Выйти
-        </button>
+          <div className="min-w-0 flex-1 leading-tight">
+            <div className="truncate text-[12px] font-medium">{userName}</div>
+            <div className="mt-0.5 truncate text-[10.5px] text-text-subtle">
+              {companyName} · {roleLabel}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onSignOut}
+            aria-label="Выйти"
+            title="Выйти"
+            className="rounded-[var(--radius-sm)] p-1.5 text-text-subtle transition-colors hover:bg-surface-2 hover:text-text"
+          >
+            <LogOut className="size-3.5" strokeWidth={1.9} />
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -100,7 +123,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string | null })
       <span
         aria-disabled
         title="Раздел появится в следующих этапах"
-        className="flex cursor-not-allowed items-center gap-2.5 rounded-[var(--radius-md)] px-2 py-1.5 text-[13px] text-text-subtle"
+        className="flex h-8 cursor-not-allowed items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 text-[13px] text-text-subtle"
       >
         <Icon className="size-4 shrink-0" strokeWidth={1.75} />
         {item.label}
@@ -112,14 +135,25 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string | null })
     <Link
       href={item.href}
       aria-current={active ? 'page' : undefined}
-      className={`group flex items-center gap-2.5 rounded-[var(--radius-md)] px-2 py-1.5 text-[13px] transition-colors ${
+      className={`group relative flex h-8 items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 text-[13px] transition-colors duration-150 ${
         active
-          ? 'bg-surface-2 font-medium text-text'
+          ? 'bg-surface-3/70 font-medium text-text'
           : 'text-text-muted hover:bg-surface-2 hover:text-text'
       }`}
     >
+      {/*
+        Полоска слева дублирует заливку. Одного фона мало: на светлом фоне
+        разница между «выбран» и «наведён» почти незаметна, и человек,
+        вернувшийся к экрану, ищет себя в списке заново.
+      */}
+      {active ? (
+        <span className="absolute inset-y-[7px] -left-[3px] w-[2.5px] rounded-full bg-text" />
+      ) : null}
+
       <Icon
-        className={`size-4 shrink-0 transition-colors ${active ? 'text-text' : 'text-text-subtle group-hover:text-text-muted'}`}
+        className={`size-4 shrink-0 transition-colors ${
+          active ? 'text-text' : 'text-text-subtle group-hover:text-text-muted'
+        }`}
         strokeWidth={1.75}
       />
       {item.label}
@@ -180,14 +214,14 @@ export function SidebarSheet({
         className="absolute inset-0 bg-overlay backdrop-blur-[2px] motion-safe:animate-[fade-in_150ms_ease-out]"
       />
 
-      <div className="absolute inset-y-0 left-0 flex w-[272px] flex-col border-r border-border bg-surface shadow-[var(--shadow-lg)]">
-        <div className="flex h-14 shrink-0 items-center justify-between px-4">
-          <span className="text-[15px] font-semibold tracking-[-0.02em]">SHAWTY</span>
+      <div className="absolute inset-y-0 left-0 flex w-[276px] flex-col border-r border-border bg-surface shadow-[var(--shadow-lg)] motion-safe:animate-[slide-in_220ms_cubic-bezier(0.16,1,0.3,1)]">
+        <div className="flex h-[52px] shrink-0 items-center justify-between px-4">
+          <BrandMark />
           <button
             type="button"
             onClick={onClose}
             aria-label="Закрыть меню"
-            className="rounded-[var(--radius-sm)] p-1 text-text-subtle transition-colors hover:bg-surface-2 hover:text-text"
+            className="rounded-[var(--radius-sm)] p-1.5 text-text-subtle transition-colors hover:bg-surface-2 hover:text-text"
           >
             <X className="size-4" strokeWidth={1.75} />
           </button>
@@ -215,10 +249,32 @@ export function SidebarTrigger({ onOpen }: { onOpen: () => void }) {
       type="button"
       onClick={onOpen}
       aria-label="Открыть меню"
-      className="-ml-1 rounded-[var(--radius-md)] p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text md:hidden"
+      className="-ml-1.5 rounded-[var(--radius-md)] p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text md:hidden"
     >
       <Menu className="size-5" strokeWidth={1.75} />
     </button>
+  )
+}
+
+/**
+ * Знак продукта.
+ *
+ * Квадрат с иконкой экрана, а не просто слово: в колонке из одиннадцати
+ * текстовых строк логотип-надпись сливается с пунктами, и верх перестаёт
+ * читаться как «здесь начало».
+ */
+export function BrandMark() {
+  return (
+    <Link href="/dashboard" className="flex items-center gap-2.5">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-primary text-primary-text shadow-[var(--shadow-xs)]">
+        <MonitorPlay className="size-[15px]" strokeWidth={1.9} />
+      </span>
+
+      <span className="leading-none">
+        <span className="block text-[13.5px] font-semibold tracking-[-0.02em]">SHAWTY</span>
+        <span className="mt-1 block text-[10.5px] text-text-subtle">Экранная сеть</span>
+      </span>
+    </Link>
   )
 }
 
@@ -229,7 +285,7 @@ export const NAV: NavGroup[] = [
     items: [
       { href: '/dashboard', label: 'Обзор', icon: LayoutDashboard, ready: true },
       { href: '/dashboard/screens', label: 'Экраны', icon: MonitorSmartphone, ready: true },
-      { href: '/dashboard/monitoring', label: 'Мониторинг', icon: Send, ready: true },
+      { href: '/dashboard/monitoring', label: 'Мониторинг', icon: Activity, ready: true },
     ],
   },
   {
@@ -239,7 +295,7 @@ export const NAV: NavGroup[] = [
       { href: '/dashboard/playlists', label: 'Плейлисты', icon: ListMusic, ready: true },
       { href: '/dashboard/campaigns', label: 'Кампании', icon: Megaphone, ready: true },
       { href: '/dashboard/scheduling', label: 'Расписание', icon: CalendarClock, ready: true },
-      { href: '/dashboard/releases', label: 'Публикация', icon: Clapperboard, ready: true },
+      { href: '/dashboard/releases', label: 'Публикация', icon: Send, ready: true },
     ],
   },
   {
@@ -251,4 +307,3 @@ export const NAV: NavGroup[] = [
     ],
   },
 ]
-

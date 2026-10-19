@@ -1,5 +1,6 @@
 'use client'
 
+import { Notice } from '@/components/ui/status-badge'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -229,14 +230,10 @@ export function DeliveryBoard(props: {
   return (
     <div className="flex flex-col gap-6">
       {error ? (
-        <div className="rounded-[var(--radius-md)] border border-danger/30 bg-danger-bg px-3 py-2 text-[13px] text-danger">
-          {error}
-        </div>
+        <Notice tone="danger">{error}</Notice>
       ) : null}
       {notice ? (
-        <div className="rounded-[var(--radius-md)] border border-border bg-surface-2 px-3 py-2 text-[13px]">
-          {notice}
-        </div>
+        <Notice>{notice}</Notice>
       ) : null}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

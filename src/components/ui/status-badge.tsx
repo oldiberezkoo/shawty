@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from 'lucide-react'
 
 /**
  * Статус и метка.
@@ -32,9 +33,9 @@ export function StatusBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] font-medium whitespace-nowrap ${style.className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11.5px] font-medium whitespace-nowrap ${style.className}`}
     >
-      {children}
+      {children ?? <span className="size-1.5 rounded-full bg-current opacity-70" />}
       {label ?? style.label}
     </span>
   )
@@ -82,8 +83,10 @@ export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: R
 /**
  * Заметка о состоянии.
  *
- * Единый вид для предупреждений на всех экранах: цвет слева означает тон, текст
- * говорит о факте, подпись — о том, что делать.
+ * Единый вид для предупреждений на всех экранах: цвет и значок слева означают
+ * тон, текст говорит о факте, действие — о том, что делать. Значок обязателен:
+ * без него «нет связи» и «всё хорошо» отличаются только оттенком, а его
+ * замечают не все.
  */
 export function Notice({
   tone = 'info',
@@ -119,21 +122,27 @@ export function Notice({
     success: 'text-success',
   }
 
+  const Icon = tone === 'success' ? CircleCheck : tone === 'danger' ? CircleAlert : tone === 'warn' ? TriangleAlert : Info
+
   return (
-    <div className={`flex flex-wrap items-start justify-between gap-3 rounded-[var(--radius-md)] border px-4 py-3 ${border[tone]}`}>
+    <div className={`flex items-start gap-3 rounded-[var(--radius-lg)] border px-4 py-3 ${border[tone]}`}>
+      <Icon className={`mt-px size-4 shrink-0 ${text[tone]}`} strokeWidth={1.9} />
+
       <div className="min-w-0 flex-1">
-        {title ? <div className={`text-[13px] font-medium ${text[tone]}`}>{title}</div> : null}
-        <div className={`text-[13px] leading-relaxed ${title ? 'mt-0.5 opacity-90' : ''}`}>{children}</div>
+        {title ? <div className={`text-[12.5px] font-semibold ${text[tone]}`}>{title}</div> : null}
+        <div className={`text-[12.5px] leading-relaxed ${title ? 'mt-0.5 opacity-90' : ''}`}>{children}</div>
       </div>
+
       {action ? <div className="shrink-0">{action}</div> : null}
+
       {onDismiss ? (
         <button
           type="button"
           onClick={onDismiss}
           aria-label="Скрыть сообщение"
-          className="-my-0.5 shrink-0 rounded px-1 text-[16px] leading-none opacity-60 transition-opacity hover:opacity-100"
+          className="-my-0.5 -mr-1 shrink-0 rounded-[var(--radius-xs)] p-1 opacity-60 transition-opacity hover:opacity-100"
         >
-          ×
+          <X className="size-3.5" strokeWidth={2} />
         </button>
       ) : null}
     </div>
