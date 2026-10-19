@@ -268,6 +268,19 @@ export const pairingSessions = sqliteTable(
     id: text('id').primaryKey(),
     codeHash: text('code_hash').notNull(),
     /**
+     * HMAC того же кода, но без `sessionId`.
+     *
+     * Нужен для поиска сессии по коду: `codeHash` привязан к паре «сессия +
+     * код», поэтому по одному коду найти сессию нельзя, а без этого человек,
+     * который не сканировал QR, вообще не мог добраться до формы — путь
+     * обрывался на подсказке «сходи на телевизор и вернись».
+     *
+     * Подбор по коду остаётся защищённым: окно жизни кода — несколько минут,
+     * а на запрос добавлено ограничение частоты. Значение хеша, как и сам
+     * код, в базе не лежит.
+     */
+    codeLookupHash: text('code_lookup_hash'),
+    /**
      * HMAC локального nonce телевизора.
      *
      * QR в безопасном режиме несёт только sessionId, и тот же sessionId виден
@@ -310,6 +323,7 @@ export const pairingSessions = sqliteTable(
     index('pairing_sessions_status_idx').on(t.status),
     index('pairing_sessions_expiry_idx').on(t.expiresAt),
     index('pairing_sessions_created_idx').on(t.createdAt),
+    index('pairing_sessions_code_lookup_idx').on(t.codeLookupHash),
   ],
 )
 

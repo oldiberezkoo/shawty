@@ -85,6 +85,11 @@ export function startPairingSession(params: {
       .values({
         id: sessionId,
         codeHash: hashPairingCode(secret, sessionId, code),
+        // Отдельно от `codeHash`: тот привязан к паре «сессия + код» и по
+        // одному коду не ищется. Без этого поля путь «не сканировал QR»
+        // обрывался, и подсказка на экране подключения отправляла человека
+        // на телевизор без способа вернуться сюда с кодом.
+        codeLookupHash: hashSecret(`pairing-code:${code}`),
         deviceNonceHash: hashSecret(`${sessionId}:${params.deviceNonce}`),
         status: 'pending',
         maxAttempts: serverConfig.pairing.maxAttempts,
@@ -103,6 +108,51 @@ export function startPairingSession(params: {
     pollAfterMs: 5_000,
     codeInQr: qrCarriesCode,
   }
+}
+
+/**
+ * Поиск сессии по восьмизначному коду с экрана телевизора.
+ *
+ * Нужен для пути «открыл панель на компьютере, код прочитал глазами»:
+ * раньше сессия находилась только по `sessionId` из QR, и тот, кто QR не
+ * сканировал, до формы подтверждения не доходил вовсе.
+ *
+ * Ограничение частоты здесь не формальность: без него восьмизначный код
+ * перебирается за разумное время. Окно жизни кода — несколько минут, но и
+ * этого достаточно, поэтому подбор ограничен и по времени, и по частоте.
+ *
+ * Совпадение кода у двух ожидающих сессий возможно, но практически
+ * не встречается: код восьмизначный, одновременно ожидающих сессий единицы.
+ * В этом редком случае вернётся одна из них, и для второго телевизора код
+ * придётся получить заново — это лучше, чем усложнять путь подбора.
+ */
+export function findPairingSessionByCode(params: {
+  code: string
+  request: Request
+}): { sessionId: string } | { error: 'rate_limited' | 'not_found' } {
+  enforceRateLimit(
+    ipKey('pairing:lookup', params.request),
+    // Столько попыток на IP, сколько разумно для человека с глазами
+    // вместо камеры. Подбор восьмизначного кода при таком лимите не окупается.
+    { limit: 10, windowMs: 10 * 60_000 },
+    'Слишком много попыток ввода кода. Повторите через несколько минут.',
+  )
+
+  const row = db
+    .select({ id: pairingSessions.id })
+    .from(pairingSessions)
+    .where(
+      and(
+        eq(pairingSessions.codeLookupHash, hashSecret(`pairing-code:${params.code}`)),
+        eq(pairingSessions.status, 'pending'),
+        gt(pairingSessions.expiresAt, new Date()),
+      ),
+    )
+    .get()
+
+  if (!row) return { error: 'not_found' }
+
+  return { sessionId: row.id }
 }
 
 export function watchPairing(sessionId: string): PairingWatchState & { sessionId: string; codeInQr: boolean } {

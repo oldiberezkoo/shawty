@@ -21,6 +21,12 @@
   --surface-2: #f7f7f8;
   --surface-3: #f1f1f3;
   --surface-hover: #efefef;
+  /* Боковая колонка чуть холоднее содержимого: без этого шапка, колонка и
+     карточка — три одинаковых белых прямоугольника, и глаз не понимает,
+     где что начинается. */
+  --surface-rail: #fbfbfc;
+  /* Приподнятый слой: всплывающие меню, диалоги, наведение на карточку. */
+  --surface-raised: #ffffff;
   --border: #ebebed;
   --border-strong: #dcdcde;
 
@@ -49,9 +55,13 @@
   --ring: #1f6feb;
   --overlay: rgb(20 20 22 / 0.4);
 
-  --shadow-sm: 0 1px 2px rgb(16 16 18 / 0.05);
-  --shadow-md: 0 6px 24px rgb(16 16 18 / 0.12), 0 1px 3px rgb(16 16 18 / 0.08);
-  --shadow-lg: 0 12px 48px rgb(16 16 18 / 0.16);
+  --shadow-xs: 0 1px 2px rgb(18 18 22 / 0.04);
+  --shadow-sm: 0 1px 2px rgb(18 18 22 / 0.05), 0 2px 6px rgb(18 18 22 / 0.04);
+  --shadow-md: 0 1px 2px rgb(18 18 22 / 0.04), 0 8px 24px rgb(18 18 22 / 0.10);
+  --shadow-lg: 0 2px 4px rgb(18 18 22 / 0.04), 0 16px 48px rgb(18 18 22 / 0.14);
+  /* Тень только под наведением: карточка не должна «парить» постоянно,
+     иначе весь экран выглядит как стопка бумаг. */
+  --shadow-lift: 0 1px 2px rgb(18 18 22 / 0.05), 0 6px 18px rgb(18 18 22 / 0.08);
 
   /*
    * Шкала пространства.
@@ -79,6 +89,10 @@
   --surface-2: #252525;
   --surface-3: #2f2f2f;
   --surface-hover: #303030;
+  /* В тёмной теме «колонка холоднее» означает «колонка темнее»: на чёрном
+     поднять слой вверх нельзя, поднятие читается только затемнением. */
+  --surface-rail: #1a1a1a;
+  --surface-raised: #262626;
   --border: #2f2f2f;
   --border-strong: #414141;
 
@@ -107,9 +121,11 @@
   --ring: #5b9bf8;
   --overlay: rgb(0 0 0 / 0.65);
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
-  --shadow-md: 0 6px 24px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 12px 48px rgb(0 0 0 / 0.6);
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.32), 0 2px 6px rgb(0 0 0 / 0.24);
+  --shadow-md: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.42);
+  --shadow-lg: 0 2px 4px rgb(0 0 0 / 0.3), 0 16px 48px rgb(0 0 0 / 0.55);
+  --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.34), 0 6px 18px rgb(0 0 0 / 0.38);
 }
 
 @theme inline {
@@ -118,6 +134,8 @@
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
   --color-surface-hover: var(--surface-hover);
+  --color-surface-rail: var(--surface-rail);
+  --color-surface-raised: var(--surface-raised);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
 
@@ -251,14 +269,41 @@
   /*
    * Карточка.
    *
-   * Граница и фон, без тени. Тень на каждой карточке — признак того, что
-   * элементов стало слишком много, и разбираться надо с содержимым, а не с
-   * оформлением.
+   * Постоянной тени нет: тень на каждой карточке — признак того, что
+   * элементов стало слишком много. Но при наведении карточка приподнимается:
+   * п��дъём показывает, что элемент кликабельный, и делает страницу живой без
+   * постоянного шума от теней.
    */
   .card {
     background-color: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
+    transition:
+      box-shadow 160ms ease,
+      border-color 160ms ease,
+      transform 160ms ease;
+  }
+
+  /*
+   * Приподнимаемая карточка.
+   *
+   * Отдельный класс, а не `.card` со всеми: подниматься должны единицы —
+   * то, на что нажимают. Если поднимется всё, подъём перестанет что-то
+   * означать.
+   */
+  .card-interactive {
+    cursor: pointer;
+  }
+
+  .card-interactive:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-lift);
+    transform: translateY(-1px);
+  }
+
+  .card-interactive:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-xs);
   }
 
   .hairline {
@@ -274,7 +319,7 @@
     color: var(--text-subtle);
   }
 
-  /* Строка таблицы: единая высота, смена фона на наведении и выборе. */
+  /* Строка таблицы: единая высота, смена фона на наведении. */
   .row {
     transition: background-color 100ms ease;
   }
@@ -283,10 +328,71 @@
     background-color: var(--surface-2);
   }
 
-  /* Плавное появление содержимого: один раз, без зацикливания. */
+  /*
+   * Появление содержимого.
+   *
+   * Движение намеренно короткое и с вертикальным сдвигом в два пикселя:
+   * длинная анимация при загрузке панели воспринимается как задержка, а не
+   * как оформление. Сдвиг вверх на 8px и больше выглядит как вылет блока.
+   */
   .fade-in {
-    animation: fade-in 160ms ease-out;
+    animation: fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
   }
+
+  /*
+   * Каскад появления.
+   *
+   * Список карточек появляется не разом, а по очереди: так девять
+   * одинаковых плиток проявляются один за другим. Задержка ограничена
+   * десятью строками — на двадцатой анимация уже длилась бы дольше, чем
+   * пользователь смотрит на страницу.
+   */
+  .stagger > * {
+    animation: fade-in 260ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+
+  .stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger > *:nth-child(2) { animation-delay: 24ms; }
+  .stagger > *:nth-child(3) { animation-delay: 48ms; }
+  .stagger > *:nth-child(4) { animation-delay: 72ms; }
+  .stagger > *:nth-child(5) { animation-delay: 96ms; }
+  .stagger > *:nth-child(6) { animation-delay: 120ms; }
+  .stagger > *:nth-child(7) { animation-delay: 144ms; }
+  .stagger > *:nth-child(8) { animation-delay: 168ms; }
+  .stagger > *:nth-child(9) { animation-delay: 192ms; }
+  .stagger > *:nth-child(10) { animation-delay: 216ms; }
+
+  /*
+   * Нажатие.
+   *
+   * Кнопка и пункт меню при нажатии уходят на пиксель вглубь — тактильный
+   * отклик без тактильного экрана. Без этого интерфейс кажется «мёртвым»
+   * на первый взгляд, хотя всё и работает.
+   */
+  .pressable {
+    transition: transform 90ms ease;
+  }
+
+  .pressable:active {
+    transform: translateY(1px);
+  }
+
+  /* Мерцание загрузки: ровная заливка мигает слишком резко. */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--surface-3) 25%,
+      var(--surface-2) 37%,
+      var(--surface-3) 63%
+    );
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
 }
 
 /*
