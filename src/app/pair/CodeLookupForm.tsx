@@ -6,21 +6,28 @@ import { ArrowRight, QrCode } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FormError } from '@/components/ui/form'
 import { CSRF_COOKIE } from '@/lib/cookie-names'
+import { normalizeCode } from '@/lib/code-alphabet'
+
+const CODE_LENGTH = 8
 
 /**
  * Ввод кода с экрана телевизора.
  *
  * Восемь отдельных ячеек вместо одного поля — не украшение. Код на телевизоре
- * показан восемью цифрами, и человек переносит их глазами по одной. Одно
- * длинное поле просит ввести «1234 5678», и промахнуться легко: непонятно,
+ * показан восемью символами, и человек переносит их глазами по одному. Одно
+ * длинное поле просит ввести «TTNRTGV2», и промахнуться легко: непонятно,
  * где ошибка и где должен быть пробел.
+ *
+ * Алфавит без 0/1/I/L/O/U общий на весь продукт, поэтому ввод фильтруется по
+ * нему же: человек, который набрал «О» вместо нуля, получит отказ сразу на
+ * первом символе, а не после полного ввода.
  *
  * Разбивка на ячейки даёт и обратную связь: активная подсвечена, есть
  * автопереход, есть переход назад по пробелу.
  */
 export function CodeLookupForm() {
   const router = useRouter()
-  const [digits, setDigits] = useState<string[]>(() => Array.from({ length: 8 }, () => ''))
+  const [digits, setDigits] = useState<string[]>(() => Array.from({ length: CODE_LENGTH }, () => ''))
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const inputs = useRef<(HTMLInputElement | null)[]>([])
@@ -59,12 +66,12 @@ export function CodeLookupForm() {
   // кнопку после ввода кода — лишний шаг, который человек забудет.
   useEffect(() => {
     const code = digits.join('')
-    if (code.length === 8 && !busy && !error) void submit(code)
+    if (code.length === CODE_LENGTH && !busy && !error) void submit(code)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [digits])
 
   const setDigit = (index: number, value: string) => {
-    const cleaned = value.replace(/\D/g, '')
+    const cleaned = normalizeCode(value)
 
     if (!cleaned) {
       setDigits((current) => current.map((digit, position) => (position === index ? '' : digit)))
@@ -77,13 +84,13 @@ export function CodeLookupForm() {
       const next = [...current]
 
       for (const char of cleaned) {
-        if (index + next.slice(index).length < 8) next[index + next.slice(index).length] = char
+        if (index + next.slice(index).length < CODE_LENGTH) next[index + next.slice(index).length] = char
       }
 
       return next
     })
 
-    const focusIndex = Math.min(index + cleaned.length, 7)
+    const focusIndex = Math.min(index + cleaned.length, CODE_LENGTH - 1)
     inputs.current[focusIndex]?.focus()
   }
 
@@ -113,7 +120,7 @@ export function CodeLookupForm() {
                 inputs.current[index - 1]?.focus()
               }
 
-              if (event.key === 'ArrowRight' && index < 7) {
+              if (event.key === 'ArrowRight' && index < CODE_LENGTH - 1) {
                 event.preventDefault()
                 inputs.current[index + 1]?.focus()
               }
@@ -122,17 +129,17 @@ export function CodeLookupForm() {
               // Вставка кода целиком — обычное дело, если он открыт в другом
               // окне. Без этого обработчика вставится только одна цифра.
               event.preventDefault()
-              const text = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8)
+              const text = normalizeCode(event.clipboardData.getData('text')).slice(0, CODE_LENGTH)
               if (!text) return
 
-              setDigits(Array.from({ length: 8 }, (_, position) => text[position] ?? ''))
-              inputs.current[Math.min(text.length, 7)]?.focus()
+              setDigits(Array.from({ length: CODE_LENGTH }, (_, position) => text[position] ?? ''))
+              inputs.current[Math.min(text.length, CODE_LENGTH - 1)]?.focus()
             }}
             inputMode="numeric"
             autoComplete={index === 0 ? 'one-time-code' : 'off'}
-            aria-label={`Цифра ${index + 1} из 8`}
+            aria-label={`Символ ${index + 1} из ${CODE_LENGTH}`}
             disabled={busy}
-            maxLength={8}
+            maxLength={CODE_LENGTH}
             className="tnum h-12 w-full max-w-[52px] rounded-[var(--radius-md)] border border-border bg-surface text-center text-[20px] font-medium text-text transition-colors focus:border-border-strong focus:ring-2 focus:ring-[var(--ring)]/25 focus:outline-none disabled:opacity-50"
           />
         ))}
@@ -143,14 +150,14 @@ export function CodeLookupForm() {
           size="sm"
           variant="ghost"
           disabled={busy}
-          onClick={() => setDigits(Array.from({ length: 8 }, () => ''))}
+          onClick={() => setDigits(Array.from({ length: CODE_LENGTH }, () => ''))}
         >
           Очистить
         </Button>
 
         <Button
           size="sm"
-          disabled={busy || digits.join('').length !== 8}
+          disabled={busy || digits.join('').length !== CODE_LENGTH}
           onClick={() => void submit(digits.join(''))}
         >
           {busy ? 'Проверяем…' : 'Подтвердить'}
@@ -160,7 +167,7 @@ export function CodeLookupForm() {
 
       <p className="flex items-center justify-center gap-1.5 text-[12px] text-text-subtle">
         <QrCode className="size-3.5 shrink-0" strokeWidth={1.75} />
-        Код написан на экране телевизора и меняется каждые несколько минут
+        Код написан на экране телевизора и меняется каждые несколько минут. Буквы и цифры, без 0 и O
       </p>
     </div>
   )

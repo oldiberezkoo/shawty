@@ -1,8 +1,26 @@
 import { z } from 'zod'
 import { route, jsonResponse, readJsonBody } from '@/server/http/request'
 import { requireSessionForApi } from '@/server/auth/require-session'
+import { CODE_ALPHABET } from '@/lib/code-alphabet'
 import { findPairingSessionByCode } from '@/server/services/pairing-service'
 import { HttpError } from '@/server/http/errors'
+
+/**
+ * Код не «цифровой», а буквенно-цифровой.
+ *
+ * Алфавит один на весь продукт и намеренно без 0/1/I/L/O/U: эти символы
+ * одинаково читаются как разные при взгляде на экран с расстояния, и
+ * человек вводит не тот — а потом гадает, что не так. Проверка по этому же
+ * алфавиту, а не `/^[0-9]+$/`, потому что цифровая проверка отвергала бы
+ * половину настоящих кодов.
+ */
+const CODE_LENGTH = 8
+
+const codeSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(new RegExp(`^[${CODE_ALPHABET}]{${CODE_LENGTH}}$`))
 
 /**
  * Поиск сессии подключения по коду с экрана телевизора.
@@ -17,12 +35,10 @@ import { HttpError } from '@/server/http/errors'
 export const POST = route(async (request: Request) => {
   await requireSessionForApi()
 
-  const body = z
-    .object({ code: z.string().trim().regex(/^[0-9]{4,12}$/, 'Код состоит из цифр') })
-    .safeParse(await readJsonBody(request))
+  const body = z.object({ code: codeSchema }).safeParse(await readJsonBody(request))
 
   if (!body.success) {
-    throw HttpError.badRequest('invalid_code', 'Код состоит из цифр, как на экране телевизора')
+    throw HttpError.badRequest('invalid_code', 'Код состоит из восьми символов, как на экране телевизора')
   }
 
   const found = findPairingSessionByCode({ code: body.data.code, request })

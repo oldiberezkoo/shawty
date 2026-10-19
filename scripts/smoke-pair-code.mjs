@@ -71,7 +71,7 @@ if (login.status !== 200) process.exit(1)
 const pairPage = await fetch(`${BASE}/pair`, { headers: { cookie: cookies } })
 const pairHtml = await pairPage.text()
 check('страница подключения отдаётся', pairPage.status === 200, `статус ${pairPage.status}`)
-check('на странице есть восемь ячеек для кода', (pairHtml.match(/Цифра \d из 8/g) ?? []).length === 8)
+check('на странице есть восемь ячеек для кода', (pairHtml.match(/Символ \d из 8/g) ?? []).length === 8)
 check('кнопка подтверждения на месте', pairHtml.includes('Подтвердить'))
 
 // 3. Телевизор запрашивает сессию привязки — как настоящий.
@@ -92,9 +92,15 @@ const found = await api('/api/dashboard/pairing/lookup', { method: 'POST', body:
 check('код найден без QR', found.status === 200 && Boolean(found.data?.sessionId), `статус ${found.status}`)
 check('найдена именно своя сессия', found.data?.sessionId === startData.sessionId)
 
-// 5. Чужой код отвергается.
-const wrong = await api('/api/dashboard/pairing/lookup', { method: 'POST', body: { code: '00000000' } })
-check('чужой код отвергнут', wrong.status === 404, `статус ${wrong.status}`)
+// 5. Код не из алфавита отвергается сразу, не доходя до поиска.
+//    '00000000' не проходит проверку: нули исключены из алфавита, чтобы их
+//    нельзя было спутать с буквой O при чтении с экрана.
+const malformed = await api('/api/dashboard/pairing/lookup', { method: 'POST', body: { code: '00000000' } })
+check('код не из алфавита отвергнут', malformed.status === 400, `статус ${malformed.status}`)
+
+// 6. Корректный по алфавиту, но несуществующий код не находит сессию.
+const unknown = await api('/api/dashboard/pairing/lookup', { method: 'POST', body: { code: '22222222' } })
+check('несуществующий код отвергнут', unknown.status === 404, `статус ${unknown.status}`)
 
 // 6. По найденному адресу открывается форма подтверждения с кодом.
 const confirmPage = await fetch(`${BASE}/pair/${found.data.sessionId}?c=${startData.code}`, {
