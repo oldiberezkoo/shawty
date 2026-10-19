@@ -102,6 +102,14 @@ export function PairingScreen() {
 
   const startSession = useCallback(async () => {
     try {
+      setError(null)
+      setQrDataUrl(null)
+      setSession(null)
+      sessionRef.current = null
+      // Прошлый канал привязки больше не нужен: он следил за старым кодом.
+      socketRef.current?.close()
+      socketRef.current = null
+
       const { credential } = await loadCredential()
       if (credential) {
         // Экран уже привязан: новую привязку начинать не нужно.
@@ -236,6 +244,24 @@ export function PairingScreen() {
     }
   }, [phase, remaining])
 
+  /**
+   * Истёкший код обновляется сам.
+   *
+   * Человек у телевизора не должен искать кнопку «получить новый код»: он
+   * пришёл с телефоном, а не за пультом. Небольшая пауза нужна, чтобы экран
+   * не мигал между кодами и оператор успел увидеть, что произошло.
+   */
+  useEffect(() => {
+    if (phase !== 'expired') return
+
+    const timer = setTimeout(() => {
+      setPhase('starting')
+      void startSession()
+    }, 1800)
+
+    return () => clearTimeout(timer)
+  }, [phase, startSession])
+
   const minutes = Math.floor(remaining / 60_000)
   const seconds = Math.floor((remaining % 60_000) / 1000)
 
@@ -271,11 +297,14 @@ export function PairingScreen() {
             ) : (
               <>
                 <p className="text-[18px] text-[color:var(--text-muted)]">
-                  Отсканируйте QR и введите код на телефоне
+                  Откройте панель SHAWTY → «Подключить экран» и введите этот код
                 </p>
                 <div className="font-mono text-[56px] font-semibold tracking-[0.12em] text-text">
                   {session.code}
                 </div>
+                <p className="max-w-[620px] text-[15px] text-[color:var(--text-subtle)]">
+                  Код сам обновится, когда истечёт. Ничего нажимать на телевизоре не нужно.
+                </p>
               </>
             )}
           </div>
@@ -303,18 +332,11 @@ export function PairingScreen() {
       ) : null}
 
       {phase === 'expired' ? (
-        <div className="flex flex-col items-center gap-6">
-          <p className="text-[22px] text-[color:var(--text-muted)]">Время кода истекло</p>
-          <button
-            type="button"
-            onClick={() => {
-              setPhase('starting')
-              void startSession()
-            }}
-            className="rounded-[8px] bg-[color:var(--primary)] px-8 py-3.5 text-[18px] font-medium text-[color:var(--primary-text)]"
-          >
-            Получить новый код
-          </button>
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-[22px] text-[color:var(--text-muted)]">Код истёк — готовим новый…</p>
+          <p className="text-[16px] text-[color:var(--text-subtle)]">
+            Экран обновится автоматически через пару секунд.
+          </p>
         </div>
       ) : null}
 

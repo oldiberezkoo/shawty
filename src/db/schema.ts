@@ -790,6 +790,41 @@ export const playerErrors = sqliteTable(
   (t) => [index('player_errors_screen_at_idx').on(t.screenId, t.at)],
 )
 
+/**
+ * Замер устройства: то, что телевизор сообщил о себе и о качестве связи.
+ *
+ * Отдельная таблица, а не поле в `screens`: одна строка «сейчас» не даёт
+ * графика, а вопрос «почему вечером лагает» решается именно историей. Замеры
+ * редкие (раз в несколько минут) и подчищаются по сроку хранения, поэтому
+ * таблица не растёт бесконечно.
+ */
+export const deviceTelemetrySamples = sqliteTable(
+  'device_telemetry_samples',
+  {
+    id: text('id').primaryKey(),
+    screenId: text('screen_id')
+      .notNull()
+      .references(() => screens.id, { onDelete: 'cascade' }),
+    companyId: text('company_id')
+      .notNull()
+      .references(() => companies.id, { onDelete: 'cascade' }),
+    at: integer('at', { mode: 'timestamp_ms' }).notNull(),
+    /** Оценка задержки канала от устройства до сервера (ping), мс. */
+    pingMs: integer('ping_ms'),
+    /** Замер из Network Information API: оценка скорости, кбит/с. */
+    downlinkKbps: integer('downlink_kbps'),
+    /** Замер из Network Information API: оценка круговой задержки, мс. */
+    networkRttMs: integer('network_rtt_ms'),
+    /** Сколько занял последний запрос состояния: показывает реальную связь. */
+    stateLatencyMs: integer('state_latency_ms'),
+    effectiveType: text('effective_type'),
+  },
+  (t) => [
+    index('device_telemetry_screen_at_idx').on(t.screenId, t.at),
+    index('device_telemetry_at_idx').on(t.at),
+  ],
+)
+
 export const deviceIncidents = sqliteTable(
   'device_incidents',
   {

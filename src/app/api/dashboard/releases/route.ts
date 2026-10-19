@@ -15,14 +15,18 @@ import {
   listAssignments,
   listRecentReleases,
   publishCompany,
+  publishScreens,
   receiptsForRelease,
 } from '@/server/services/release-service'
+import { listScreenIds } from '@/server/services/screen-service'
 import { HttpError } from '@/server/http/errors'
 import { logger } from '@/lib/logger'
 
 const assignSchema = z.object({
-  scopeType: z.enum(['screen', 'group', 'branch', 'company']),
-  scopeId: z.string().min(1).max(64),
+  scopeType: z.enum(['screen', 'group', 'branch', 'company']).optional(),
+  scopeId: z.string().min(1).max(64).optional(),
+  /** Назначение сразу списку экранов: так работает массовый выбор в панели. */
+  screenIds: z.array(z.string().min(1).max(64)).min(1).max(500).optional(),
   playlistVersionId: z.string().min(1).max(64),
   fallbackPlaylistVersionId: z.string().min(1).max(64).nullable().optional(),
   priority: z.number().int().min(0).max(1000).optional(),
@@ -30,6 +34,8 @@ const assignSchema = z.object({
 
 const publishSchema = z.object({
   reason: z.string().max(200).nullable().optional(),
+  /** Публикация только выбранным экранам; пусто — вся сеть. */
+  screenIds: z.array(z.string().min(1).max(64)).min(1).max(500).optional(),
 })
 
 /**
@@ -76,7 +82,7 @@ export const GET = route(async (request: Request) => {
   })
 })
 
-/** Назначение плейлиста на область экранов. */
+/** Назначение плейлиста на область экранов или на список экранов. */
 export const PUT = route(async (request: Request) => {
   const { companyId, access, session } = await requireDashboardMutation(request)
   requirePermission(access, PERMISSIONS.releasesPublish, 'Нет прав на назначение контента')
@@ -86,7 +92,47 @@ export const PUT = route(async (request: Request) => {
     throw HttpError.badRequest('invalid_input', 'Проверьте область назначения и плейлист')
   }
 
-  const result = assignPlaylist({ companyId, actorUserId: session.userId, ...body.data })
+  // Массовый выбор экранов: каждому экрану достаётся своё назначение на
+  // область «экран». Так правило совпадает с одиночным назначением, и
+  // раскрытие области остаётся одним и тем же кодом.
+  if (body.data.screenIds) {
+    const known = listScreenIds(companyId, body.data.screenIds)
+    if (known.length !== body.data.screenIds.length) {
+      throw HttpError.notFound('Один из выбранных экранов не найден')
+    }
+
+    for (const screenId of known) {
+      assignPlaylist({
+        companyId,
+        actorUserId: session.userId,
+        scopeType: 'screen',
+        scopeId: screenId,
+        playlistVersionId: body.data.playlistVersionId,
+        fallbackPlaylistVersionId: body.data.fallbackPlaylistVersionId ?? null,
+        priority: body.data.priority,
+      })
+    }
+
+    return jsonResponse({
+      ok: true,
+      screens: known.length,
+      assignments: listAssignments(companyId),
+    })
+  }
+
+  if (!body.data.scopeType || !body.data.scopeId) {
+    throw HttpError.badRequest('invalid_input', 'Укажите область назначения или экраны')
+  }
+
+  const result = assignPlaylist({
+    companyId,
+    actorUserId: session.userId,
+    scopeType: body.data.scopeType,
+    scopeId: body.data.scopeId,
+    playlistVersionId: body.data.playlistVersionId,
+    fallbackPlaylistVersionId: body.data.fallbackPlaylistVersionId ?? null,
+    priority: body.data.priority,
+  })
 
   return jsonResponse({ ok: true, ...result, assignments: listAssignments(companyId) })
 })
@@ -110,8 +156,22 @@ export const POST = route(async (request: Request) => {
 
   const body = publishSchema.safeParse(await readJsonBody(request).catch(() => null))
   const reason = body.success ? (body.data.reason ?? null) : null
+  const screenIds = body.success ? body.data.screenIds : undefined
 
-  const result = publishCompany(companyId, session.userId, reason ?? undefined)
+  let result: { releaseId: string; version: number; screens: number }
+
+  if (screenIds) {
+    // Публикация выбранным экранам: оператор чинит один телевизор, не
+    // перезапуская всю сеть. Версия всё равно общая на компанию.
+    const known = listScreenIds(companyId, screenIds)
+    if (known.length === 0) {
+      throw HttpError.notFound('Выбранные экраны не найдены')
+    }
+
+    result = publishScreens({ companyId, screenIds: known, actorUserId: session.userId, reason: reason ?? undefined })
+  } else {
+    result = publishCompany(companyId, session.userId, reason ?? undefined)
+  }
 
   logger.info(result, 'публикация выполнена')
 

@@ -121,6 +121,17 @@ export function PlayerDisplay() {
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
 
   /**
+   * Последние измерения связи.
+   *
+   * Ping считает сам плеер по кадру сервера: кадр несёт время отправки, а
+   * разница до ответа — это то, что чувствует телевизор. Задержка запроса
+   * состояния дополняет картину: канал может быть быстрым, а сервер — занят.
+   * Ничего из этого не выдумывается: пока измерения нет, поле остаётся пустым.
+   */
+  const pingMsRef = useRef<number | null>(null)
+  const stateLatencyMsRef = useRef<number | null>(null)
+
+  /**
    * Версия применённого манифеста.
    *
    * Отдельное состояние нужно ради таймера смены программы: сам манифест живёт
@@ -240,9 +251,13 @@ export function PlayerDisplay() {
       if (!token) return
 
       try {
+        const startedAt = Date.now()
         const response = await fetch('/api/player/state', {
           headers: { authorization: `Bearer ${token}` },
         })
+
+        // Замер делаем до всех проверок: медленный ответ — это тоже факт о связи.
+        stateLatencyMsRef.current = Date.now() - startedAt
 
         // Фоновый опрос не имеет права ронять работающий экран: недоступность
         // сервера на минуту — это «нет связи» в панели, а не чёрный экран в
@@ -295,10 +310,23 @@ export function PlayerDisplay() {
    */
   const handleDeviceFrame = useCallback(
     (event: MessageEvent) => {
-      let frame: { type: string; releaseVersion?: number; code?: string }
+      let frame: { type: string; releaseVersion?: number; code?: string; at?: number }
       try {
         frame = JSON.parse(String(event.data))
       } catch {
+        return
+      }
+
+      if (frame.type === 'ping') {
+        // Обязательный ответ: без него сервер считает канал мёртвым и
+        // перезапускает соединение каждые полминуты. Заодно кадр сервера
+        // служит точкой отсчёта для оценки задержки.
+        if (typeof frame.at === 'number' && Number.isFinite(frame.at)) {
+          pingMsRef.current = Math.max(0, Date.now() - frame.at)
+        }
+
+        const socket = socketRef.current
+        if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'pong' }))
         return
       }
 
@@ -463,9 +491,12 @@ export function PlayerDisplay() {
   // ── Heartbeat и capability profile ────────────────────────────────────────
 
   useEffect(() => {
-    if (phase !== 'ready') return
+    // Heartbeat нужен и пустому экрану: «нет назначенного контента» — это
+    // рабочее состояние, и оператор обязан видеть в панели, что телевизор жив
+    // и ждёт публикации, а не «нет связи».
+    if (phase === 'authenticating' || phase === 'unpaired') return
 
-    const timer = setInterval(() => {
+    const sendHeartbeat = () => {
       const socket = socketRef.current
       if (socket?.readyState !== WebSocket.OPEN) return
 
@@ -476,9 +507,15 @@ export function PlayerDisplay() {
           appliedVersion: manifestRef.current?.version ?? null,
           storage: { usageBytes: 0, quotaBytes: 0 },
           capabilities: collectCapabilities(),
+          telemetry: collectTelemetry(pingMsRef.current, stateLatencyMsRef.current),
         }),
       )
-    }, 30_000)
+    }
+
+    // Первый heartbeat уходит сразу после выхода в показ: оператор,
+    // подключивший экран, должен увидеть связь и замеры, а не ждать полминуты.
+    sendHeartbeat()
+    const timer = setInterval(sendHeartbeat, 30_000)
 
     return () => clearInterval(timer)
   }, [phase])
@@ -797,6 +834,37 @@ function collectCapabilities(): Record<string, unknown> {
     userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
     // Явная метка: часть полей мы не смогли определить.
     probe: 'partial',
+  }
+}
+
+/**
+ * Замер связи и площадки.
+ *
+ * Network Information API есть не во всех браузерах (в Firefox её нет вовсе),
+ * поэтому каждое поле необязательное. Лучше показать прочерк, чем ноль:
+ * ноль выглядел бы как идеальная сеть, а на самом деле это «неизвестно».
+ */
+function collectTelemetry(pingMs: number | null, stateLatencyMs: number | null) {
+  const navigatorExtra = navigator as Navigator & {
+    connection?: { downlink?: number; rtt?: number; effectiveType?: string }
+    deviceMemory?: number
+    // userAgentData есть только в Chromium: в Safari и Firefox поля нет.
+    userAgentData?: { platform?: string }
+  }
+
+  const connection = navigatorExtra.connection
+
+  return {
+    platform: navigatorExtra.userAgentData?.platform || navigator.platform || undefined,
+    pingMs: pingMs ?? undefined,
+    stateLatencyMs: stateLatencyMs ?? undefined,
+    downlinkKbps:
+      typeof connection?.downlink === 'number' ? Math.round(connection.downlink * 1000) : undefined,
+    networkRttMs: typeof connection?.rtt === 'number' ? Math.round(connection.rtt) : undefined,
+    effectiveType: connection?.effectiveType,
+    deviceMemoryGb: navigatorExtra.deviceMemory,
+    hardwareConcurrency: navigator.hardwareConcurrency || undefined,
+    viewport: { width: window.innerWidth, height: window.innerHeight },
   }
 }
 

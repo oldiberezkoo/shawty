@@ -1,9 +1,10 @@
 import type { IncomingMessage } from 'node:http'
 import type { WebSocket } from 'ws'
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq, lt } from 'drizzle-orm'
 import { db, withImmediateTransaction } from '@/db/client'
 import {
   deliveryReceipts,
+  deviceTelemetrySamples,
   pairingSessions,
   playbackEvents,
   playerErrors,
@@ -237,9 +238,11 @@ function handleHeartbeat(
     appliedVersion?: number | null
     storage?: { usageBytes?: number; quotaBytes?: number } | undefined
     capabilities?: Record<string, unknown> | undefined
+    telemetry?: Record<string, unknown> | undefined
   },
 ): void {
   const screenId = connection.screenId
+  const companyId = connection.companyId
   if (!screenId) return
 
   const now = new Date()
@@ -250,10 +253,69 @@ function handleHeartbeat(
 
   db.update(screens).set(update).where(eq(screens.id, screenId)).run()
 
+  if (frame.telemetry && companyId) {
+    recordTelemetry(screenId, companyId, frame.telemetry, now)
+  }
+
   logger.debug(
     { screenId, version: frame.playerVersion, applied: frame.appliedVersion },
     'heartbeat устройства',
   )
+}
+
+/**
+ * Сколько минимум проходит между двумя замерами одного экрана.
+ *
+ * Heartbeat идёт каждые полсекунды-минуты, и писать замер на каждый — значит
+ * получить десятки тысяч строк в сутки на сеть из сотни экранов ради графика,
+ * который и так читается по пятиминутным точкам.
+ */
+const TELEMETRY_MIN_INTERVAL_MS = 4 * 60_000
+
+/** Глубина истории замеров: две недели. Старше — уже не «почему лагает сейчас». */
+const TELEMETRY_RETENTION_MS = 14 * 24 * 60 * 60_000
+
+function recordTelemetry(
+  screenId: string,
+  companyId: string,
+  telemetry: Record<string, unknown>,
+  now: Date,
+): void {
+  const last = db
+    .select({ at: deviceTelemetrySamples.at })
+    .from(deviceTelemetrySamples)
+    .where(eq(deviceTelemetrySamples.screenId, screenId))
+    .orderBy(desc(deviceTelemetrySamples.at))
+    .limit(1)
+    .get()
+
+  if (last && now.getTime() - last.at.getTime() < TELEMETRY_MIN_INTERVAL_MS) return
+
+  const number = (value: unknown): number | null =>
+    typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : null
+
+  db.insert(deviceTelemetrySamples)
+    .values({
+      id: crypto.randomUUID(),
+      screenId,
+      companyId,
+      at: now,
+      pingMs: number(telemetry.pingMs),
+      downlinkKbps: number(telemetry.downlinkKbps),
+      networkRttMs: number(telemetry.networkRttMs),
+      stateLatencyMs: number(telemetry.stateLatencyMs),
+      effectiveType: typeof telemetry.effectiveType === 'string' ? telemetry.effectiveType.slice(0, 20) : null,
+    })
+    .run()
+
+  // Уборка идёт здесь же, а не отдельным насосом: замеры пишет только этот
+  // код, и удалять их в другом месте значило бы держать две связанные вещи
+  // в разных файлах.
+  if (Math.random() < 0.05) {
+    db.delete(deviceTelemetrySamples)
+      .where(lt(deviceTelemetrySamples.at, new Date(now.getTime() - TELEMETRY_RETENTION_MS)))
+      .run()
+  }
 }
 
 /**

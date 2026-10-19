@@ -1,59 +1,40 @@
-import { requireSession } from '@/server/auth/require-session'
-import { listScreens } from '@/server/services/screen-service'
-import { MonitorSmartphone } from 'lucide-react'
-import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card'
-import { StatusBadge } from '@/components/ui/status-badge'
-import { DataTable, type TableColumn } from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
+import type { Metadata } from 'next'
 import Link from 'next/link'
-import { formatDeviceId } from '@/lib/ids'
+import { MonitorSmartphone } from 'lucide-react'
+import { requireSession } from '@/server/auth/require-session'
+import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
+import { listScreens } from '@/server/services/screen-service'
+import { listPublishedVersions } from '@/server/services/playlist-service'
+import { Card, EmptyState } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { ScreensBoard } from './ScreensBoard'
 
 export const dynamic = 'force-dynamic'
 
-function relativeTime(seconds: number | null): string {
-  if (seconds === null) return 'ни разу'
-  if (seconds < 60) return `${seconds} сек назад`
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes} мин назад`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} ч назад`
-  return `${Math.floor(hours / 24)} дн назад`
-}
+export const metadata: Metadata = { title: 'Экраны' }
 
 function plural(value: number, one: string, few: string, many: string): string {
   const mod10 = value % 10
   const mod100 = value % 100
-
   if (mod10 === 1 && mod100 !== 11) return one
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
-
   return many
 }
-
-const COLUMNS: TableColumn[] = [
-  { key: 'name', label: 'Экран', primary: true },
-  { key: 'group', label: 'Группа' },
-  // Идентификатор и версия плеера — справочные: нужны при разборе «экран не
-  // обновляется», но на телефоне занимают место и съедают читаемость.
-  { key: 'deviceId', label: 'Идентификатор', secondary: true },
-  { key: 'player', label: 'Плеер', secondary: true },
-  { key: 'heartbeat', label: 'Связь', align: 'right' },
-  { key: 'state', label: 'Состояние', align: 'right' },
-]
 
 /**
  * Парк экранов.
  *
- * Список разбит по филиалам, а не отсортирован в одну таблицу: экран без
- * филиала и экран филиала — это разные вещи, и в общем списке связь между ними
- * теряется. Внутри филиала таблица сворачивается в карточки, когда места
- * перестаёт хватать.
+ * Здесь же массовое действие: отметить несколько телевизоров и назначить им
+ * один плейлист. Раньше назначить можно было только всей сети или по одному
+ * экрану, а «средний» случай — пять витрин в одном филиале — требовал пяти
+ * заходов.
  */
 export default async function ScreensPage() {
   const session = await requireSession()
   const membership = session.companies[0]
   if (!membership) return null
 
+  const access = createAccess(membership.role, membership.scopes)
   const screens = listScreens(membership.companyId)
 
   if (screens.length === 0) {
@@ -81,24 +62,19 @@ export default async function ScreensPage() {
     )
   }
 
-  const byBranch = new Map<string, typeof screens>()
-
-  for (const screen of screens) {
-    const key = screen.branchName ?? 'Без филиала'
-    const list = byBranch.get(key) ?? []
-    list.push(screen)
-    byBranch.set(key, list)
-  }
+  const versions = listPublishedVersions(membership.companyId)
+  const branches = new Set(screens.map((screen) => screen.branchName ?? 'Без филиала')).size
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="page-title">Экраны</h1>
-          <p className="mt-1 text-[13px] text-text-muted">
-            {screens.length} {plural(screens.length, 'экран', 'экрана', 'экранов')} в {byBranch.size}{' '}
-            {plural(byBranch.size, 'филиале', 'филиалах', 'филиалах')}. Состояние считается по времени
-            последнего heartbeat, а не по наличию соединения на сервере.
+          <p className="mt-1 max-w-[74ch] text-[13px] leading-relaxed text-text-muted">
+            {screens.length} {plural(screens.length, 'экран', 'экрана', 'экранов')} в {branches}{' '}
+            {plural(branches, 'филиале', 'филиалах', 'филиалах')}. Состояние считается по времени последнего
+            heartbeat, а не по наличию соединения на сервере. Отметьте экраны, чтобы назначить им плейлист сразу
+            всем.
           </p>
         </div>
 
@@ -109,36 +85,33 @@ export default async function ScreensPage() {
         </Link>
       </div>
 
-      {[...byBranch.entries()].map(([branchName, items]) => (
-        <Card key={branchName}>
-          <CardHeader
-            title={branchName}
-            description={`${items.length} ${plural(items.length, 'экран', 'экрана', 'экранов')}`}
-          />
-          <CardBody className="p-0">
-            <DataTable
-              columns={COLUMNS}
-              caption={`Экраны филиала «${branchName}»`}
-              rowKey={(row) => String(row.id)}
-              rows={items.map((screen) => ({
-                id: screen.id,
-                name: <span className="font-medium">{screen.name}</span>,
-                group: screen.groupName ?? <span className="text-text-subtle">—</span>,
-                deviceId: screen.deviceId ? (
-                  <span className="font-mono text-[12px] text-text-muted">{formatDeviceId(screen.deviceId)}</span>
-                ) : (
-                  <span className="text-[12px] text-text-subtle">не выданы</span>
-                ),
-                player: screen.playerVersion ?? <span className="text-text-subtle">—</span>,
-                heartbeat: (
-                  <span className="tnum text-text-muted">{relativeTime(screen.lastSeenSecondsAgo)}</span>
-                ),
-                state: <StatusBadge state={screen.onlineState} />,
-              }))}
-            />
-          </CardBody>
-        </Card>
-      ))}
+      <ScreensBoard
+        companyId={membership.companyId}
+        canAssign={access.can(PERMISSIONS.releasesPublish)}
+        canPublish={access.can(PERMISSIONS.releasesPublish)}
+        versions={versions.map((version) => ({
+          id: version.id,
+          playlistName: version.playlistName,
+          version: version.version,
+          itemCount: version.itemCount,
+          totalDurationMs: version.totalDurationMs,
+          isCurrent: version.isCurrent,
+        }))}
+        screens={screens.map((screen) => ({
+          id: screen.id,
+          name: screen.name,
+          onlineState: screen.onlineState,
+          branchId: screen.branchId,
+          branchName: screen.branchName,
+          groupId: screen.groupId,
+          groupName: screen.groupName,
+          deviceId: screen.deviceId,
+          lastSeenSecondsAgo: screen.lastSeenSecondsAgo,
+          playerVersion: screen.playerVersion,
+          desiredVersion: screen.desiredVersion,
+          appliedVersion: screen.appliedVersion,
+        }))}
+      />
     </div>
   )
 }

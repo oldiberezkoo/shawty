@@ -13,6 +13,30 @@ export const deviceHelloFrame = z.object({
   accessToken: z.string().min(16).max(4096),
 })
 
+/**
+ * Замер связи, который устройство прикладывает к heartbeat.
+ *
+ * Часть полей браузер может не знать (Network Information API есть не везде),
+ * поэтому все они необязательные: отсутствие замера честнее нуля, который
+ * выглядел бы как «сеть идеальна».
+ */
+export const deviceTelemetrySchema = z.object({
+  platform: z.string().max(120).optional(),
+  /** Оценка канала до сервера, мс — считается самим плеером. */
+  pingMs: z.number().int().min(0).max(600_000).optional(),
+  downlinkKbps: z.number().int().min(0).max(100_000_000).optional(),
+  networkRttMs: z.number().int().min(0).max(600_000).optional(),
+  stateLatencyMs: z.number().int().min(0).max(600_000).optional(),
+  effectiveType: z.string().max(20).optional(),
+  deviceMemoryGb: z.number().min(0).max(1024).optional(),
+  hardwareConcurrency: z.number().int().min(0).max(1024).optional(),
+  viewport: z
+    .object({ width: z.number().int().nonnegative(), height: z.number().int().nonnegative() })
+    .optional(),
+  /** Сколько байт занимает локальный кеш плеера, если он это знает. */
+  cacheBytes: z.number().int().nonnegative().optional(),
+})
+
 export const deviceHeartbeatFrame = z.object({
   type: z.literal('heartbeat'),
   playerVersion: z.string().max(32).optional(),
@@ -29,6 +53,8 @@ export const deviceHeartbeatFrame = z.object({
    * браузер не всегда умеет сообщить о кодеке, и выдумывать это нельзя.
    */
   capabilities: z.record(z.string(), z.unknown()).optional(),
+  /** Качество связи и сведения о площадке: нужны для разбора «экран лагает». */
+  telemetry: deviceTelemetrySchema.optional(),
 })
 
 /**

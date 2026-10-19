@@ -23,6 +23,10 @@ import { HttpError } from '@/server/http/errors'
 import { logger } from '@/lib/logger'
 
 export type PlaylistItemView = PlaylistItemInput & {
+  /** Идентификатор медиафайла: по нему строится обложка, а не по id элемента. */
+  assetId: string
+  /** Имя файла: без него две картинки одного размера неотличимы. */
+  fileName: string | null
   mime: string
   bytes: number
   state: string
@@ -57,6 +61,8 @@ function loadItems(playlistId: string): PlaylistItemView[] {
       playPolicy: playlistItems.playPolicy,
       transition: playlistItems.transition,
       audio: playlistItems.audio,
+      assetId: mediaAssets.id,
+      fileName: mediaAssets.fileName,
       assetKind: mediaAssets.kind,
       assetDurationMs: mediaAssets.durationMs,
       mime: mediaAssets.mime,
@@ -89,6 +95,8 @@ function loadItems(playlistId: string): PlaylistItemView[] {
       playPolicy: row.playPolicy,
       transition: row.transition,
       audio: row.audio,
+      assetId: row.assetId,
+      fileName: row.fileName,
       assetKind: row.assetKind,
       assetDurationMs: row.assetDurationMs,
       mime: row.mime,
@@ -179,12 +187,112 @@ export function listPlaylists(companyId: string): PlaylistSummary[] {
   })
 }
 
+/**
+ * Опубликованные версии всех плейлистов компании.
+ *
+ * Нужны там, где выбирают «что показывать»: назначение экранам, расписание,
+ * кампании. Выбор идёт версией, а не плейлистом: назначить можно только
+ * неизменяемый снимок, иначе состав менялся бы под работающим экраном.
+ */
+export type PlaylistVersionOption = {
+  id: string
+  playlistId: string
+  playlistName: string
+  version: number
+  itemCount: number
+  totalDurationMs: number
+  createdAt: Date
+  /** Версия, которая сейчас считается текущей у своего плейлиста. */
+  isCurrent: boolean
+}
+
+export function listPublishedVersions(companyId: string, limit = 300): PlaylistVersionOption[] {
+  const rows = db
+    .select({
+      id: playlistVersions.id,
+      playlistId: playlists.id,
+      playlistName: playlists.name,
+      version: playlistVersions.version,
+      totalDurationMs: playlistVersions.totalDurationMs,
+      createdAt: playlistVersions.createdAt,
+      currentVersionId: playlists.currentVersionId,
+      itemCount: sql<number>`(
+        select count(*) from ${playlistVersionItems} where ${playlistVersionItems.versionId} = ${playlistVersions.id}
+      )`,
+    })
+    .from(playlistVersions)
+    .innerJoin(playlists, eq(playlists.id, playlistVersions.playlistId))
+    .where(eq(playlists.companyId, companyId))
+    .orderBy(asc(playlists.name), sql`${playlistVersions.version} desc`)
+    .limit(limit)
+    .all()
+
+  return rows.map((row) => ({
+    id: row.id,
+    playlistId: row.playlistId,
+    playlistName: row.playlistName,
+    version: row.version,
+    itemCount: Number(row.itemCount),
+    totalDurationMs: row.totalDurationMs,
+    createdAt: row.createdAt,
+    isCurrent: row.currentVersionId === row.id,
+  }))
+}
+
+/**
+ * Состав опубликованной версии.
+ *
+ * Читается по версии, а не по черновику: экран показывает именно снимок, и
+ * карточка экрана обязана показывать то же, что играет, а не то, что кто-то
+ * сейчас правит в плейлисте.
+ */
+export type VersionItemView = {
+  id: string
+  position: number
+  assetId: string
+  fileName: string | null
+  kind: 'image' | 'video'
+  mime: string
+  durationMs: number
+  hasPoster: boolean
+}
+
+export function versionItems(versionId: string): VersionItemView[] {
+  return db
+    .select({
+      id: playlistVersionItems.id,
+      position: playlistVersionItems.position,
+      assetId: mediaAssets.id,
+      fileName: mediaAssets.fileName,
+      assetKind: mediaAssets.kind,
+      mime: mediaAssets.mime,
+      durationMs: playlistVersionItems.durationMs,
+      hasPoster: sql<boolean>`${mediaAssets.posterSha256} is not null`,
+    })
+    .from(playlistVersionItems)
+    .innerJoin(mediaAssets, eq(mediaAssets.id, playlistVersionItems.mediaAssetId))
+    .where(eq(playlistVersionItems.versionId, versionId))
+    .orderBy(asc(playlistVersionItems.position))
+    .all()
+    .map((row) => ({
+      id: row.id,
+      position: row.position,
+      assetId: row.assetId,
+      fileName: row.fileName,
+      kind: row.assetKind === 'video' ? ('video' as const) : ('image' as const),
+      mime: row.mime,
+      durationMs: row.durationMs,
+      hasPoster: Boolean(row.hasPoster),
+    }))
+}
+
 export function createPlaylist(params: {
   companyId: string
   actorUserId: string
   name: string
 }): { id: string } {
   const name = params.name.trim().slice(0, 120)
+
   if (name.length === 0) {
     throw HttpError.badRequest('invalid_input', 'Укажите название плейлиста')
   }
@@ -242,7 +350,7 @@ export function duplicatePlaylist(companyId: string, playlistId: string, actorUs
         .values({
           id: crypto.randomUUID(),
           playlistId: newId,
-          mediaAssetId: mediaAssetIdOf(item.id),
+          mediaAssetId: item.assetId,
           position: item.position,
           durationMs: item.durationMs,
           playPolicy: item.playPolicy,
@@ -254,18 +362,6 @@ export function duplicatePlaylist(companyId: string, playlistId: string, actorUs
   })
 
   return { id: newId }
-}
-
-/** Идентификатор ассета по элементу плейлиста. */
-function mediaAssetIdOf(itemId: string): string {
-  const row = db
-    .select({ assetId: playlistItems.mediaAssetId })
-    .from(playlistItems)
-    .where(eq(playlistItems.id, itemId))
-    .get()
-
-  if (!row) throw new HttpError(500, 'internal', 'Элемент плейлиста не найден')
-  return row.assetId
 }
 
 export function addItems(params: {
@@ -366,6 +462,39 @@ export function reorderItems(companyId: string, playlistId: string, orderedItemI
   }
 }
 
+/**
+ * Длительность показа одного слайда.
+ *
+ * Ноль и отрицательное значение означают «как решит плеер»: у видео это его
+ * собственная длина, у картинки — настройка компании. Так оператор может
+ * снять ручной переопределённый таймер, не угадывая нужное число.
+ */
+export function setItemDuration(params: {
+  companyId: string
+  playlistId: string
+  itemId: string
+  durationMs: number | null
+}): void {
+  requirePlaylist(params.companyId, params.playlistId)
+
+  const item = db
+    .select({ id: playlistItems.id })
+    .from(playlistItems)
+    .where(and(eq(playlistItems.id, params.itemId), eq(playlistItems.playlistId, params.playlistId)))
+    .get()
+
+  if (!item) throw HttpError.notFound('Элемент плейлиста не найден')
+
+  db.transaction((tx) => {
+    tx.update(playlistItems)
+      .set({ durationMs: params.durationMs })
+      .where(eq(playlistItems.id, params.itemId))
+      .run()
+    // Правка черновика: опубликованная версия остаётся неизменной.
+    tx.update(playlists).set({ state: 'draft', updatedAt: new Date() }).where(eq(playlists.id, params.playlistId)).run()
+  })
+}
+
 export function removeItem(companyId: string, playlistId: string, itemId: string): void {
   requirePlaylist(companyId, playlistId)
 
@@ -462,7 +591,7 @@ export function publishPlaylist(params: {
           id: crypto.randomUUID(),
           versionId,
           position: item.position,
-          mediaAssetId: mediaAssetIdOf(item.id),
+          mediaAssetId: item.assetId,
           durationMs: effectiveDurationMs(item, serverConfig.media.defaultImageDurationMs),
           playPolicy: item.playPolicy,
           transition: 'none',
@@ -494,14 +623,30 @@ export function publishPlaylist(params: {
 }
 
 export function listVersions(companyId: string, playlistId: string) {
-  requirePlaylist(companyId, playlistId)
+  const playlist = requirePlaylist(companyId, playlistId)
 
-  return db
-    .select()
+  const rows = db
+    .select({
+      id: playlistVersions.id,
+      version: playlistVersions.version,
+      totalDurationMs: playlistVersions.totalDurationMs,
+      note: playlistVersions.note,
+      createdAt: playlistVersions.createdAt,
+      itemCount: sql<number>`(
+        select count(*) from ${playlistVersionItems} where ${playlistVersionItems.versionId} = ${playlistVersions.id}
+      )`,
+    })
     .from(playlistVersions)
     .where(eq(playlistVersions.playlistId, playlistId))
     .orderBy(sql`${playlistVersions.version} desc`)
     .all()
+
+  return rows.map((row) => ({
+    ...row,
+    itemCount: Number(row.itemCount),
+    /** Текущая версия — та, что назначена экранам и участвует в кампаниях. */
+    isCurrent: playlist.currentVersionId === row.id,
+  }))
 }
 
 /**

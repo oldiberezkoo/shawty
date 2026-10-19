@@ -3,6 +3,7 @@ import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
 import { listPlaylists } from '@/server/services/playlist-service'
 import { listMedia } from '@/server/services/media-service'
+import { serverConfig } from '@/config/server'
 import { PlaylistList } from './PlaylistList'
 
 export const dynamic = 'force-dynamic'
@@ -22,9 +23,9 @@ export default async function PlaylistsPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="page-title">Плейлисты</h1>
-        <p className="mt-1 text-[13px] text-text-muted">
-          Порядок показа и длительность слайдов. Публикация фиксирует версию:
-          после этого правки черновика не меняют то, что уже играет на экранах.
+        <p className="mt-1 max-w-[74ch] text-[13px] leading-relaxed text-text-muted">
+          Плейлист задаёт, что и в каком порядке играет на экране. Пока версия не опубликована, изменения
+          живут только в панели: экраны продолжают играть прошлую версию.
         </p>
       </div>
 
@@ -32,6 +33,8 @@ export default async function PlaylistsPage() {
         companyId={membership.companyId}
         canWrite={access.can(PERMISSIONS.playlistsWrite)}
         canPublish={access.can(PERMISSIONS.playlistsPublish)}
+        canUpload={access.can(PERMISSIONS.mediaWrite)}
+        defaultImageDurationMs={serverConfig.media.defaultImageDurationMs}
         initialPlaylists={playlists.map((playlist) => ({
           id: playlist.id,
           name: playlist.name,
@@ -44,19 +47,15 @@ export default async function PlaylistsPage() {
         availableAssets={assets.map((asset) => ({
           id: asset.id,
           kind: asset.kind,
+          fileName: asset.fileName,
           mime: asset.mime,
           width: asset.width,
           height: asset.height,
           durationMs: asset.durationMs,
           hasPoster: Boolean(asset.posterSha256),
+          state: asset.state,
         }))}
       />
-
-      {playlists.length === 0 ? (
-        <p className="text-[13px] text-text-muted">
-          Плейлистов пока нет. Нажмите «Создать плейлист» выше и добавьте в него файлы из медиатеки.
-        </p>
-      ) : null}
     </div>
   )
 }
