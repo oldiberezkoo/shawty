@@ -47,6 +47,7 @@ export const AUDIT_ACTIONS = {
   'campaign.deleted': 'Кампания удалена',
   'campaign.published': 'Кампания опубликована',
   'assignment.changed': 'Назначение контента изменено',
+  'assignment.removed': 'Назначение контента снято',
   'release.published': 'Публикация выпущена',
   'team.invited': 'Приглашение отправлено',
   'team.invitation_revoked': 'Приглашение отозвано',

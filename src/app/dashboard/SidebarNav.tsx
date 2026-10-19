@@ -15,6 +15,7 @@ import {
   Menu,
   MonitorPlay,
   MonitorSmartphone,
+  Network,
   ScrollText,
   Send,
   Tv,
@@ -312,6 +313,7 @@ export const NAV: NavGroup[] = [
     items: [
       { href: '/dashboard', label: 'Обзор', icon: LayoutDashboard, ready: true },
       { href: '/dashboard/screens', label: 'Экраны', icon: MonitorSmartphone, ready: true },
+      { href: '/dashboard/structure', label: 'Структура', icon: Network, ready: true },
       { href: '/dashboard/monitoring', label: 'Мониторинг', icon: Activity, ready: true },
     ],
   },

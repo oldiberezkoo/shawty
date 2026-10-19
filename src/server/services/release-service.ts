@@ -142,6 +142,62 @@ export function assignPlaylist(input: AssignInput): { screens: number } {
   return { screens: targetScreens.length }
 }
 
+/**
+ * Снятие назначения.
+ *
+ * Нужно, чтобы можно было честно вернуть экран в состояние «ничего не
+ * назначено»: без этого единственным способом «убрать» программу было
+ * назначить другую, что для оператора не то же самое.
+ *
+ * Публикация при этом не выпускается: экран продолжит показывать последнюю
+ * выложенную программу, пока не выйдет следующая публикация.
+ */
+export function removeAssignment(params: {
+  companyId: string
+  actorUserId?: string
+  scopeType?: 'screen' | 'group' | 'branch' | 'company'
+  scopeId?: string
+  screenIds?: string[]
+}): { removed: number } {
+  const conditions = [eq(releaseAssignments.companyId, params.companyId)]
+
+  if (params.screenIds && params.screenIds.length > 0) {
+    conditions.push(
+      and(eq(releaseAssignments.scopeType, 'screen'), inArray(releaseAssignments.scopeId, [...params.screenIds]))!,
+    )
+  } else if (params.scopeType && params.scopeId) {
+    conditions.push(eq(releaseAssignments.scopeType, params.scopeType))
+    conditions.push(eq(releaseAssignments.scopeId, params.scopeId))
+  } else {
+    throw HttpError.badRequest('invalid_input', 'Укажите экраны или область назначения')
+  }
+
+  const existing = db
+    .select({ id: releaseAssignments.id })
+    .from(releaseAssignments)
+    .where(and(...conditions))
+    .all()
+
+  if (existing.length === 0) return { removed: 0 }
+
+  db.delete(releaseAssignments)
+    .where(and(...conditions))
+    .run()
+
+  invalidatePlanCache(params.companyId)
+
+  recordAudit({
+    companyId: params.companyId,
+    actorUserId: params.actorUserId,
+    action: 'assignment.removed',
+    targetType: params.screenIds ? 'screen' : (params.scopeType ?? 'screen'),
+    targetId: params.screenIds ? params.screenIds.join(',') : (params.scopeId ?? null),
+    meta: { removed: existing.length },
+  })
+
+  return { removed: existing.length }
+}
+
 export function listAssignments(companyId: string) {
   return db
     .select()

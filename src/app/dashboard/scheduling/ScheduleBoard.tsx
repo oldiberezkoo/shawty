@@ -1,10 +1,28 @@
 'use client'
 
 import { Notice } from '@/components/ui/status-badge'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Modal } from '@/components/ui/modal'
+import { FormError, FormSuccess, SelectField, ToggleField } from '@/components/ui/form'
+import { CSRF_COOKIE } from '@/lib/cookie-names'
+import { formatDuration } from '@/domain/playlist/rules'
+
+export type VersionChoice = {
+  id: string
+  playlistName: string
+  version: number
+  itemCount: number
+  totalDurationMs: number
+  isCurrent: boolean
+}
+
+function readCsrf(): string {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${CSRF_COOKIE}=([^;]+)`))
+  return match?.[1] ? decodeURIComponent(match[1]) : ''
+}
 
 type ScreenSchedule = {
   screenId: string
@@ -72,11 +90,61 @@ function formatDay(value: string, timezone: string): string {
  * программа прыгает с акции на фоновое видео, и для этого нужен один ряд с
  * реальным временем слева.
  */
-export function ScheduleBoard({ companyId }: { companyId: string }) {
+export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
+  companyId: string
+  versions: VersionChoice[]
+  canAssign: boolean
+  canPublish: boolean
+}) {
   const [screens, setScreens] = useState<ScreenSchedule[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [assignOpen, setAssignOpen] = useState(false)
+  const [versionId, setVersionId] = useState('')
+  const [publishNow, setPublishNow] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  const pickedCount = picked.size
+
+  const togglePicked = useCallback((screenId: string) => {
+    setPicked((current) => {
+      const next = new Set(current)
+      if (next.has(screenId)) next.delete(screenId)
+      else next.add(screenId)
+      return next
+    })
+  }, [])
+
+  const call = useCallback(
+    async (path: string, init: RequestInit) => {
+      setError(null)
+      setBusy(true)
+
+      const response = await fetch(path, {
+        ...init,
+        headers: {
+          'content-type': 'application/json',
+          'x-company-id': companyId,
+          'x-csrf-token': readCsrf(),
+        },
+      })
+
+      setBusy(false)
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: { message?: string } } | null
+        setError(data?.error?.message ?? 'Не удалось выполнить действие')
+        return null
+      }
+
+      return (await response.json().catch(() => null)) as Record<string, unknown> | null
+    },
+    [companyId],
+  )
 
   const load = useCallback(async () => {
     try {
@@ -94,6 +162,53 @@ export function ScheduleBoard({ companyId }: { companyId: string }) {
       // Опрос фоновый: молчание лучше мигающей ошибки. Следующий тик попробует снова.
     }
   }, [companyId])
+
+  const assign = useCallback(async () => {
+    const screenIds = [...picked]
+    if (screenIds.length === 0 || !versionId) return
+
+    const assigned = await call('/api/dashboard/releases', {
+      method: 'PUT',
+      body: JSON.stringify({ screenIds, playlistVersionId: versionId }),
+    })
+
+    if (!assigned) return
+
+    if (publishNow && canPublish) {
+      const published = await call('/api/dashboard/releases', {
+        method: 'POST',
+        body: JSON.stringify({ screenIds }),
+      })
+
+      if (!published) return
+
+      setNotice(`Программа назначена экранам: ${screenIds.length}. Публикация ${published.version} выпущена.`)
+    } else {
+      setNotice(`Программа назначена экранам: ${screenIds.length}. Публикация не выпущена.`)
+    }
+
+    setAssignOpen(false)
+    setPicked(new Set())
+    await load()
+  }, [call, canPublish, load, picked, publishNow, versionId])
+
+  const unassign = useCallback(async () => {
+    const screenIds = [...picked]
+    if (screenIds.length === 0) return
+
+    const result = await call('/api/dashboard/releases', {
+      method: 'DELETE',
+      body: JSON.stringify({ screenIds }),
+    })
+
+    if (!result) return
+
+    setNotice(
+      `Назначений снято: ${result.removed}. Экраны продолжат играть последнюю выложенную программу до следующей публикации.`,
+    )
+    setPicked(new Set())
+    await load()
+  }, [call, load, picked])
 
   useEffect(() => {
     let stopped = false

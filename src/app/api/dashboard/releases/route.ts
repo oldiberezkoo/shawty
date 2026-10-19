@@ -17,6 +17,7 @@ import {
   publishCompany,
   publishScreens,
   receiptsForRelease,
+  removeAssignment,
 } from '@/server/services/release-service'
 import { listScreenIds } from '@/server/services/screen-service'
 import { HttpError } from '@/server/http/errors'
@@ -35,6 +36,12 @@ const assignSchema = z.object({
 const publishSchema = z.object({
   reason: z.string().max(200).nullable().optional(),
   /** Публикация только выбранным экранам; пусто — вся сеть. */
+  screenIds: z.array(z.string().min(1).max(64)).min(1).max(500).optional(),
+})
+
+const unassignSchema = z.object({
+  scopeType: z.enum(['screen', 'group', 'branch', 'company']).optional(),
+  scopeId: z.string().min(1).max(64).optional(),
   screenIds: z.array(z.string().min(1).max(64)).min(1).max(500).optional(),
 })
 
@@ -135,6 +142,33 @@ export const PUT = route(async (request: Request) => {
   })
 
   return jsonResponse({ ok: true, ...result, assignments: listAssignments(companyId) })
+})
+
+/**
+ * Снятие назначения.
+ *
+ * Убирает правило «что показывать», но не выпускает публикацию: экран
+ * продолжит играть выложенную программу, пока не выйдет следующая. Так
+ * «снять» не гасит экран в момент нажатия.
+ */
+export const DELETE = route(async (request: Request) => {
+  const { companyId, access, session } = await requireDashboardMutation(request)
+  requirePermission(access, PERMISSIONS.releasesPublish, 'Нет прав на изменение назначений')
+
+  const body = unassignSchema.safeParse(await readJsonBody(request))
+  if (!body.success) {
+    throw HttpError.badRequest('invalid_input', 'Укажите экраны или область назначения')
+  }
+
+  const result = removeAssignment({
+    companyId,
+    actorUserId: session.userId,
+    scopeType: body.data.scopeType,
+    scopeId: body.data.scopeId,
+    screenIds: body.data.screenIds,
+  })
+
+  return jsonResponse({ ...result, assignments: listAssignments(companyId) })
 })
 
 /**
