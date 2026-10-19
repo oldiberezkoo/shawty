@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { requireSession } from '@/server/auth/require-session'
 import { listBranches, listScreens, summarizeScreens } from '@/server/services/screen-service'
 import { getSubscription } from '@/server/services/billing-service'
-import { Card, CardBody, CardHeader } from '@/components/ui/card'
+import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card'
 import { Badge, Dot, StatusBadge } from '@/components/ui/status-badge'
 import { MetricTile, UsageBar } from '@/components/ui/metric'
 import { Button } from '@/components/ui/button'
@@ -131,9 +131,17 @@ export default async function DashboardPage() {
           />
           <CardBody className="p-0">
             {screens.length === 0 ? (
-              <p className="px-5 py-6 text-[13px] text-text-muted">
-                Экранов пока нет. Откройте страницу подключения на телевизоре и отсканируйте QR-код.
-              </p>
+              <EmptyState
+                title="Экранов пока нет"
+                hint="Телевизор показывает код — введите его на странице подключения. QR нужен только если удобнее камерой телефона."
+                action={
+                  <Link href="/pair">
+                    <Button size="sm" variant="primary">
+                      Подключить экран
+                    </Button>
+                  </Link>
+                }
+              />
             ) : (
               <ul className="divide-y divide-[var(--border)]">
                 {screens.slice(0, 6).map((screen) => (

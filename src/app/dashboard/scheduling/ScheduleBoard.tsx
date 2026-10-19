@@ -1,7 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Card, CardBody, CardHeader } from '@/components/ui/card'
+import Link from 'next/link'
+import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 type ScreenSchedule = {
   screenId: string
@@ -221,7 +223,17 @@ export function ScheduleBoard({ companyId }: { companyId: string }) {
           </div>
 
           {screens.length === 0 ? (
-            <p className="px-5 py-4 text-[13px] text-text-subtle">В компании пока нет экранов.</p>
+            <EmptyState
+              title="Экранов пока нет"
+              hint="Расписание считается для конкретных экранов: пока их нет, показать нечего. Подключите первый — и здесь появится, что и когда на нём идёт."
+              action={
+                <Link href="/pair">
+                  <Button size="sm" variant="primary">
+                    Подключить экран
+                  </Button>
+                </Link>
+              }
+            />
           ) : null}
         </CardBody>
       </Card>

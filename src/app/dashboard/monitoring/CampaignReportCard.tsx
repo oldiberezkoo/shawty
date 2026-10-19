@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import Link from 'next/link'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
@@ -142,7 +143,17 @@ export function CampaignReportCard({ companyId }: { companyId: string }) {
             каналу, поэтому за старые периоды данных будет меньше.
           </p>
         ) : report.campaigns.length === 0 ? (
-          <p className="text-[13px] text-text-subtle">Кампаний пока нет.</p>
+          // Здесь предложение, а не констатация: человек смотрит отчёт
+          // скорее всего потому, что хочет понять, что показывалось на
+          // экранах. Пустой отчёт без выхода оставляет его гадать, не
+          // настроено ли расписание вовсе.
+          <p className="text-[13px] text-text-subtle">
+            Кампаний пока нет — пока не задано расписание, экраны показывают назначенный плейлист
+            постоянно.{' '}
+            <Link href="/dashboard/campaigns" className="text-text-muted underline underline-offset-4 hover:text-text">
+              Посмотреть кампании
+            </Link>
+          </p>
         ) : (
           <>
             <div className="@container w-full overflow-x-auto">
