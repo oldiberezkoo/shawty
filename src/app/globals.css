@@ -3,9 +3,10 @@
 /*
  * Дизайн-система.
  *
- * Ориентир — Notion и Airbnb: много воздуха, 1px границы, один акцент и
- * никаких теней в духе «дизайн-системы». Тени остались только у всплывающих
- * элементов — там они означают «это поверх страницы», а не украшение.
+ * Ориентир — современные SaaS-панели: светлая холодная подложка, белые
+ * карточки с тонкой границей и мягкой тенью, один синий акцент. Тень у
+ * карточки постоянная, но почти незаметная: она отделяет поверхность от
+ * подложки, а не изображает «объём». Поднимаются только кликабельные карточки.
  *
  * Токены живут в обычных переменных, а в Tailwind попадают через `@theme inline`,
  * потому что значения должны переключаться вместе с классом `.dark` на <html>.
@@ -16,59 +17,57 @@
 :root {
   color-scheme: light;
 
-  --bg: #ffffff;
+  /* Подложка страницы холоднее карточек: белое на белом сливается. */
+  --bg: #f6f7f9;
   --surface: #ffffff;
-  --surface-2: #f7f7f8;
-  --surface-3: #f1f1f3;
-  --surface-hover: #efefef;
-  /* Боковая колонка чуть холоднее содержимого: без этого шапка, колонка и
-     карточка — три одинаковых белых прямоугольника, и глаз не понимает,
-     где что начинается. */
-  --surface-rail: #fbfbfc;
-  /* Приподнятый слой: всплывающие меню, диалоги, наведение на карточку. */
+  --surface-2: #f2f4f7;
+  --surface-3: #e9edf3;
+  --surface-hover: #eef1f5;
+  --surface-rail: #ffffff;
   --surface-raised: #ffffff;
-  --border: #ebebed;
-  --border-strong: #dcdcde;
+  --border: #e4e7ec;
+  --border-strong: #d0d5dd;
 
-  --text: #191919;
-  --text-muted: #6b6b70;
-  --text-subtle: #9b9ba1;
+  --text: #101828;
+  --text-muted: #667085;
+  --text-subtle: #98a2b3;
 
-  /* Акцент — чернильный, как у Notion. Цвет оставлен для смысловых статусов. */
-  --primary: #191919;
-  --primary-hover: #343438;
+  /* Акцент — синий: им помечены основное действие, активный раздел и фокус. */
+  --primary: #465fff;
+  --primary-hover: #3641f5;
   --primary-text: #ffffff;
+  --primary-soft: #eef1ff;
+  --primary-border: #dfe4ff;
 
-  --success: #0f7b48;
-  --success-bg: #eaf6ef;
-  --success-border: #c3e5d3;
-  --warn: #995609;
-  --warn-bg: #fdf4e7;
-  --warn-border: #f5dfba;
-  --danger: #c4392f;
-  --danger-bg: #fdeeed;
-  --danger-border: #f7d3d0;
-  --info: #1f6feb;
-  --info-bg: #eaf1fe;
-  --info-border: #c9dbfd;
+  --success: #067647;
+  --success-bg: #ecfdf3;
+  --success-border: #abefc6;
+  --warn: #b54708;
+  --warn-bg: #fffaeb;
+  --warn-border: #fedf89;
+  --danger: #b42318;
+  --danger-bg: #fef3f2;
+  --danger-border: #fecdca;
+  --info: #175cd3;
+  --info-bg: #eff8ff;
+  --info-border: #b2ddff;
 
-  --ring: #1f6feb;
-  --overlay: rgb(20 20 22 / 0.4);
+  --ring: #465fff;
+  --overlay: rgb(16 24 40 / 0.5);
 
-  --shadow-xs: 0 1px 2px rgb(18 18 22 / 0.04);
-  --shadow-sm: 0 1px 2px rgb(18 18 22 / 0.05), 0 2px 6px rgb(18 18 22 / 0.04);
-  --shadow-md: 0 1px 2px rgb(18 18 22 / 0.04), 0 8px 24px rgb(18 18 22 / 0.10);
-  --shadow-lg: 0 2px 4px rgb(18 18 22 / 0.04), 0 16px 48px rgb(18 18 22 / 0.14);
-  /* Тень только под наведением: карточка не должна «парить» постоянно,
-     иначе весь экран выглядит как стопка бумаг. */
-  --shadow-lift: 0 1px 2px rgb(18 18 22 / 0.05), 0 6px 18px rgb(18 18 22 / 0.08);
+  --shadow-xs: 0 1px 2px rgb(16 24 40 / 0.05);
+  --shadow-sm: 0 1px 3px rgb(16 24 40 / 0.1), 0 1px 2px rgb(16 24 40 / 0.06);
+  --shadow-md: 0 4px 8px -2px rgb(16 24 40 / 0.1), 0 2px 4px -2px rgb(16 24 40 / 0.06);
+  --shadow-lg: 0 12px 20px -4px rgb(16 24 40 / 0.1), 0 4px 6px -2px rgb(16 24 40 / 0.04);
+  /* Тень наведения: чуть глубже обычной, но без «парения» на полметра. */
+  --shadow-lift: 0 8px 16px -4px rgb(16 24 40 / 0.08), 0 2px 4px -2px rgb(16 24 40 / 0.04);
+  /* Цветная тень только у знака продукта: акцент должен читаться как акцент. */
+  --shadow-brand: 0 2px 6px rgb(70 95 255 / 0.35);
 
   /*
    * Шкала пространства.
    *
-   * Раньше отступы набирались произвольными классами `[13px]`, `gap-3`, `p-5`.
-   * Теперь ритм задан числами, и разные страницы выглядят одинаково:
-   * отступы кратны четырём, плотность текста одна.
+   * Отступы кратны четырём, плотность текста одна на всех страницах.
    */
   --space-1: 4px;
   --space-2: 8px;
@@ -84,48 +83,50 @@
 .dark {
   color-scheme: dark;
 
-  --bg: #191919;
-  --surface: #202020;
-  --surface-2: #252525;
-  --surface-3: #2f2f2f;
-  --surface-hover: #303030;
-  /* В тёмной теме «колонка холоднее» означает «колонка темнее»: на чёрном
-     поднять слой вверх нельзя, поднятие читается только затемнением. */
-  --surface-rail: #1a1a1a;
-  --surface-raised: #262626;
-  --border: #2f2f2f;
-  --border-strong: #414141;
+  --bg: #0b0f17;
+  --surface: #111827;
+  --surface-2: #171f2c;
+  --surface-3: #1f2937;
+  --surface-hover: #1c2533;
+  /* В тёмной теме колонка темнее содержимого: поднятие читается только так. */
+  --surface-rail: #0e131c;
+  --surface-raised: #151d2a;
+  --border: #232d3d;
+  --border-strong: #344054;
 
-  --text: #e9e9e9;
-  --text-muted: #9b9b9b;
-  --text-subtle: #6f6f6f;
+  --text: #f2f4f7;
+  --text-muted: #98a2b3;
+  --text-subtle: #667085;
 
-  /* Кнопка инвертируется: в тёмной теме она светлая, как у Notion. */
-  --primary: #f1f1f1;
-  --primary-hover: #e0e0e0;
-  --primary-text: #191919;
+  /* В тёмной теме акцент светлее: исходный синий теряется на почти чёрном. */
+  --primary: #6172ff;
+  --primary-hover: #7b89ff;
+  --primary-text: #ffffff;
+  --primary-soft: rgb(97 114 255 / 0.14);
+  --primary-border: rgb(97 114 255 / 0.28);
 
-  --success: #4bb782;
-  --success-bg: #16281f;
-  --success-border: #234534;
-  --warn: #d9a04a;
-  --warn-bg: #2a2114;
-  --warn-border: #4a3a1e;
-  --danger: #e9705f;
-  --danger-bg: #2c1917;
-  --danger-border: #4d2a26;
-  --info: #5b9bf8;
-  --info-bg: #16233a;
-  --info-border: #243c5e;
+  --success: #47cd89;
+  --success-bg: #0f2a1e;
+  --success-border: #1d4a35;
+  --warn: #fdb022;
+  --warn-bg: #2a1f0e;
+  --warn-border: #4a3416;
+  --danger: #f97066;
+  --danger-bg: #2b1514;
+  --danger-border: #4d2320;
+  --info: #53b1fd;
+  --info-bg: #10243a;
+  --info-border: #1e3a5c;
 
-  --ring: #5b9bf8;
-  --overlay: rgb(0 0 0 / 0.65);
+  --ring: #7b89ff;
+  --overlay: rgb(2 6 12 / 0.7);
 
   --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.3);
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.32), 0 2px 6px rgb(0 0 0 / 0.24);
-  --shadow-md: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.42);
-  --shadow-lg: 0 2px 4px rgb(0 0 0 / 0.3), 0 16px 48px rgb(0 0 0 / 0.55);
-  --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.34), 0 6px 18px rgb(0 0 0 / 0.38);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 8px -2px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 12px 20px -4px rgb(0 0 0 / 0.5), 0 4px 6px -2px rgb(0 0 0 / 0.3);
+  --shadow-lift: 0 8px 16px -4px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-brand: 0 2px 8px rgb(97 114 255 / 0.28);
 }
 
 @theme inline {
@@ -146,6 +147,8 @@
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-primary-text: var(--primary-text);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-border: var(--primary-border);
 
   --color-success: var(--success);
   --color-success-bg: var(--success-bg);
@@ -162,12 +165,12 @@
 
   --color-overlay: var(--overlay);
 
-  /* Радиусы скромные: минимализм, а не «скруглённый пузырь». */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 14px;
+  /* Радиусы: 10px у органов управления, 16px у поверхностей. */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
   --font-sans:
     var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
@@ -196,14 +199,7 @@
     font-family: var(--font-sans);
     font-size: 14px;
     line-height: 1.5;
-    /*
-     * Лёгкое сжатие трекинга.
-     *
-     * Inter при 13–14px выглядит шире, чем нужно для плотных подписей, и без
-     * этого строка «Состояние считается по времени последнего heartbeat»
-     * растягивается на две строки там, где помещается в одну. Отрицательный
-     * трекинг не мельчит текст: он убирает лишний воздух между буквами.
-     */
+    /* Inter на 13–14px выглядит шире, чем нужно для плотных подписей. */
     letter-spacing: -0.006em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -218,7 +214,7 @@
   h1,
   h2,
   h3 {
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
   }
 
   :focus-visible {
@@ -228,7 +224,7 @@
   }
 
   ::selection {
-    background-color: color-mix(in srgb, var(--ring) 25%, transparent);
+    background-color: color-mix(in srgb, var(--ring) 22%, transparent);
   }
 
   /*
@@ -276,19 +272,20 @@
   /*
    * Карточка.
    *
-   * Постоянной тени нет: тень на каждой карточке — признак того, что
-   * элементов стало слишком много. Но при наведении карточка приподнимается:
-   * п��дъём показывает, что элемент кликабельный, и делает страницу живой без
-   * постоянного шума от теней.
+   * Белая поверхность на серой подложке плюс едва заметная тень. Это не
+   * украшение: граница и тень вместе показывают, где кончается страница и
+   * начинается блок данных. Скругление обрезает фон шапки таблицы по краю.
    */
   .card {
     background-color: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
     transition:
-      box-shadow 160ms ease,
-      border-color 160ms ease,
-      transform 160ms ease;
+      box-shadow 180ms ease,
+      border-color 180ms ease,
+      transform 180ms ease;
   }
 
   /*
@@ -305,7 +302,7 @@
   .card-interactive:hover {
     border-color: var(--border-strong);
     box-shadow: var(--shadow-lift);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
   }
 
   .card-interactive:active {
@@ -318,38 +315,80 @@
   }
 
   /*
+   * Поле ввода.
+   *
+   * Один класс для полей вне `FormField`: доски собирали свои input и select
+   * с разной высотой и без кольца фокуса, поэтому форма на соседней странице
+   * выглядела как из другого приложения. Ширину задаёт вызывающий код.
+   */
+  .field {
+    width: 100%;
+    height: 40px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-strong);
+    background-color: var(--surface);
+    padding: 0 12px;
+    font-size: 13.5px;
+    color: var(--text);
+    box-shadow: var(--shadow-xs);
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+
+  .field::placeholder {
+    color: var(--text-subtle);
+  }
+
+  .field:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 10%, transparent);
+  }
+
+  .field:disabled {
+    opacity: 0.5;
+  }
+
+  .field[aria-invalid='true'] {
+    border-color: var(--danger);
+  }
+
+  select.field {
+    padding-right: 32px;
+  }
+
+  /*
    * Шапка таблицы.
    *
    * Фон отделяет названия колонок от данных. Без него шапка читается как
    * первая строка таблицы, и глаз каждый раз заново проверяет, где кончаются
-   * заголовки. Правило общее для всех таблиц: часть из них собрана на
-   * `DataTable`, часть — вручную, и оформлять их в двух местах означает
-   * получить две разные шапки.
+   * заголовки.
    */
   .stack-table thead {
-    background-color: color-mix(in srgb, var(--surface-2) 55%, transparent);
+    background-color: color-mix(in srgb, var(--surface-2) 70%, transparent);
   }
 
   .stack-table tbody tr {
-    transition: background-color 100ms ease;
+    transition: background-color 120ms ease;
   }
 
   .stack-table tbody tr:hover {
-    background-color: color-mix(in srgb, var(--surface-2) 70%, transparent);
+    background-color: color-mix(in srgb, var(--surface-2) 55%, transparent);
   }
 
   /*
    * Заголовок страницы.
    *
    * Один класс вместо строки утилит в тринадцати файлах: пока размер и
-   * трекинг набраны в разметке, любая правка «сделать заголовки на пиксель
-   * меньше» превращается в тринадцать правок и одну забытую.
+   * трекинг набраны в разметке, любая правка превращается в тринадцать
+   * правок и одну забытую.
    */
   .page-title {
-    font-size: 20px;
-    line-height: 1.25;
-    font-weight: 600;
-    letter-spacing: -0.028em;
+    font-size: 22px;
+    line-height: 1.2;
+    font-weight: 650;
+    letter-spacing: -0.032em;
     color: var(--text);
     text-wrap: balance;
   }
@@ -358,18 +397,18 @@
   .section-title {
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--text-subtle);
   }
 
-  /* Строка таблицы: единая высота, смена фона на наведении. */
+  /* Строка: единая высота, смена фона на наведении. */
   .row {
-    transition: background-color 100ms ease;
+    transition: background-color 120ms ease;
   }
 
   .row:hover {
-    background-color: var(--surface-2);
+    background-color: color-mix(in srgb, var(--surface-2) 55%, transparent);
   }
 
   /*
@@ -377,22 +416,21 @@
    *
    * Движение намеренно короткое и с вертикальным сдвигом в два пикселя:
    * длинная анимация при загрузке панели воспринимается как задержка, а не
-   * как оформление. Сдвиг вверх на 8px и больше выглядит как вылет блока.
+   * как оформление.
    */
   .fade-in {
-    animation: fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    animation: fade-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   /*
    * Каскад появления.
    *
-   * Список карточек появляется не разом, а по очереди: так девять
-   * одинаковых плиток проявляются один за другим. Задержка ограничена
+   * Список карточек появляется не разом, а по очереди. Задержка ограничена
    * десятью строками — на двадцатой анимация уже длилась бы дольше, чем
    * пользователь смотрит на страницу.
    */
   .stagger > * {
-    animation: fade-in 260ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation: fade-in 280ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
 
   .stagger > *:nth-child(1) { animation-delay: 0ms; }
@@ -410,8 +448,7 @@
    * Нажатие.
    *
    * Кнопка и пункт меню при нажатии уходят на пиксель вглубь — тактильный
-   * отклик без тактильного экрана. Без этого интерфейс кажется «мёртвым»
-   * на первый взгляд, хотя всё и работает.
+   * отклик без тактильного экрана.
    */
   .pressable {
     transition: transform 90ms ease;
@@ -444,11 +481,7 @@
  *
  * Ширина проверяется у контейнера, а не у окна: панель занимает часть ширины
  * на широком мониторе, и таблица внутри неё не помещается точно так же, как на
- * телефоне. Проверка по окну здесь врала бы.
- *
- * Порог в 40rem — не «ширина телефона», а ширина, ниже которой шесть колонок
- * в ряд перестают читаться. На телефоне это срабатывает с большим запасом, а на
- * планшете — ровно тогда, когда таблица действительно начинает жаться.
+ * телефоне. Проверка по окну в этой ситуации врала бы.
  *
  * Разметка остаётся таблицей: скринридер читает строку как строку в обеих
  * раскладках. Сворачиваются только стили.
@@ -469,7 +502,7 @@
   }
 
   .stack-table tr {
-    padding: 10px 16px;
+    padding: 12px 20px;
     border-bottom: 1px solid var(--border);
   }
 
@@ -478,7 +511,7 @@
     align-items: baseline;
     justify-content: space-between;
     gap: 16px;
-    padding: 3px 0;
+    padding: 4px 0;
     border: 0;
     text-align: right;
   }
@@ -488,7 +521,7 @@
     flex-shrink: 0;
     font-size: 11px;
     font-weight: 500;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
     color: var(--text-subtle);
     text-transform: uppercase;
     text-align: left;

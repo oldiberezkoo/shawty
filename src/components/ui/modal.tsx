@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { Dialog } from '@base-ui/react/dialog'
+import { X } from 'lucide-react'
 
 /**
  * Модальный диалог.
@@ -41,11 +42,11 @@ export function Modal({
             Без него длинный диалог на телефоне вылезал бы за края. */}
         <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
           <Dialog.Popup
-            className={`w-full ${width} max-h-[calc(100dvh-2rem)] overflow-auto rounded-[var(--radius-xl)] border border-border bg-surface shadow-[var(--shadow-lg)] transition-transform duration-150 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0`}
+            className={`w-full ${width} max-h-[calc(100dvh-2rem)] overflow-auto rounded-[20px] border border-border bg-surface shadow-[var(--shadow-lg)] transition-transform duration-150 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0`}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+            <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
               <div className="min-w-0">
-                <Dialog.Title className="text-[15px] font-semibold">{title}</Dialog.Title>
+                <Dialog.Title className="text-[16px] font-semibold tracking-[-0.02em]">{title}</Dialog.Title>
                 {description ? (
                   <Dialog.Description className="mt-1 text-[13px] leading-relaxed text-text-muted">
                     {description}
@@ -53,20 +54,18 @@ export function Modal({
                 ) : null}
               </div>
 
-              {/* Кнопка закрытия: у людей с подписью вместо иконки читаемость
-                  важнее компактности. */}
               <Dialog.Close
                 aria-label="Закрыть"
-                className="-mt-0.5 -mr-1 shrink-0 rounded-[var(--radius-sm)] px-1.5 text-[18px] leading-none text-text-subtle transition-colors hover:bg-surface-2 hover:text-text"
+                className="-mt-1 -mr-1 flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-text-subtle transition-colors hover:bg-surface-2 hover:text-text"
               >
-                ×
+                <X className="size-4" strokeWidth={1.9} />
               </Dialog.Close>
             </div>
 
-            {children ? <div className="px-5 py-4">{children}</div> : null}
+            {children ? <div className="px-6 py-5">{children}</div> : null}
 
             {footer ? (
-              <div className="flex justify-end gap-2 border-t border-border px-5 py-3.5">{footer}</div>
+              <div className="flex justify-end gap-2 border-t border-border px-6 py-4">{footer}</div>
             ) : null}
           </Dialog.Popup>
         </Dialog.Viewport>

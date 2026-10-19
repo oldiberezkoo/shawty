@@ -126,7 +126,11 @@ export function ScheduleBoard({ companyId }: { companyId: string }) {
 
         if (!response.ok || stopped) return
 
-        setPreview((await response.json()) as Preview)
+        // Маршрут отвечает `{ preview }`: без разворота в состоянии оказывался
+        // конверт, и календарь падал на `preview.screen.timezone`.
+        const data = (await response.json()) as { preview: Preview }
+        setPreview(data.preview)
+        setError(null)
       } catch {
         setError('Календарь пока недоступен')
       }

@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { Search, UploadCloud } from 'lucide-react'
+import { Button, ButtonIcon } from '@/components/ui/button'
 import { Card, EmptyState } from '@/components/ui/card'
 import { FormError } from '@/components/ui/form'
 import { Notice } from '@/components/ui/status-badge'
@@ -209,14 +210,16 @@ export function MediaLibrary(props: {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-border p-0.5">
+        <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-border-strong bg-surface p-1 shadow-[var(--shadow-xs)]">
           {(['all', 'image', 'video'] as const).map((value) => (
             <button
               key={value}
               type="button"
               onClick={() => setKind(value)}
-              className={`rounded-[var(--radius-sm)] px-2.5 py-1 text-[13px] transition-colors ${
-                kind === value ? 'bg-surface-2 font-medium text-text' : 'text-text-muted hover:text-text'
+              className={`h-8 rounded-[var(--radius-sm)] px-3 text-[13px] transition-colors ${
+                kind === value
+                  ? 'bg-primary-soft font-medium text-primary'
+                  : 'text-text-muted hover:bg-surface-2 hover:text-text'
               }`}
             >
               {value === 'all' ? 'Все' : value === 'image' ? 'Изображения' : 'Видео'}
@@ -224,13 +227,20 @@ export function MediaLibrary(props: {
           ))}
         </div>
 
-        <input
-          type="search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Поиск по имени файла"
-          className="h-9 w-full max-w-[280px] rounded-[var(--radius-md)] border border-border bg-surface px-3 text-[13px]"
-        />
+        <div className="relative w-full max-w-[280px]">
+          <Search
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-subtle"
+            strokeWidth={1.9}
+          />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Поиск по имени файла"
+            aria-label="Поиск по имени файла"
+            className="h-10 w-full rounded-[var(--radius-md)] border border-border-strong bg-surface pr-3 pl-9 text-[13.5px] text-text shadow-[var(--shadow-xs)] placeholder:text-text-subtle focus:border-primary focus:ring-4 focus:ring-primary/10 focus:outline-none"
+          />
+        </div>
 
         <div className="ml-auto flex items-center gap-2">
           {uploading > 0 ? (
@@ -249,7 +259,10 @@ export function MediaLibrary(props: {
                   event.target.value = ''
                 }}
               />
-              <Button variant="primary" size="sm" onClick={() => inputRef.current?.click()}>
+              <Button variant="primary" size="md" onClick={() => inputRef.current?.click()}>
+                <ButtonIcon>
+                  <UploadCloud className="size-4" strokeWidth={1.9} />
+                </ButtonIcon>
                 Загрузить файлы
               </Button>
             </>
@@ -258,7 +271,9 @@ export function MediaLibrary(props: {
       </div>
 
       {props.canUpload ? (
-        <div
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
           onDragOver={(event) => {
             event.preventDefault()
             setDragActive(true)
@@ -269,14 +284,17 @@ export function MediaLibrary(props: {
             setDragActive(false)
             if (event.dataTransfer.files.length > 0) void upload(event.dataTransfer.files)
           }}
-          className={`rounded-[var(--radius-lg)] border border-dashed px-4 py-3 text-center text-[13px] transition-colors ${
-            dragActive ? 'border-text-muted bg-surface-2 text-text' : 'border-border text-text-subtle'
+          className={`flex flex-col items-center justify-center gap-1.5 rounded-[var(--radius-lg)] border border-dashed px-4 py-5 text-[13px] transition-colors ${
+            dragActive
+              ? 'border-primary bg-primary-soft text-primary'
+              : 'border-border-strong bg-surface/50 text-text-subtle hover:border-primary/40 hover:bg-primary-soft/30 hover:text-text-muted'
           }`}
         >
           {/* Подпись меняется при наведении файла: покоящаяся полоса занимает
               место, а работает только в момент перетаскивания. */}
-          {dragActive ? 'Отпустите, чтобы загрузить' : 'Перетащите файлы сюда или нажмите «Загрузить файлы»'}
-        </div>
+          <UploadCloud className="size-5" strokeWidth={1.6} />
+          {dragActive ? 'Отпустите, чтобы загрузить' : 'Перетащите файлы сюда или выберите на компьютере'}
+        </button>
       ) : null}
 
       {visible.length === 0 ? (
@@ -288,9 +306,19 @@ export function MediaLibrary(props: {
                 ? 'Загрузите изображение или ролик — файл сразу попадёт в библиотеку и станет доступен для плейлистов.'
                 : 'Попробуйте другое слово или снимите фильтр по типу.'
             }
+            icon={
+              assets.length === 0 ? (
+                <UploadCloud className="size-5" strokeWidth={1.7} />
+              ) : (
+                <Search className="size-5" strokeWidth={1.7} />
+              )
+            }
             action={
               assets.length === 0 && props.canUpload ? (
-                <Button variant="primary" size="sm" onClick={() => inputRef.current?.click()}>
+                <Button variant="primary" size="md" onClick={() => inputRef.current?.click()}>
+                  <ButtonIcon>
+                    <UploadCloud className="size-4" strokeWidth={1.9} />
+                  </ButtonIcon>
                   Загрузить файлы
                 </Button>
               ) : null

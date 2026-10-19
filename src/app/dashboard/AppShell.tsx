@@ -3,8 +3,9 @@
 import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, CircleAlert, TriangleAlert } from 'lucide-react'
 import { BrandMark, SidebarNav, SidebarSheet, SidebarTrigger, NAV } from './SidebarNav'
+import { CommandMenu } from './CommandMenu'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { Toaster } from '@/components/ui/feedback'
 
@@ -51,8 +52,8 @@ export function AppShell({
         начнёт расходиться между экранами, что и происходит в приложениях,
         где мобильную версию делают отдельно и забывают про новые разделы.
       */}
-      <aside className="sticky top-0 hidden h-dvh w-[248px] shrink-0 flex-col border-r border-border bg-surface-rail md:flex">
-        <div className="flex h-[52px] shrink-0 items-center px-4">
+      <aside className="sticky top-0 hidden h-dvh w-[260px] shrink-0 flex-col border-r border-border bg-surface md:flex">
+        <div className="flex h-16 shrink-0 items-center px-5">
           <BrandMark />
         </div>
 
@@ -76,12 +77,12 @@ export function AppShell({
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 border-b border-border bg-bg/80 backdrop-blur-xl">
-          <div className="flex h-[52px] items-center gap-3 px-4 md:px-8">
+        <header className="sticky top-0 z-40 border-b border-border bg-surface/85 backdrop-blur-xl">
+          <div className="flex h-16 items-center gap-3 px-4 md:px-8">
             <SidebarTrigger onOpen={() => setNavOpen(true)} />
 
             <Link href="/dashboard" className="md:hidden">
-              <span className="text-[13.5px] font-semibold tracking-[-0.02em]">SHAWTY</span>
+              <span className="text-[14px] font-semibold tracking-[-0.02em]">SHAWTY</span>
             </Link>
 
             {/*
@@ -97,7 +98,8 @@ export function AppShell({
               </div>
             ) : null}
 
-            <div className="ml-auto flex items-center gap-1">
+            <div className="ml-auto flex items-center gap-2">
+              <CommandMenu />
               <ThemeToggle />
             </div>
           </div>
@@ -117,9 +119,16 @@ export function AppShell({
                 notice.tone === 'danger' ? 'text-danger' : 'text-warn'
               }`}
             >
-              <span>
-                <span className="font-medium">{notice.title}.</span>{' '}
-                <span className="opacity-90">{notice.hint}</span>
+              <span className="flex items-start gap-2">
+                {notice.tone === 'danger' ? (
+                  <CircleAlert className="mt-0.5 size-4 shrink-0" strokeWidth={1.9} />
+                ) : (
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0" strokeWidth={1.9} />
+                )}
+                <span>
+                  <span className="font-medium">{notice.title}.</span>{' '}
+                  <span className="opacity-90">{notice.hint}</span>
+                </span>
               </span>
               <Link href="/dashboard/billing" className="shrink-0 font-medium underline underline-offset-4">
                 К тарифу

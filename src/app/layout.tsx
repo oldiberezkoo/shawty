@@ -37,8 +37,8 @@ export const viewport: Viewport = {
   // Плеер на телевизоре: масштабирование пользователем не нужно и только мешает.
   maximumScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#17181a' },
+    { media: '(prefers-color-scheme: light)', color: '#f6f7f9' },
+    { media: '(prefers-color-scheme: dark)', color: '#0b0f17' },
   ],
 }
 

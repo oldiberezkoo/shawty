@@ -32,11 +32,11 @@ export function MetricTile({
   }
 
   const iconClass: Record<string, string> = {
-    default: 'text-text-muted',
-    success: 'text-success',
-    warn: 'text-warn',
-    danger: 'text-danger',
-    info: 'text-info',
+    default: 'bg-primary-soft text-primary',
+    success: 'bg-success-bg text-success',
+    warn: 'bg-warn-bg text-warn',
+    danger: 'bg-danger-bg text-danger',
+    info: 'bg-info-bg text-info',
   }
 
   const trendClass: Record<string, string> = {
@@ -46,12 +46,12 @@ export function MetricTile({
   }
 
   return (
-    <div className="card flex flex-col gap-2 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-[12px] leading-tight font-medium text-text-muted">{label}</span>
+    <div className="card flex flex-col gap-3 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <span className="pt-1 text-[12.5px] leading-tight font-medium text-text-muted">{label}</span>
         {icon ? (
           <span
-            className={`-mt-0.5 -mr-0.5 flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-surface-2 ${iconClass[tone]}`}
+            className={`flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] ${iconClass[tone]}`}
           >
             {icon}
           </span>
@@ -59,7 +59,7 @@ export function MetricTile({
       </div>
 
       <div className="flex items-baseline gap-2">
-        <span className={`tnum text-[27px] leading-none font-semibold tracking-[-0.035em] ${toneClass[tone]}`}>
+        <span className={`tnum text-[30px] leading-none font-semibold tracking-[-0.04em] ${toneClass[tone]}`}>
           {value}
         </span>
         {trend ? <span className={`text-[12px] font-medium ${trendClass[trend.tone]}`}>{trend.value}</span> : null}
@@ -96,7 +96,7 @@ export function UsageBar({
   limitText: string
 }) {
   const percent = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0
-  const tone = percent >= 100 ? 'bg-danger' : percent >= 80 ? 'bg-warn' : 'bg-info'
+  const tone = percent >= 100 ? 'bg-danger' : percent >= 80 ? 'bg-warn' : 'bg-primary'
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -108,7 +108,7 @@ export function UsageBar({
       </div>
 
       <div
-        className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3"
+        className="h-2 w-full overflow-hidden rounded-full bg-surface-3"
         role="progressbar"
         aria-valuenow={percent}
         aria-valuemin={0}

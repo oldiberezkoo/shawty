@@ -52,7 +52,7 @@ export default async function PairStartPage() {
       <Card>
         <CardHeader
           title="Код с телевизора"
-          description="Восемь цифр под надписью на экране. Обновляются каждые несколько минут — берите те, что видны сейчас."
+          description="Восемь символов под надписью на экране. Обновляются каждые несколько минут — берите те, что видны сейчас."
         />
         <CardBody>
           <CodeLookupForm />

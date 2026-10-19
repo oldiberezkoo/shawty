@@ -256,7 +256,7 @@ export function PlaylistList(props: {
         <select
           value={selectedId ?? ''}
           onChange={(event) => setSelectedId(event.target.value || null)}
-          className="h-9 rounded-[var(--radius-md)] border border-border bg-surface px-3 text-[13px]"
+          className="field w-64"
         >
           {playlists.length === 0 ? <option value="">Нет плейлистов</option> : null}
           {playlists.map((playlist) => (
@@ -268,13 +268,13 @@ export function PlaylistList(props: {
         </select>
 
         {props.canWrite ? (
-          <Button size="sm" onClick={() => void create()}>
+          <Button size="md" onClick={() => void create()}>
             Создать плейлист
           </Button>
         ) : null}
 
         {detail && props.canWrite ? (
-          <Button size="sm" onClick={() => setShowAssets((current) => !current)}>
+          <Button size="md" onClick={() => setShowAssets((current) => !current)}>
             {showAssets ? 'Скрыть медиатеку' : 'Добавить файлы'}
           </Button>
         ) : null}

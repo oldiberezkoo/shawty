@@ -10,6 +10,16 @@ export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = { title: 'Медиатека' }
 
+function plural(value: number, one: string, few: string, many: string): string {
+  const mod10 = value % 10
+  const mod100 = value % 100
+
+  if (mod10 === 1 && mod100 !== 11) return one
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
+
+  return many
+}
+
 export default async function MediaPage() {
   const session = await requireSession()
   const membership = session.companies[0]
@@ -40,12 +50,12 @@ export default async function MediaPage() {
       <Card>
         <CardHeader
           title="Хранилище"
-          description={`${usage.files} файлов · ${formatBytes(usage.usedBytes)} из ${formatBytes(usage.limitBytes)}`}
+          description={`${usage.files} ${plural(usage.files, 'файл', 'файла', 'файлов')} · ${formatBytes(usage.usedBytes)} из ${formatBytes(usage.limitBytes)}`}
         />
         <CardBody>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-surface-3">
             <div
-              className={`h-full transition-[width] ${percent > 90 ? 'bg-danger' : percent > 70 ? 'bg-warn' : 'bg-text'}`}
+              className={`h-full transition-[width] ${percent > 90 ? 'bg-danger' : percent > 70 ? 'bg-warn' : 'bg-primary'}`}
               style={{ width: `${percent}%` }}
             />
           </div>

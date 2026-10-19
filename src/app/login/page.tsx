@@ -73,49 +73,53 @@ function LoginForm() {
   }
 
   return (
-    <main className="grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_480px]">
+    <main className="grid min-h-dvh bg-bg lg:grid-cols-[minmax(0,1fr)_500px]">
       {/*
         Брендовая половина.
         На узком экране её нет: там каждый пиксель по вертикали занят формой,
         и вводный текст отодвигает поля ввода за пределы первого экрана.
       */}
-      <section className="relative hidden flex-col justify-between overflow-hidden border-r border-border bg-surface-rail p-10 lg:flex xl:p-14">
+      <section className="relative hidden flex-col justify-between overflow-hidden border-r border-border bg-surface p-10 lg:flex xl:p-14">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_60%_at_10%_0%,var(--surface-3),transparent_65%)]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(75%_55%_at_8%_0%,var(--primary-soft),transparent_68%)]"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-24 -bottom-32 size-[420px] rounded-full bg-primary-soft/60 blur-3xl"
         />
 
         <div className="relative flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-[var(--radius-md)] bg-primary text-primary-text shadow-[var(--shadow-xs)]">
-            <MonitorCheck className="size-[17px]" strokeWidth={1.9} />
+          <span className="flex size-9 items-center justify-center rounded-[var(--radius-md)] bg-primary text-primary-text shadow-[var(--shadow-brand)]">
+            <MonitorCheck className="size-[18px]" strokeWidth={1.9} />
           </span>
           <div className="leading-none">
-            <div className="text-[14px] font-semibold tracking-[-0.02em]">SHAWTY</div>
+            <div className="text-[15px] font-semibold tracking-[-0.025em]">SHAWTY</div>
             <div className="mt-1 text-[10.5px] text-text-subtle">Экранная сеть</div>
           </div>
         </div>
 
         <div className="relative max-w-[520px]">
-          <h2 className="text-[30px] leading-[1.15] font-semibold tracking-[-0.035em] text-balance">
+          <h2 className="text-[32px] leading-[1.12] font-semibold tracking-[-0.04em] text-balance">
             Контент на экранах — с подтверждением доставки
           </h2>
-          <p className="mt-3 max-w-[48ch] text-[13.5px] leading-relaxed text-text-muted">
+          <p className="mt-3.5 max-w-[48ch] text-[14px] leading-relaxed text-text-muted">
             Публикация, расписание и состояние телевизоров сети в одном месте — без звонков «а у нас
             точно обновилось?».
           </p>
 
-          <ul className="mt-9 flex flex-col gap-5">
+          <ul className="mt-10 flex flex-col gap-5">
             {FEATURES.map((feature) => {
               const Icon = feature.icon
 
               return (
                 <li key={feature.title} className="flex gap-3.5">
-                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-border bg-surface text-text-muted">
-                    <Icon className="size-4" strokeWidth={1.75} />
+                  <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-primary-border bg-primary-soft text-primary">
+                    <Icon className="size-4" strokeWidth={1.85} />
                   </span>
                   <div>
-                    <div className="text-[13px] font-medium">{feature.title}</div>
-                    <p className="mt-0.5 max-w-[44ch] text-[12.5px] leading-relaxed text-text-muted">
+                    <div className="text-[13.5px] font-semibold">{feature.title}</div>
+                    <p className="mt-0.5 max-w-[44ch] text-[13px] leading-relaxed text-text-muted">
                       {feature.text}
                     </p>
                   </div>
@@ -133,18 +137,18 @@ function LoginForm() {
           <ThemeToggle />
         </div>
 
-        <div className="mx-auto w-full max-w-[340px] fade-in">
+        <div className="mx-auto w-full max-w-[360px] fade-in">
           <div className="mb-7 lg:hidden">
-            <span className="flex size-8 items-center justify-center rounded-[var(--radius-md)] bg-primary text-primary-text shadow-[var(--shadow-xs)]">
-              <MonitorCheck className="size-[17px]" strokeWidth={1.9} />
+            <span className="flex size-10 items-center justify-center rounded-[var(--radius-md)] bg-primary text-primary-text shadow-[var(--shadow-brand)]">
+              <MonitorCheck className="size-5" strokeWidth={1.9} />
             </span>
           </div>
 
-          <h1 className="text-[21px] leading-tight font-semibold tracking-[-0.028em]">Вход в панель</h1>
-          <p className="mt-1.5 text-[13px] text-text-muted">Войдите, чтобы управлять экранами сети</p>
+          <h1 className="text-[24px] leading-tight font-semibold tracking-[-0.032em]">Вход в панель</h1>
+          <p className="mt-2 text-[13.5px] text-text-muted">Войдите, чтобы управлять экранами сети</p>
 
-          <Card className="mt-6 shadow-[var(--shadow-sm)]">
-            <CardBody className="p-5">
+          <Card className="mt-7 shadow-[var(--shadow-sm)]">
+            <CardBody className="p-6">
               <form onSubmit={onSubmit} className="flex flex-col gap-4">
                 {error ? <FormError>{error}</FormError> : null}
 
@@ -178,7 +182,7 @@ function LoginForm() {
             Получили приглашение?{' '}
             <Link
               href="/register"
-              className="font-medium text-text underline underline-offset-4 transition-colors hover:text-text-muted"
+              className="font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary-hover"
             >
               Создать учётную запись
             </Link>

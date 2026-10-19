@@ -10,25 +10,25 @@ type Size = 'sm' | 'md' | 'lg'
  * должно быть ровно одно — иначе взгляд не знает, куда нажать. Вторичные
  * действия уходят в приглушённый вид, опасные — подтверждением.
  *
- * У основной кнопки есть собственная тень: на белом фоне тёмная плашка и без
+ * У основной кнопки есть собственная тень: на белом фоне синяя плашка и без
  * неё читается, но тень отделяет её от страницы в тот момент, когда кнопка
  * стоит рядом с карточкой того же цвета.
  */
 const VARIANTS: Record<Variant, string> = {
   primary:
-    'bg-primary text-primary-text border border-transparent shadow-[var(--shadow-xs)] hover:bg-primary-hover active:bg-primary',
+    'bg-primary text-primary-text border border-transparent shadow-[0_1px_2px_rgb(70_95_255_/_0.28)] hover:bg-primary-hover active:bg-primary',
   secondary:
-    'bg-surface text-text border border-border shadow-[var(--shadow-xs)] hover:bg-surface-2 hover:border-border-strong active:bg-surface-3',
+    'bg-surface text-text border border-border-strong shadow-[var(--shadow-xs)] hover:bg-surface-2 active:bg-surface-3',
   ghost: 'bg-transparent text-text-muted border border-transparent hover:bg-surface-2 hover:text-text',
-  danger: 'bg-transparent text-danger border border-danger-border hover:bg-danger-bg active:bg-danger-bg',
+  danger: 'bg-danger-bg text-danger border border-danger-border hover:bg-danger-bg/75 active:bg-danger-bg',
   link: 'bg-transparent text-text border border-transparent underline underline-offset-4 hover:text-text-muted p-0 h-auto',
 }
 
 const SIZES: Record<Size, string> = {
   // Минимальная высота 32px — минимум для попадания пальцем на телефоне.
-  sm: 'h-8 px-2.5 text-[12.5px] gap-1.5 rounded-[var(--radius-sm)]',
-  md: 'h-9 px-3.5 text-[13px] gap-2 rounded-[var(--radius-md)]',
-  lg: 'h-10 px-5 text-[14px] gap-2 rounded-[var(--radius-md)]',
+  sm: 'h-8 px-3 text-[12.5px] gap-1.5 rounded-[var(--radius-sm)]',
+  md: 'h-10 px-4 text-[13px] gap-2 rounded-[var(--radius-md)]',
+  lg: 'h-11 px-5 text-[13.5px] gap-2 rounded-[var(--radius-md)]',
 }
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {

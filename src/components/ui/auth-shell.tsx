@@ -26,25 +26,25 @@ export function AuthShell({
 }) {
   return (
     <main className="relative flex min-h-dvh flex-col items-center justify-center px-5 py-14">
-      {/* Мягкая подсветка сверху: без неё белый экран с формой читается как
-          страница ошибки, а не как начало работы. */}
+      {/* Мягкая подсветка сверху: серый экран без неё читается как страница
+          ошибки, а не как начало работы. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(65%_45%_at_50%_0%,var(--surface-2),transparent_70%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_45%_at_50%_0%,var(--primary-soft),transparent_70%)]"
       />
 
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
 
-      <div className={`fade-in relative w-full ${width === 'md' ? 'max-w-[440px]' : 'max-w-[380px]'}`}>
-        <div className="mb-6 flex flex-col items-center text-center">
+      <div className={`fade-in relative w-full ${width === 'md' ? 'max-w-[460px]' : 'max-w-[400px]'}`}>
+        <div className="mb-7 flex flex-col items-center text-center">
           <Link
             href="/login"
             aria-label="На страницу входа"
-            className="mb-4 flex size-10 items-center justify-center rounded-[var(--radius-lg)] bg-primary text-primary-text shadow-[var(--shadow-sm)] transition-transform hover:scale-[1.03] active:translate-y-px"
+            className="mb-5 flex size-12 items-center justify-center rounded-[var(--radius-lg)] bg-primary text-primary-text shadow-[var(--shadow-brand)] transition-transform hover:scale-[1.03] active:translate-y-px"
           >
-            <MonitorPlay className="size-[18px]" strokeWidth={1.9} />
+            <MonitorPlay className="size-5" strokeWidth={1.9} />
           </Link>
 
           <h1 className="page-title">{title}</h1>

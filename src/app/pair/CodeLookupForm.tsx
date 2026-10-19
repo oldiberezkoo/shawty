@@ -48,7 +48,7 @@ export function CodeLookupForm() {
           const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null
           setError(payload?.error?.message ?? 'Код не подошёл')
           // Сбрасывается только после неудачи: введённый с телевизора код
-          // стирать незачем — человек, скорее всего, промахнулся одной цифрой
+          // стирать незачем — человек, скорее всего, промахнулся одним символом
           // и поправит её, а не начнёт заново.
           return
         }
@@ -78,7 +78,7 @@ export function CodeLookupForm() {
       return
     }
 
-    // Вставка нескольких цифр в одну ячейку: мобильная клавиатура нередко
+    // Вставка нескольких символов в одну ячейку: мобильная клавиатура нередко
     // приносит их пачкой, и требовать по одной означало бы терять ввод.
     setDigits((current) => {
       const next = [...current]
@@ -127,7 +127,7 @@ export function CodeLookupForm() {
             }}
             onPaste={(event) => {
               // Вставка кода целиком — обычное дело, если он открыт в другом
-              // окне. Без этого обработчика вставится только одна цифра.
+              // окне. Без этого обработчика вставится только один символ.
               event.preventDefault()
               const text = normalizeCode(event.clipboardData.getData('text')).slice(0, CODE_LENGTH)
               if (!text) return

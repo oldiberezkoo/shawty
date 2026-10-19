@@ -21,11 +21,11 @@ export function CardHeader({
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-border px-5 py-3.5">
+    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-border px-6 py-4">
       <div className="min-w-0">
-        <h2 className="text-[13.5px] leading-tight font-semibold tracking-[-0.012em]">{title}</h2>
+        <h2 className="text-[15px] leading-tight font-semibold tracking-[-0.018em]">{title}</h2>
         {description ? (
-          <p className="mt-1 max-w-[74ch] text-[12.5px] leading-relaxed text-text-muted">{description}</p>
+          <p className="mt-1 max-w-[74ch] text-[13px] leading-relaxed text-text-muted">{description}</p>
         ) : null}
       </div>
       {action ? <div className="flex shrink-0 items-center gap-2 self-center">{action}</div> : null}
@@ -34,7 +34,7 @@ export function CardHeader({
 }
 
 export function CardBody({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`px-5 py-4 ${className}`}>{children}</div>
+  return <div className={`px-6 py-5 ${className}`}>{children}</div>
 }
 
 /**
@@ -60,14 +60,16 @@ export function EmptyState({
   icon?: ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 px-6 py-14 text-center">
+    <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
       {icon ? (
-        <div className="mb-2 flex size-10 items-center justify-center rounded-[var(--radius-lg)] border border-border bg-surface-2 text-text-subtle">
+        <div className="mb-2 flex size-12 items-center justify-center rounded-[var(--radius-lg)] border border-primary-border bg-primary-soft text-primary">
           {icon}
         </div>
       ) : null}
-      <div className="text-[14px] font-semibold tracking-[-0.012em]">{title}</div>
-      {hint ? <p className="max-w-[48ch] text-[13px] leading-relaxed text-text-muted">{hint}</p> : null}
+      <div className="text-[15px] font-semibold tracking-[-0.018em]">{title}</div>
+      {hint ? (
+        <p className="max-w-[48ch] text-[13px] leading-relaxed text-text-muted">{hint}</p>
+      ) : null}
       {action ? <div className="mt-3">{action}</div> : null}
     </div>
   )

@@ -31,10 +31,10 @@ export function PageHeader({
           <div className="mb-1.5 flex items-center gap-1.5 text-[12px] text-text-subtle">{meta}</div>
         ) : null}
 
-        <h1 className="text-[20px] leading-[1.25] font-semibold tracking-[-0.028em] text-text">{title}</h1>
+        <h1 className="page-title">{title}</h1>
 
         {description ? (
-          <p className="mt-1.5 max-w-[78ch] text-[13px] leading-relaxed text-text-muted">{description}</p>
+          <p className="mt-2 max-w-[78ch] text-[13.5px] leading-relaxed text-text-muted">{description}</p>
         ) : null}
       </div>
 

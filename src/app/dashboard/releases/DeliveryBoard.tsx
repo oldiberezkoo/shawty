@@ -258,7 +258,7 @@ export function DeliveryBoard(props: {
           />
           <CardBody className="flex flex-col gap-4">
             <div className="flex flex-wrap items-end gap-3">
-              <label className="flex flex-col gap-1.5 text-[12px] text-text-muted">
+              <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
                 Область
                 <select
                   value={scopeType}
@@ -266,7 +266,7 @@ export function DeliveryBoard(props: {
                     setScopeType(event.target.value as 'company' | 'branch' | 'group')
                     setScopeId('')
                   }}
-                  className="h-9 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[13px] text-text"
+                  className="field w-40"
                 >
                   <option value="company">Вся компания</option>
                   <option value="branch">Филиал</option>
@@ -275,12 +275,12 @@ export function DeliveryBoard(props: {
               </label>
 
               {scopeType !== 'company' ? (
-                <label className="flex flex-col gap-1.5 text-[12px] text-text-muted">
+                <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
                   {scopeType === 'branch' ? 'Филиал' : 'Группа'}
                   <select
                     value={scopeId}
                     onChange={(event) => setScopeId(event.target.value)}
-                    className="h-9 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[13px] text-text"
+                    className="field w-56"
                   >
                     <option value="">Выберите</option>
                     {(scopeType === 'branch' ? props.branches : props.groups).map((option) => (
@@ -292,12 +292,12 @@ export function DeliveryBoard(props: {
                 </label>
               ) : null}
 
-              <label className="flex flex-col gap-1.5 text-[12px] text-text-muted">
+              <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
                 Версия плейлиста
                 <select
                   value={versionId}
                   onChange={(event) => setVersionId(event.target.value)}
-                  className="h-9 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[13px] text-text"
+                  className="field w-64"
                 >
                   <option value="">Выберите</option>
                   {versionOptions.map((option) => (
@@ -308,11 +308,11 @@ export function DeliveryBoard(props: {
                 </select>
               </label>
 
-              <Button size="sm" disabled={busy} onClick={() => void assign()}>
+              <Button size="md" disabled={busy} onClick={() => void assign()}>
                 Назначить
               </Button>
 
-              <Button size="sm" variant="primary" disabled={busy} onClick={() => void publish()}>
+              <Button size="md" variant="primary" disabled={busy} onClick={() => void publish()}>
                 Опубликовать на сеть
               </Button>
             </div>

@@ -16,12 +16,11 @@ import type { ReactNode } from 'react'
  * и разъехался по высоте от компонента к компоненту.
  */
 
-const FIELD_CLASS =
-  'w-full rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm text-text placeholder:text-text-subtle transition-colors focus:border-border-strong focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/25 disabled:opacity-50 aria-invalid:border-danger'
+const FIELD_CLASS = 'field'
 
-const INPUT_CLASS = `${FIELD_CLASS} h-9`
+const INPUT_CLASS = FIELD_CLASS
 
-const LABEL_CLASS = 'text-[12px] font-medium text-text-muted'
+const LABEL_CLASS = 'text-[12.5px] font-medium text-text'
 const DESCRIPTION_CLASS = 'text-[12px] leading-relaxed text-text-subtle'
 
 export function FormField({
@@ -157,7 +156,7 @@ export function SelectField({
       >
         <Select.Trigger
           aria-invalid={error ? true : undefined}
-          className={`${FIELD_CLASS} flex h-9 items-center justify-between gap-2 text-left data-[placeholder]:text-text-subtle`}
+          className={`${FIELD_CLASS} flex items-center justify-between gap-2 text-left data-[placeholder]:text-text-subtle`}
         >
           <Select.Value placeholder={placeholder} />
           <Select.Icon className="shrink-0 text-text-subtle">
@@ -169,14 +168,14 @@ export function SelectField({
 
         <Select.Portal>
           <Select.Positioner className="z-50 mt-1 w-[var(--anchor-width)]">
-            <Select.Popup className="max-h-72 overflow-auto rounded-[var(--radius-md)] border border-border bg-surface p-1 shadow-[var(--shadow-md)]">
+            <Select.Popup className="max-h-72 overflow-auto rounded-[var(--radius-lg)] border border-border bg-surface-raised p-1.5 shadow-[var(--shadow-md)]">
               <Select.List>
                 {options.map((option) => (
                   <Select.Item
                     key={option.value}
                     value={option.value}
                     disabled={option.disabled}
-                    className="flex cursor-default items-center justify-between gap-2 rounded-[var(--radius-sm)] px-2.5 py-1.5 text-sm text-text outline-none data-[highlighted]:bg-surface-2 data-[selected]:font-medium data-[disabled]:opacity-50"
+                    className="flex cursor-default items-center justify-between gap-2 rounded-[var(--radius-sm)] px-2.5 py-2 text-[13.5px] text-text outline-none data-[highlighted]:bg-surface-2 data-[selected]:font-medium data-[disabled]:opacity-50"
                   >
                     <Select.ItemText>{option.label}</Select.ItemText>
                     <Select.ItemIndicator className="text-text-muted">
@@ -246,7 +245,7 @@ export function FormError({ children, onDismiss }: { children: ReactNode; onDism
   return (
     <div
       role="alert"
-      className="flex items-start justify-between gap-3 rounded-[var(--radius-md)] border border-danger-border bg-danger-bg px-3 py-2.5 text-[13px] text-danger"
+      className="flex items-start justify-between gap-3 rounded-[var(--radius-lg)] border border-danger-border bg-danger-bg px-3.5 py-3 text-[13px] text-danger"
     >
       <span className="leading-relaxed">{children}</span>
       {onDismiss ? (
@@ -268,7 +267,7 @@ export function FormSuccess({ children, onDismiss }: { children: ReactNode; onDi
   return (
     <div
       role="status"
-      className="flex items-start justify-between gap-3 rounded-[var(--radius-md)] border border-success-border bg-success-bg px-3 py-2.5 text-[13px] text-success"
+      className="flex items-start justify-between gap-3 rounded-[var(--radius-lg)] border border-success-border bg-success-bg px-3.5 py-3 text-[13px] text-success"
     >
       <span className="leading-relaxed">{children}</span>
       {onDismiss ? (

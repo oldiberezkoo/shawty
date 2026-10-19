@@ -417,66 +417,66 @@ function CampaignForm(props: {
         ) : null}
 
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1.5 text-[12px] text-text-muted">
+          <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
             Название
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="h-9 w-56 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[13px] text-text"
+              className="field w-56"
               placeholder="Осенняя акция"
             />
           </label>
 
-          <label className="flex flex-col gap-1.5 text-[12px] text-text-muted">
+          <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
             Тип
             <select
               value={kind}
               onChange={(event) => setKind(event.target.value as 'internal' | 'commercial')}
-              className="h-9 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[13px] text-text"
+              className="field w-36"
             >
               <option value="internal">внутренний</option>
               <option value="commercial">реклама</option>
             </select>
           </label>
 
-          <label className="flex flex-col gap-1.5 text-[12px] text-text-muted">
+          <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
             Приоритет
             <input
               type="number"
               value={priority}
               onChange={(event) => setPriority(Number.parseInt(event.target.value || '0', 10))}
-              className="tnum h-9 w-20 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[13px] text-text"
+              className="field tnum w-20"
             />
           </label>
 
-          <label className="flex flex-col gap-1.5 text-[12px] text-text-muted">
+          <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
             Начало
             <input
               type="date"
               value={startsOn}
               onChange={(event) => setStartsOn(event.target.value)}
-              className="h-9 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[13px] text-text"
+              className="field w-36"
             />
           </label>
 
-          <label className="flex flex-col gap-1.5 text-[12px] text-text-muted">
+          <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
             Окончание
             <input
               type="date"
               value={endsOn}
               onChange={(event) => setEndsOn(event.target.value)}
-              className="h-9 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[13px] text-text"
+              className="field w-36"
             />
           </label>
         </div>
 
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1.5 text-[12px] text-text-muted">
+          <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
             Версия плейлиста
             <select
               value={playlistVersionId}
               onChange={(event) => setPlaylistVersionId(event.target.value)}
-              className="h-9 w-64 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[13px] text-text"
+              className="field w-64"
             >
               <option value="">Не выбрана</option>
               {props.playlistVersions.map((option) => (
@@ -487,7 +487,7 @@ function CampaignForm(props: {
             </select>
           </label>
 
-          <label className="flex flex-col gap-1.5 text-[12px] text-text-muted">
+          <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
             Область
             <select
               value={scopeType}
@@ -495,7 +495,7 @@ function CampaignForm(props: {
                 setScopeType(event.target.value as typeof scopeType)
                 setScopeId('')
               }}
-              className="h-9 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[13px] text-text"
+              className="field w-36"
             >
               <option value="company">Вся компания</option>
               <option value="branch">Филиал</option>
@@ -505,12 +505,12 @@ function CampaignForm(props: {
           </label>
 
           {scopeType !== 'company' ? (
-            <label className="flex flex-col gap-1.5 text-[12px] text-text-muted">
+            <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
               {scopeType === 'branch' ? 'Филиал' : scopeType === 'group' ? 'Группа' : 'Экран'}
               <select
                 value={scopeId}
                 onChange={(event) => setScopeId(event.target.value)}
-                className="h-9 w-56 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[13px] text-text"
+                className="field w-56"
               >
                 <option value="">Выберите</option>
                 {scopeOptions.map((option) => (

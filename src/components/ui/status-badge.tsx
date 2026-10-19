@@ -33,7 +33,7 @@ export function StatusBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11.5px] font-medium whitespace-nowrap ${style.className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap ${style.className}`}
     >
       {children ?? <span className="size-1.5 rounded-full bg-current opacity-70" />}
       {label ?? style.label}
@@ -74,7 +74,7 @@ const TONE_CLASS: Record<Tone, string> = {
 
 export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center rounded-[var(--radius-sm)] px-1.5 py-0.5 text-[11.5px] font-medium whitespace-nowrap ${TONE_CLASS[tone]}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap ${TONE_CLASS[tone]}`}>
       {children}
     </span>
   )
@@ -125,11 +125,13 @@ export function Notice({
   const Icon = tone === 'success' ? CircleCheck : tone === 'danger' ? CircleAlert : tone === 'warn' ? TriangleAlert : Info
 
   return (
-    <div className={`flex items-start gap-3 rounded-[var(--radius-lg)] border px-4 py-3 ${border[tone]}`}>
-      <Icon className={`mt-px size-4 shrink-0 ${text[tone]}`} strokeWidth={1.9} />
+    <div className={`flex items-start gap-3 rounded-[var(--radius-lg)] border px-4 py-3.5 ${border[tone]}`}>
+      <span className={`mt-px flex size-7 shrink-0 items-center justify-center rounded-full bg-surface/60 ${text[tone]}`}>
+        <Icon className="size-4" strokeWidth={1.9} />
+      </span>
 
       <div className="min-w-0 flex-1">
-        {title ? <div className={`text-[12.5px] font-semibold ${text[tone]}`}>{title}</div> : null}
+        {title ? <div className={`text-[13px] font-semibold ${text[tone]}`}>{title}</div> : null}
         <div className={`text-[12.5px] leading-relaxed ${title ? 'mt-0.5 opacity-90' : ''}`}>{children}</div>
       </div>
 
