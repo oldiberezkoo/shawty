@@ -485,6 +485,12 @@ export function PlayerDisplay() {
         // Манифест пришёл по каналу: применяем его без обращения к серверу.
         const payload = frame as { type: 'assignment'; releaseVersion: number; manifest: unknown }
 
+        // Запоздавший кадр из очереди не должен откатывать экран на старую
+        // программу. Сравнение по версии, а не по времени прихода: сеть
+        // может переставить два кадра местами.
+        const currentVersion = manifestRef.current?.version
+        if (currentVersion != null && payload.releaseVersion < currentVersion) return
+
         // Пустая публикация: показывать нечего. Сразу забираем состояние,
         // чтобы экран перешёл в «ждёт контент», не дожидаясь опроса.
         if (payload.manifest == null) {

@@ -46,6 +46,16 @@ describe('хеш манифеста', () => {
     expect(first.manifestHash).toBe(second.manifestHash)
   })
 
+  it('сохраняет общую точку отсчёта для экранов одной публикации', () => {
+    const epoch = new Date('2026-01-01T00:00:00Z')
+    const first = buildManifest(source({ syncEpoch: epoch }), new Date('2026-01-01T00:00:01Z'))
+    const second = buildManifest(source({ syncEpoch: epoch }), new Date('2026-01-01T00:00:05Z'))
+
+    expect(first.syncEpoch).toBe(epoch.toISOString())
+    expect(second.syncEpoch).toBe(first.syncEpoch)
+    expect(second.manifestHash).toBe(first.manifestHash)
+  })
+
   it('не меняется от перевыпуска подписи пропуска на тот же файл', () => {
     const withOldTicket = buildManifest(
       source({

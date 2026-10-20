@@ -142,6 +142,37 @@ describe('позиция для момента времени', () => {
     const now = new Date('2026-10-17T10:00:00.000Z')
     expect(positionForInstant(items, since.toISOString(), now)).toEqual({ itemIndex: 0, offsetMs: 0 })
   })
+
+  it('проходит весь длинный плейлист, включая последний ролик до конца', () => {
+    const long = Array.from({ length: 11 }, (_, index) =>
+      item({ id: `v${index}`, kind: 'video', durationMs: 5_000 + index * 1_000 }),
+    )
+    const since = new Date('2026-10-17T10:00:00.000Z')
+
+    let elapsed = 0
+
+    for (const [index, current] of long.entries()) {
+      // Середина каждого ролика должна попадать именно в него.
+      const position = positionForInstant(
+        long,
+        since.toISOString(),
+        new Date(since.getTime() + elapsed + Math.floor(current.durationMs / 2)),
+      )
+
+      expect(position).toEqual({ itemIndex: index, offsetMs: Math.floor(current.durationMs / 2) })
+      elapsed += current.durationMs
+    }
+
+    // Конец последнего ролика — это ещё последний ролик, а не сброс раньше.
+    const last = positionForInstant(
+      long,
+      since.toISOString(),
+      new Date(since.getTime() + elapsed - 1),
+    )
+
+    expect(last?.itemIndex).toBe(10)
+    expect(last?.offsetMs).toBe(long[10]!.durationMs - 1)
+  })
 })
 
 describe('переход к следующему элементу', () => {
