@@ -188,6 +188,15 @@ export function PlayerDisplay() {
    */
   const [manifestVersion, setManifestVersion] = useState<number | null>(null)
 
+  /**
+   * Счётчик повторов одного и того же материала.
+   *
+   * Плейлист из одного ролика зацикливается, не меняя `itemIndex` и `item.id`.
+   * Без отдельного счётчика React не пересоздал бы `<video>`, и после первого
+   * проигрывания экран остался бы на последнем кадре.
+   */
+  const [playbackNonce, setPlaybackNonce] = useState(0)
+
   // ── Учётные данные и токен ────────────────────────────────────────────────
 
   const exchangeForToken = useCallback(async (credential: DeviceCredential): Promise<string> => {
@@ -940,6 +949,10 @@ export function PlayerDisplay() {
       positionRef.current = { itemIndex: nextIndex, offsetMs: nextOffset }
       setItemIndex(nextIndex)
       setItem(manifest.items[nextIndex] ?? null)
+
+      // Единственный материал не меняет ни индекс, ни id — перезапускаем его
+      // отдельным счётчиком, иначе после `onEnded` показ замрёт на последнем кадре.
+      if (manifest.items.length === 1) setPlaybackNonce((value) => value + 1)
     },
     [itemIndex, reportPlayback, serverNow],
   )
@@ -969,7 +982,7 @@ export function PlayerDisplay() {
     const timer = setTimeout(() => advancePlayback(true), delay)
 
     return () => clearTimeout(timer)
-  }, [advancePlayback, clockRevision, item?.id, itemIndex, manifestVersion, phase, serverNow])
+  }, [advancePlayback, clockRevision, item?.id, itemIndex, manifestVersion, phase, playbackNonce, serverNow])
 
   /**
    * После уточнения часов проверяем, тот ли материал показывается.
@@ -1124,7 +1137,7 @@ export function PlayerDisplay() {
   useEffect(() => {
     if (phase !== 'ready' || !item) return
     reportPlayback('started', item.id, 0)
-  }, [itemIndex, phase, item, reportPlayback])
+  }, [itemIndex, phase, item, playbackNonce, reportPlayback])
 
   /** Ошибка файла: пропускаем материал, но не останавливаем показ. */
   const onItemError = useCallback(() => {
@@ -1192,7 +1205,7 @@ export function PlayerDisplay() {
     <main className="fixed inset-0 size-full overflow-hidden bg-black">
       {item.kind === 'video' ? (
         <video
-          key={item.id}
+          key={`${item.id}:${playbackNonce}`}
           ref={videoRef}
           src={item.url}
           autoPlay
@@ -1208,7 +1221,7 @@ export function PlayerDisplay() {
         // Изображение вписывается целиком: обрезка рекламы недопустима.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          key={item.id}
+          key={`${item.id}:${playbackNonce}`}
           src={item.url}
           alt=""
           onError={onItemError}
