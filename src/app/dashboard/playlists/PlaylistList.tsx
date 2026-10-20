@@ -55,16 +55,6 @@ type Detail = {
   items: PlaylistItem[]
 }
 
-type VersionEntry = {
-  id: string
-  version: number
-  itemCount: number
-  totalDurationMs: number
-  note: string | null
-  createdAt: string
-  isCurrent: boolean
-}
-
 function readCsrf(): string {
   const match = document.cookie.match(new RegExp(`(?:^|; )${CSRF_COOKIE}=([^;]+)`))
   return match?.[1] ? decodeURIComponent(match[1]) : ''

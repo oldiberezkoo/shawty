@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { route, jsonResponse, readJsonBody } from '@/server/http/request'
 import { PERMISSIONS } from '@/domain/authz/permissions'
 import { addItems, getPlaylist, reorderItems } from '@/server/services/playlist-service'
+import { syncPlaylistToScreens } from '@/server/services/playlist-sync-service'
 import { requireDashboardMutation, requirePermission } from '@/server/http/dashboard-request'
 import { HttpError } from '@/server/http/errors'
 
@@ -19,7 +20,7 @@ type Context = { params: Promise<{ id: string }> }
 
 /** Добавление файлов из медиатеки в конец плейлиста. */
 export const POST = route(async (request: Request, context: Context) => {
-  const { companyId, access } = await requireDashboardMutation(request)
+  const { companyId, access, session } = await requireDashboardMutation(request)
   const { id } = await context.params
 
   requirePermission(access, PERMISSIONS.playlistsWrite, 'Нет прав на изменение плейлистов')
@@ -36,7 +37,11 @@ export const POST = route(async (request: Request, context: Context) => {
     durationMs: body.data.durationMs ?? null,
   })
 
-  return jsonResponse({ ...result, playlist: getPlaylist(companyId, id) })
+  // Правка сразу становится текущей программой: отдельной публикации в
+  // интерфейсе больше нет.
+  const sync = syncPlaylistToScreens({ companyId, playlistId: id, actorUserId: session.userId })
+
+  return jsonResponse({ ...result, sync, playlist: getPlaylist(companyId, id) })
 })
 
 /**
@@ -46,7 +51,7 @@ export const POST = route(async (request: Request, context: Context) => {
  * между отрисовкой и сохранением при любом параллельном изменении.
  */
 export const PUT = route(async (request: Request, context: Context) => {
-  const { companyId, access } = await requireDashboardMutation(request)
+  const { companyId, access, session } = await requireDashboardMutation(request)
   const { id } = await context.params
 
   requirePermission(access, PERMISSIONS.playlistsWrite, 'Нет прав на изменение плейлистов')
@@ -57,5 +62,7 @@ export const PUT = route(async (request: Request, context: Context) => {
   }
 
   reorderItems(companyId, id, body.data.orderedItemIds)
-  return jsonResponse({ playlist: getPlaylist(companyId, id) })
+  const sync = syncPlaylistToScreens({ companyId, playlistId: id, actorUserId: session.userId })
+
+  return jsonResponse({ sync, playlist: getPlaylist(companyId, id) })
 })

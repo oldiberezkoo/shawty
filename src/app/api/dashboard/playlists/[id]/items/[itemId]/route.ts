@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { route, jsonResponse, readJsonBody } from '@/server/http/request'
 import { PERMISSIONS } from '@/domain/authz/permissions'
 import { getPlaylist, removeItem, setItemDuration } from '@/server/services/playlist-service'
+import { syncPlaylistToScreens } from '@/server/services/playlist-sync-service'
 import { requireDashboardMutation, requirePermission } from '@/server/http/dashboard-request'
 import { HttpError } from '@/server/http/errors'
 
@@ -17,18 +18,19 @@ const patchSchema = z.object({
 
 /** Удаление элемента. Позиции оставшихся схлопываются. */
 export const DELETE = route(async (request: Request, context: Context) => {
-  const { companyId, access } = await requireDashboardMutation(request)
+  const { companyId, access, session } = await requireDashboardMutation(request)
   const { id, itemId } = await context.params
 
   requirePermission(access, PERMISSIONS.playlistsWrite, 'Нет прав на изменение плейлистов')
 
   removeItem(companyId, id, itemId)
-  return jsonResponse({ playlist: getPlaylist(companyId, id) })
+  const sync = syncPlaylistToScreens({ companyId, playlistId: id, actorUserId: session.userId })
+  return jsonResponse({ sync, playlist: getPlaylist(companyId, id) })
 })
 
 /** Правка слайда: пока только длительность, но растёт она здесь. */
 export const PATCH = route(async (request: Request, context: Context) => {
-  const { companyId, access } = await requireDashboardMutation(request)
+  const { companyId, access, session } = await requireDashboardMutation(request)
   const { id, itemId } = await context.params
 
   requirePermission(access, PERMISSIONS.playlistsWrite, 'Нет прав на изменение плейлистов')
@@ -39,5 +41,6 @@ export const PATCH = route(async (request: Request, context: Context) => {
   }
 
   setItemDuration({ companyId, playlistId: id, itemId, durationMs: body.data.durationMs })
-  return jsonResponse({ playlist: getPlaylist(companyId, id) })
+  const sync = syncPlaylistToScreens({ companyId, playlistId: id, actorUserId: session.userId })
+  return jsonResponse({ sync, playlist: getPlaylist(companyId, id) })
 })

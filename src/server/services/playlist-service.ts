@@ -222,7 +222,14 @@ export function listPublishedVersions(companyId: string, limit = 300): PlaylistV
     })
     .from(playlistVersions)
     .innerJoin(playlists, eq(playlists.id, playlistVersions.playlistId))
-    .where(eq(playlists.companyId, companyId))
+    .where(
+      and(
+        eq(playlists.companyId, companyId),
+        // Наружу показываем только актуальную версию: отдельного выбора
+        // «какой снимок назначить» в продукте больше нет.
+        eq(playlists.currentVersionId, playlistVersions.id),
+      ),
+    )
     .orderBy(asc(playlists.name), sql`${playlistVersions.version} desc`)
     .limit(limit)
     .all()
@@ -412,7 +419,9 @@ export function addItems(params: {
           playlistId: params.playlistId,
           mediaAssetId: asset.id,
           position: startPosition + 1 + index,
-          durationMs: params.durationMs ?? null,
+          // Длительность относится только к изображениям. У видео всегда
+          // играет весь ролик, поэтому поле остаётся пустым.
+          durationMs: asset.kind === 'video' ? null : (params.durationMs ?? null),
           playPolicy: 'loop_once',
           transition: 'none',
           audio: asset.kind === 'video' ? 'keep' : 'mute',
@@ -547,13 +556,25 @@ export function publishPlaylist(params: {
   playlistId: string
   actorUserId: string
   note?: string | null
+  /**
+   * Автосохранение может выпустить и пустой состав: если оператор убрал все
+   * файлы, экран обязан показать «нет контента», а не продолжать крутить
+   * старую версию. Ручная публикация по-прежнему требует хотя бы один файл.
+   */
+  allowEmpty?: boolean
+  /** Каждое автосохранение не должно забивать журнал «публикациями». */
+  audit?: boolean
 }): PublishResult {
   requirePlaylist(params.companyId, params.playlistId)
 
   const items = loadItems(params.playlistId)
   const unready = items.filter((item) => item.state !== 'ready').map((item) => item.id)
 
-  const problems = validateDraft(items, { unreadyAssetIds: unready })
+  let problems = validateDraft(items, { unreadyAssetIds: unready })
+  if (params.allowEmpty) {
+    problems = problems.filter((problem) => problem.code !== 'empty')
+  }
+
   if (problems.length > 0) {
     throw HttpError.badRequest(
       problems[0]?.code ?? 'invalid_draft',
@@ -605,18 +626,20 @@ export function publishPlaylist(params: {
       .where(eq(playlists.id, params.playlistId))
       .run()
 
-    tx.insert(auditLog)
-      .values({
-        id: crypto.randomUUID(),
-        companyId: params.companyId,
-        actorUserId: params.actorUserId,
-        action: 'playlist.published',
-        targetType: 'playlist',
-        targetId: params.playlistId,
-        metaJson: JSON.stringify({ version, itemCount: items.length }),
-        at: new Date(),
-      })
-      .run()
+    if (params.audit !== false) {
+      tx.insert(auditLog)
+        .values({
+          id: crypto.randomUUID(),
+          companyId: params.companyId,
+          actorUserId: params.actorUserId,
+          action: 'playlist.published',
+          targetType: 'playlist',
+          targetId: params.playlistId,
+          metaJson: JSON.stringify({ version, itemCount: items.length }),
+          at: new Date(),
+        })
+        .run()
+    }
 
     return { versionId, version, itemCount: items.length, cycleDurationMs: total }
   })

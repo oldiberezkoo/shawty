@@ -24,13 +24,14 @@ export function effectiveDurationMs(
   item: Pick<PlaylistItemInput, 'kind' | 'assetDurationMs' | 'durationMs'>,
   defaultImageDurationMs: number,
 ): number {
-  if (item.durationMs !== null && item.durationMs > 0) return item.durationMs
-
+  // Видео всегда играет до конца. Ручное поле «показ, сек» для ролика
+  // бессмысленно: обрезка рекламы на середине — это не настройка, а ошибка.
+  // Старые записи с duration_ms у видео поэтому тоже игнорируются.
   if (item.kind === 'video') {
-    // Видео играет до конца; без известной длительности показываем
-    // минимальный осмысленный слайд, а не ноль.
     return item.assetDurationMs && item.assetDurationMs > 0 ? item.assetDurationMs : 1000
   }
+
+  if (item.durationMs !== null && item.durationMs > 0) return item.durationMs
 
   return defaultImageDurationMs
 }
