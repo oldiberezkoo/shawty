@@ -34,10 +34,14 @@ export function PairingScreen() {
   const [remaining, setRemaining] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [storageWarning, setStorageWarning] = useState(false)
+  /** Когда сервер разрешит следующую попытку после 429. */
+  const [retryAt, setRetryAt] = useState<number | null>(null)
+  const [retryLeftMs, setRetryLeftMs] = useState(0)
 
   const socketRef = useRef<WebSocket | null>(null)
   const sessionRef = useRef<StartResponse | null>(null)
   const nonceRef = useRef<string | null>(null)
+  const startedRef = useRef(false)
 
   const exchange = useCallback(async () => {
     const start = sessionRef.current
@@ -103,6 +107,8 @@ export function PairingScreen() {
   const startSession = useCallback(async () => {
     try {
       setError(null)
+      setRetryAt(null)
+      setRetryLeftMs(0)
       setQrDataUrl(null)
       setSession(null)
       sessionRef.current = null
@@ -127,7 +133,28 @@ export function PairingScreen() {
       })
 
       if (!response.ok) {
-        setError('Не удалось начать привязку. Проверьте подключение к сети.')
+        const data = (await response.json().catch(() => null)) as
+          | { error?: { code?: string; message?: string; retryAfterMs?: number } }
+          | null
+        const failure = data?.error
+
+        // 429 — это не «нет сети». Сервер говорит, сколько ждать, и экран
+        // обязан это показать: иначе человек решает, что телевизор не видит
+        // сервер, и начинает перезагружать страницу, тратя остаток лимита.
+        if (response.status === 429) {
+          const headerSeconds = Number(response.headers.get('retry-after') ?? '0')
+          const retryAfterMs =
+            failure?.retryAfterMs && failure.retryAfterMs > 0
+              ? failure.retryAfterMs
+              : headerSeconds > 0
+                ? headerSeconds * 1000
+                : 60_000
+
+          setRetryAt(Date.now() + retryAfterMs)
+          setRetryLeftMs(retryAfterMs)
+        }
+
+        setError(failure?.message ?? 'Не удалось начать привязку. Проверьте подключение к сети.')
         setPhase('error')
         return
       }
@@ -153,8 +180,36 @@ export function PairingScreen() {
   }, [])
 
   useEffect(() => {
+    // В разработке React дважды запускает эффекты (StrictMode), а Fast Refresh
+    // перезапускает их при каждой правке файла. Старт привязки не идемпотентен:
+    // каждая попытка тратит общий лимит на IP, и без этого предохранителя
+    // страница за пару перезагрузок сама себя блокировала на 10 минут.
+    if (startedRef.current) return
+    startedRef.current = true
     void startSession()
   }, [startSession])
+
+  // Ожидание после 429. Когда сервер разрешает попытку, экран повторяет её
+  // сам: человек у телевизора не обязан считать минуты и жать «Повторить».
+  useEffect(() => {
+    if (phase !== 'error' || retryAt === null) return
+
+    const tick = () => {
+      const left = retryAt - Date.now()
+      setRetryLeftMs(Math.max(0, left))
+
+      if (left <= 0) {
+        setRetryAt(null)
+        setPhase('starting')
+        void startSession()
+      }
+    }
+
+    tick()
+    const timer = setInterval(tick, 1000)
+
+    return () => clearInterval(timer)
+  }, [phase, retryAt, startSession])
 
   // Канал устройства: push-подтверждение быстрее опроса и работает,
   // когда телевизор «заснул» по таймеру браузера.
@@ -265,6 +320,9 @@ export function PairingScreen() {
   const minutes = Math.floor(remaining / 60_000)
   const seconds = Math.floor((remaining % 60_000) / 1000)
 
+  const retrySeconds = Math.ceil(retryLeftMs / 1000)
+  const retryLabel = `${Math.floor(retrySeconds / 60)}:${String(retrySeconds % 60).padStart(2, '0')}`
+
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-10 px-12 py-16 text-center">
       <div>
@@ -345,13 +403,14 @@ export function PairingScreen() {
           <p className="text-[22px] text-[color:var(--danger)]">{error}</p>
           <button
             type="button"
+            disabled={retryLeftMs > 0}
             onClick={() => {
               setPhase('starting')
               void startSession()
             }}
-            className="rounded-[8px] bg-[color:var(--primary)] px-8 py-3.5 text-[18px] font-medium text-[color:var(--primary-text)]"
+            className="rounded-[8px] bg-[color:var(--primary)] px-8 py-3.5 text-[18px] font-medium text-[color:var(--primary-text)] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Повторить
+            {retryLeftMs > 0 ? `Повторить через ${retryLabel}` : 'Повторить'}
           </button>
         </div>
       ) : null}
