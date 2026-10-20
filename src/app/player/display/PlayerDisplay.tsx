@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { AlertTriangle, Link2, Loader2, MonitorPlay, WifiOff } from 'lucide-react'
 import {
   decideAfterFailure,
   normalizeManifest,
@@ -506,9 +507,10 @@ export function PlayerDisplay() {
    * «нет связи» на экране в магазине только мешает людям.
    */
   useEffect(() => {
-    // Фаза «нет связи» тоже ждёт: экран обязан вернуться в показ сам,
-    // как только сервер снова отвечает.
-    if (phase !== 'ready' && phase !== 'offline') return
+    // Канал нужен всем рабочим состояниям. Пустой экран ждёт назначения:
+    // без сокета он узнал бы о нём только на редком опросе, и оператор
+    // решил бы, что телевизор не подхватывает плейлист.
+    if (phase !== 'ready' && phase !== 'offline' && phase !== 'empty' && phase !== 'error') return
 
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -531,6 +533,7 @@ export function PlayerDisplay() {
 
       socket.onopen = () => {
         attempt = 0
+        lastFrameAtRef.current = Date.now()
         socket.send(JSON.stringify({ type: 'hello', accessToken: accessTokenRef.current }))
       }
 
@@ -561,19 +564,31 @@ export function PlayerDisplay() {
     timer = setTimeout(start, RECONNECT_DELAYS_MS[0])
 
     // Возврат вкладки из сна — самый частый повод для проверки: телевизор
-    // почти всегда просыпается вместе с сетью.
+    // почти всегда просыпается вместе с сетью. Сразу сверяем состояние,
+    // а не ждём следующего опроса.
     const onVisible = () => {
-      if (document.visibilityState === 'visible') start()
+      if (document.visibilityState === 'visible') {
+        start()
+        void loadState({ isRefresh: true })
+      }
+    }
+
+    // Сеть вернулась: канал мог быть закрыт, а публикация — пропущена.
+    const onOnline = () => {
+      start()
+      void loadState({ isRefresh: true })
     }
 
     document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('online', onOnline)
 
     return () => {
       cancelled = true
       if (timer) clearTimeout(timer)
       document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('online', onOnline)
     }
-  }, [phase, ensureToken, handleDeviceFrame])
+  }, [phase, ensureToken, handleDeviceFrame, loadState])
 
   // ── Heartbeat и capability profile ────────────────────────────────────────
 
@@ -610,14 +625,55 @@ export function PlayerDisplay() {
   // ── Периодический опрос публикации ────────────────────────────────────────
 
   useEffect(() => {
-    // Готовый экран опрашивает редко и обновляет только адреса файлов.
-    // Экран без связи опрашивает часто и пытается вернуться в показ.
+    // Готовый экран опрашивает редко: свежие изменения ловит отметка состояния
+    // и канал. Пустой экран и экран с ошибкой ждут назначения и опрашивают
+    // чаще — именно они чаще всего стоят без контента.
     const isReady = phase === 'ready'
-    if (!isReady && phase !== 'offline') return
+    if (!isReady && phase !== 'offline' && phase !== 'empty' && phase !== 'error') return
+
+    const timer = setInterval(
+      () => {
+        void loadState({ isRefresh: isReady })
+      },
+      isReady ? STATE_POLL_MS : OFFLINE_RETRY_MS,
+    )
+
+    return () => clearInterval(timer)
+  }, [phase, loadState])
+
+  // ── Второй механизм: отметка состояния ───────────────────────────────────
+
+  useEffect(() => {
+    if (phase !== 'ready' && phase !== 'empty' && phase !== 'error') return
+
+    // Первую проверку делаем не сразу: полный манифест только что загружен.
+    const timer = setInterval(() => {
+      void checkRevision()
+    }, REVISION_POLL_MS)
+
+    return () => clearInterval(timer)
+  }, [phase, checkRevision])
+
+  /**
+   * Сторож канала.
+   *
+   * Браузер может считать сокет открытым, когда он давно мёртв: телевизор
+   * уснул, Wi-Fi переключился, прокси тихо выбросил соединение. Сервер шлёт
+   * ping каждые полминуты, поэтому молчание дольше трёх интервалов — верный
+   * признак обрыва. Закрываем сокет и заодно сверяем состояние.
+   */
+  useEffect(() => {
+    if (phase !== 'ready' && phase !== 'offline' && phase !== 'empty' && phase !== 'error') return
 
     const timer = setInterval(() => {
-      void loadState({ isRefresh: isReady })
-    }, isReady ? STATE_POLL_MS : OFFLINE_RETRY_MS)
+      const socket = socketRef.current
+      if (!socket || socket.readyState !== WebSocket.OPEN) return
+      if (Date.now() - lastFrameAtRef.current < SOCKET_SILENCE_MS) return
+
+      logger.debug({}, 'канал молчит, перезапускаем соединение')
+      socket.close()
+      void loadState({ isRefresh: true })
+    }, 30_000)
 
     return () => clearInterval(timer)
   }, [phase, loadState])
@@ -872,7 +928,7 @@ export function PlayerDisplay() {
           muted={item.audio === 'mute'}
           playsInline
           onError={onItemError}
-          className="size-full object-contain"
+          className="player-media-in size-full object-contain"
         />
       ) : (
         // Изображение вписывается целиком: обрезка рекламы недопустима.
@@ -882,7 +938,7 @@ export function PlayerDisplay() {
           src={item.url}
           alt=""
           onError={onItemError}
-          className="size-full bg-black object-contain"
+          className="player-media-in size-full bg-black object-contain"
         />
       )}
     </main>
@@ -962,27 +1018,127 @@ function collectTelemetry(pingMs: number | null, stateLatencyMs: number | null) 
  * пустоты показываем понятный текст и дату — сразу видно, что экран жив.
  */
 function PlayerStateScreen({ phase, message }: { phase: Phase; message: string | null }) {
-  const texts: Record<Phase, { title: string; hint?: string }> = {
-    authenticating: { title: 'Подключение…' },
-    ready: { title: 'Подготовка показа' },
-    empty: { title: 'Нет назначенного контента', hint: 'Оператор ещё не опубликовал плейлист для этого экрана' },
-    offline: { title: 'Нет связи', hint: 'Показ продолжится, когда сеть вернётся' },
-    error: { title: 'Ошибка воспроизведения', hint: 'Проверьте файлы плейлиста в панели' },
-    unpaired: { title: 'Требуется привязка', hint: message ?? 'Обратитесь к администратору' },
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const texts: Record<
+    Phase,
+    { title: string; hint?: string; status: string; icon: typeof MonitorPlay; tone: string }
+  > = {
+    authenticating: {
+      title: 'Подключаемся к серверу',
+      hint: 'Проверяем доступ экрана. Обычно это занимает несколько секунд.',
+      status: 'Подключение',
+      icon: Loader2,
+      tone: 'text-primary',
+    },
+    ready: {
+      title: 'Готовим показ',
+      hint: 'Материалы уже на экране — сейчас начнётся воспроизведение.',
+      status: 'Показ',
+      icon: MonitorPlay,
+      tone: 'text-success',
+    },
+    empty: {
+      title: 'Экран ждёт контент',
+      hint: 'Назначьте плейлист в панели. Экран подхватит его автоматически, без перезагрузки.',
+      status: 'Ждёт назначения',
+      icon: MonitorPlay,
+      tone: 'text-info',
+    },
+    offline: {
+      title: 'Нет связи с сервером',
+      hint: 'Показ продолжится, как только сеть вернётся. Перезагружать телевизор не нужно.',
+      status: 'Нет сети',
+      icon: WifiOff,
+      tone: 'text-warn',
+    },
+    error: {
+      title: 'Не удалось показать материал',
+      hint: 'Проверьте файлы плейлиста в панели. Экран продолжит проверять обновления сам.',
+      status: 'Ошибка показа',
+      icon: AlertTriangle,
+      tone: 'text-danger',
+    },
+    unpaired: {
+      title: 'Требуется привязка',
+      hint: message ?? 'Откройте страницу привязки и введите код с телевизора.',
+      status: 'Не привязан',
+      icon: Link2,
+      tone: 'text-warn',
+    },
   }
 
   const content = texts[phase]
+  const Icon = content.icon
 
   return (
-    <main className="flex size-full flex-col items-center justify-center gap-4 bg-[#0b0b0c] px-12 text-center text-white">
-      <div className="text-[56px] font-semibold tracking-[-0.02em]">SHAWTY</div>
-      <div className="text-[34px] text-white/80">{content.title}</div>
-      {content.hint ? <div className="max-w-[1100px] text-[24px] text-white/50">{content.hint}</div> : null}
-      {phase === 'offline' || phase === 'error' ? (
-        <div className="mt-4 text-[20px] tabular-nums text-white/30">
-          {new Date().toLocaleString('ru-RU')}
+    <main className="player-shell fixed inset-0 flex size-full flex-col overflow-hidden px-8 py-7 text-white sm:px-14 sm:py-10">
+      <div className="player-halo" aria-hidden />
+      <div className="player-grid" aria-hidden />
+
+      <header className="relative z-10 flex items-center justify-between gap-6">
+        <div className="flex items-center gap-3.5">
+          <span className="player-mark">S</span>
+          <span className="flex flex-col leading-none">
+            <span className="text-[19px] font-semibold tracking-[0.16em] text-white sm:text-[22px]">
+              SHAWTY
+            </span>
+            <span className="mt-1 text-[10px] font-medium tracking-[0.28em] text-white/35 sm:text-[11px]">
+              DIGITAL SIGNAGE
+            </span>
+          </span>
         </div>
-      ) : null}
+
+        <span className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[12px] text-white/60 backdrop-blur-sm sm:text-[13px]">
+          <span className={`player-status-dot ${content.tone}`} />
+          {content.status}
+        </span>
+      </header>
+
+      <section className="relative z-10 flex flex-1 flex-col items-center justify-center text-center">
+        <div className="player-pulse">
+          <Icon
+            className={`size-[44px] sm:size-[52px] ${content.tone} ${phase === 'authenticating' ? 'animate-spin' : ''}`}
+            strokeWidth={1.4}
+          />
+        </div>
+
+        <h1 className="mt-10 max-w-[18ch] text-[40px] leading-[1.05] font-semibold tracking-[-0.035em] text-balance sm:text-[58px] lg:text-[68px]">
+          {content.title}
+        </h1>
+
+        {content.hint ? (
+          <p className="mt-5 max-w-[58ch] text-[18px] leading-relaxed text-white/45 sm:text-[21px]">
+            {content.hint}
+          </p>
+        ) : null}
+
+        {phase === 'unpaired' ? (
+          <div className="mt-7 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-3 text-[15px] text-white/60 sm:text-[17px]">
+            Панель → Экраны → «Привязать экран»
+          </div>
+        ) : null}
+      </section>
+
+      <footer className="relative z-10 flex flex-wrap items-end justify-between gap-4 border-t border-white/[0.07] pt-5 text-white/35">
+        <div className="flex items-center gap-3 text-[12px] sm:text-[13px]">
+          <span className="inline-flex size-1.5 rounded-full bg-success/80" />
+          Экран работает · обновления приходят автоматически
+        </div>
+        <div className="text-right">
+          <div className="tnum text-[22px] leading-none font-medium text-white/70 sm:text-[26px]">
+            {now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+          </div>
+          <div className="mt-1.5 text-[11px] tracking-wide text-white/30 sm:text-[12px]">
+            {now.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' })}
+          </div>
+        </div>
+      </footer>
     </main>
   )
 }
