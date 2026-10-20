@@ -260,20 +260,67 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
 
   return (
     <div className="flex flex-col gap-6">
-      {error ? (
-        <Notice tone="danger">{error}</Notice>
+      {error ? <FormError onDismiss={() => setError(null)}>{error}</FormError> : null}
+      {notice ? <FormSuccess onDismiss={() => setNotice(null)}>{notice}</FormSuccess> : null}
+
+      {pickedCount > 0 ? (
+        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-3 rounded-[var(--radius-lg)] border border-primary-border bg-primary-soft px-4 py-3 shadow-[var(--shadow-sm)]">
+          <span className="text-[13px] font-medium text-primary">Выбрано экранов: {pickedCount}</span>
+
+          {canAssign ? (
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={versions.length === 0}
+              onClick={() => {
+                setVersionId(versions[0]?.id ?? '')
+                setAssignOpen(true)
+              }}
+            >
+              Назначить программу
+            </Button>
+          ) : null}
+
+          {canAssign ? (
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => void unassign()}>
+              Снять назначение
+            </Button>
+          ) : null}
+
+          <Button size="sm" variant="ghost" onClick={() => setPicked(new Set())}>
+            Снять выбор
+          </Button>
+        </div>
+      ) : null}
+
+      {canAssign && versions.length === 0 ? (
+        <Notice>
+          Назначить пока нечего: нет ни одной опубликованной версии плейлиста. Откройте «Плейлисты» и нажмите
+          «Опубликовать версию» — после этого программа станет доступна здесь.
+        </Notice>
       ) : null}
 
       <Card>
         <CardHeader
           title="Что и когда идёт на экранах"
-          description="Расписание считает сервер. «Ожидает смены» значит, что программа по расписанию отличается от выложенной — публикацию выпустит насос расписания в ближайшие секунды."
+          description="Расписание считает сервер. «Ожидает смены» значит, что программа по расписанию отличается от выложенной — публикацию выпустит насос расписания в ближайшие секунды. Отметьте экраны, чтобы назначить или снять программу сразу нескольким."
         />
         <CardBody className="p-0">
           <div className="@container w-full overflow-x-auto">
           <table className="stack-table w-full border-collapse text-[13px]">
             <thead>
               <tr className="border-b border-border text-left text-[12px] text-text-subtle">
+                <th className="w-10 px-5 py-2 font-normal">
+                  <input
+                    type="checkbox"
+                    aria-label="Выбрать все экраны"
+                    checked={screens.length > 0 && pickedCount === screens.length}
+                    onChange={() =>
+                      setPicked(pickedCount === screens.length ? new Set() : new Set(screens.map((screen) => screen.screenId)))
+                    }
+                    className="size-4 cursor-pointer accent-[var(--primary)]"
+                  />
+                </th>
                 <th className="px-5 py-2 font-normal">Экран</th>
                 <th className="px-5 py-2 font-normal">Сейчас идёт</th>
                 <th className="px-5 py-2 font-normal">Источник</th>
@@ -290,6 +337,16 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
                     screen.screenId === selectedId ? 'bg-surface-2' : ''
                   }`}
                 >
+                  <td className="px-5 py-2">
+                    <input
+                      type="checkbox"
+                      checked={picked.has(screen.screenId)}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={() => togglePicked(screen.screenId)}
+                      aria-label={`Выбрать ${screen.screenName}`}
+                      className="size-4 cursor-pointer accent-[var(--primary)]"
+                    />
+                  </td>
                   <td data-primary className="px-5 py-2">
                     <div className="font-medium">{screen.screenName}</div>
                     <div className="text-[12px] text-text-subtle">{zoneLabel(screen.timezone, screen.timezoneSource)}</div>
@@ -357,6 +414,47 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
       </Card>
 
       {preview ? <Timeline preview={preview} /> : null}
+
+      <Modal
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        title={`Назначить программу: ${pickedCount} экранов`}
+        description="Выбирается опубликованная версия плейлиста. Назначение на конкретный экран перекрывает назначения филиала и компании."
+        footer={
+          <>
+            <Button size="md" onClick={() => setAssignOpen(false)}>
+              Отмена
+            </Button>
+            <Button size="md" variant="primary" disabled={busy || !versionId} onClick={() => void assign()}>
+              Назначить
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <SelectField
+            label="Плейлист"
+            name="playlist-version"
+            value={versionId}
+            onValueChange={(value) => setVersionId(value ?? '')}
+            options={versions.map((version) => ({
+              value: version.id,
+              label: `${version.playlistName} · версия ${version.version}${version.isCurrent ? ' (текущая)' : ''} · ${version.itemCount} мат. · ${formatDuration(version.totalDurationMs)}`,
+            }))}
+            placeholder="Выберите версию"
+          />
+
+          {canPublish ? (
+            <ToggleField
+              name="publish-now"
+              label="Опубликовать сразу"
+              description="Экраны получат программу в ближайшие секунды. Без публикации назначение сохранится, но останется невидимым."
+              defaultChecked
+              onChange={setPublishNow}
+            />
+          ) : null}
+        </div>
+      </Modal>
     </div>
   )
 }
