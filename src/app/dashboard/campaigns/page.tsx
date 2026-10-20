@@ -34,6 +34,7 @@ export default async function CampaignsPage() {
 
       <CampaignsBoard
         companyId={companyId}
+        companyName={membership.companyName}
         canWrite={access.can(PERMISSIONS.campaignsWrite)}
         canApprove={access.can(PERMISSIONS.campaignsApprove)}
         canPublish={access.can(PERMISSIONS.releasesPublish)}
@@ -48,7 +49,10 @@ export default async function CampaignsPage() {
           endsOn: campaign.endsOn,
           approvalRequired: campaign.approvalRequired,
           playlistVersionId: campaign.playlistVersionId,
+          playlistName: campaign.playlistName,
           playlistVersion: campaign.playlistVersion,
+          fallbackPlaylistVersionId: campaign.fallbackPlaylistVersionId,
+          timezoneOverride: campaign.timezoneOverride,
           targets: campaign.targets,
           windows: campaign.windows,
           withinDates: campaign.withinDates,

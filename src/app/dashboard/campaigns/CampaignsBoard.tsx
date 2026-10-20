@@ -26,6 +26,8 @@ export type CampaignView = {
   playlistVersionId: string | null
   playlistName: string | null
   playlistVersion: number | null
+  fallbackPlaylistVersionId: string | null
+  timezoneOverride: string | null
   targets: CampaignTargetView[]
   windows: CampaignWindowView[]
   withinDates: boolean
@@ -226,6 +228,7 @@ export function CampaignsBoard(props: {
             <thead>
               <tr className="border-b border-border text-left text-[12px] text-text-subtle">
                 <th className="px-5 py-2 font-normal">Кампания</th>
+                <th className="px-5 py-2 font-normal">Что показывает</th>
                 <th className="px-5 py-2 font-normal">Состояние</th>
                 <th className="px-5 py-2 font-normal">Сроки</th>
                 <th className="px-5 py-2 font-normal">Расписание</th>
@@ -246,6 +249,30 @@ export function CampaignsBoard(props: {
                     {campaign.kind === 'commercial' ? (
                       <span className="ml-2 rounded bg-surface-3 px-1.5 py-0.5 text-[11px] text-text-muted">реклама</span>
                     ) : null}
+                    <span className="mt-0.5 block text-[12px] text-text-subtle">
+                      {campaign.targets.length === 0
+                        ? 'площадки не выбраны'
+                        : campaign.targets
+                            .map((target) =>
+                              scopeLabel(target, {
+                                companyName: props.companyName,
+                                branches: props.branches,
+                                groups: props.groups,
+                                screens: props.screens,
+                              }),
+                            )
+                            .join(', ')}
+                    </span>
+                  </td>
+                  <td data-label="Что показывает" className="px-5 py-2 text-text-muted">
+                    {campaign.playlistName ? (
+                      <>
+                        {campaign.playlistName}
+                        <span className="text-text-subtle"> · версия {campaign.playlistVersion ?? '—'}</span>
+                      </>
+                    ) : (
+                      <span className="text-text-subtle">плейлист не выбран</span>
+                    )}
                   </td>
                   <td data-label="Состояние" className={`px-5 py-2 ${STATUS_TONE[campaign.status] ?? 'text-text-muted'}`}>
                     {STATUS_LABEL[campaign.status] ?? campaign.status}
@@ -385,6 +412,7 @@ export function CampaignsBoard(props: {
           playlistVersions={props.playlistVersions}
           initial={editing}
           onCancel={editing ? () => setEditing(null) : undefined}
+          onSaved={(message) => setNotice(message)}
         />
       ) : null}
     </div>
@@ -392,84 +420,147 @@ export function CampaignsBoard(props: {
 }
 
 type DraftWindow = CampaignWindowView
+type TargetDraft = { scopeType: 'branch' | 'group' | 'screen'; scopeId: string }
 
 /**
- * Форма создания кампании.
+ * Форма кампании: создание и правка.
  *
  * Отдельная карточка, а не модальное окно: правил много, и прятать их
  * в диалог значит показать половину и потерять вторую.
  */
 function CampaignForm(props: {
   companyId: string
+  companyName: string
   today: string
   branches: ScopeOption[]
   groups: ScopeOption[]
   screens: ScopeOption[]
   playlistVersions: PlaylistVersionOption[]
+  initial: CampaignView | null
+  onCancel?: () => void
+  onSaved?: (message: string) => void
 }) {
   const router = useRouter()
-  const [name, setName] = useState('')
-  const [kind, setKind] = useState<'internal' | 'commercial'>('internal')
-  const [priority, setPriority] = useState(0)
-  const [startsOn, setStartsOn] = useState(props.today)
-  const [endsOn, setEndsOn] = useState('')
-  const [approvalRequired, setApprovalRequired] = useState(false)
-  const [playlistVersionId, setPlaylistVersionId] = useState('')
-  const [scopeType, setScopeType] = useState<'company' | 'branch' | 'group' | 'screen'>('company')
-  const [scopeId, setScopeId] = useState('')
-  const [windows, setWindows] = useState<DraftWindow[]>([])
+  const initial = props.initial
+  const [name, setName] = useState(initial?.name ?? '')
+  const [kind, setKind] = useState<'internal' | 'commercial'>(initial?.kind ?? 'internal')
+  const [priority, setPriority] = useState(initial?.priority ?? 0)
+  const [startsOn, setStartsOn] = useState(initial?.startsOn ?? props.today)
+  const [endsOn, setEndsOn] = useState(initial?.endsOn ?? '')
+  const [approvalRequired, setApprovalRequired] = useState(initial?.approvalRequired ?? false)
+  const [playlistVersionId, setPlaylistVersionId] = useState(initial?.playlistVersionId ?? '')
+  const [allCompany, setAllCompany] = useState(
+    initial ? initial.targets.some((target) => target.scopeType === 'company') : true,
+  )
+  const [targets, setTargets] = useState<TargetDraft[]>(
+    initial ? initial.targets.filter((target): target is TargetDraft => target.scopeType !== 'company') : [],
+  )
+  const [targetTab, setTargetTab] = useState<TargetDraft['scopeType']>('screen')
+  const [screenFilter, setScreenFilter] = useState('')
+  const [windows, setWindows] = useState<DraftWindow[]>(initial?.windows ?? [])
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const scopeOptions =
-    scopeType === 'company'
-      ? []
-      : scopeType === 'branch'
-        ? props.branches
-        : scopeType === 'group'
-          ? props.groups
-          : props.screens
+  const targetOptions =
+    targetTab === 'branch' ? props.branches : targetTab === 'group' ? props.groups : props.screens
+  const query = screenFilter.trim().toLowerCase()
+  const visibleTargetOptions =
+    targetTab === 'screen' && query
+      ? targetOptions.filter((option) => option.name.toLowerCase().includes(query))
+      : targetOptions
+
+  const toggleTarget = (scopeType: TargetDraft['scopeType'], scopeId: string) => {
+    setTargets((current) =>
+      current.some((target) => target.scopeType === scopeType && target.scopeId === scopeId)
+        ? current.filter((target) => !(target.scopeType === scopeType && target.scopeId === scopeId))
+        : [...current, { scopeType, scopeId }],
+    )
+  }
 
   const submit = useCallback(async () => {
     setError(null)
+    setNotice(null)
+
+    if (!name.trim()) {
+      setError('Укажите название кампании: по нему её потом искать в списке.')
+      return
+    }
+
+    if (!playlistVersionId) {
+      setError('Выберите опубликованную версию плейлиста — без неё кампании нечего показывать.')
+      return
+    }
+
+    if (!allCompany && targets.length === 0) {
+      setError('Отметьте хотя бы один филиал, группу или экран.')
+      return
+    }
+
     setBusy(true)
 
     try {
-      const response = await fetch('/api/dashboard/campaigns', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-company-id': props.companyId,
-          'x-csrf-token': readCsrf(),
+      const response = await fetch(
+        initial ? `/api/dashboard/campaigns/${initial.id}` : '/api/dashboard/campaigns',
+        {
+          method: initial ? 'PATCH' : 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-company-id': props.companyId,
+            'x-csrf-token': readCsrf(),
+          },
+          body: JSON.stringify({
+            name: name.trim(),
+            kind,
+            priority,
+            startsOn,
+            endsOn: endsOn || null,
+            approvalRequired,
+            playlistVersionId,
+            // Запасной плейлист и часовой пояс в форме не редактируются, но при
+            // сохранении их нельзя молча обнулить: PATCH заменяет кампанию целиком.
+            fallbackPlaylistVersionId: initial?.fallbackPlaylistVersionId ?? null,
+            timezoneOverride: initial?.timezoneOverride ?? null,
+            targets: allCompany ? [{ scopeType: 'company', scopeId: props.companyId }] : targets,
+            windows,
+          }),
         },
-        body: JSON.stringify({
-          name,
-          kind,
-          priority,
-          startsOn,
-          endsOn: endsOn || null,
-          approvalRequired,
-          playlistVersionId: playlistVersionId || null,
-          fallbackPlaylistVersionId: null,
-          timezoneOverride: null,
-          targets: [{ scopeType, scopeId: scopeType === 'company' ? props.companyId : scopeId }],
-          windows,
-        }),
-      })
+      )
 
       if (!response.ok) {
         const data = (await response.json().catch(() => null)) as { error?: { message?: string } } | null
-        setError(data?.error?.message ?? 'Не удалось создать кампанию')
+        setError(data?.error?.message ?? (initial ? 'Не удалось сохранить кампанию' : 'Не удалось создать кампанию'))
         return
       }
 
-      setName('')
-      setWindows([])
+      if (initial) {
+        props.onSaved?.('Изменения сохранены. Они попадут на экраны после публикации.')
+        props.onCancel?.()
+      } else {
+        setName('')
+        setWindows([])
+        setNotice('Кампания создана. Проверьте условия и опубликуйте её, когда будете готовы.')
+      }
+
       router.refresh()
     } finally {
       setBusy(false)
     }
-  }, [approvalRequired, endsOn, kind, name, playlistVersionId, priority, props.companyId, router, scopeId, scopeType, startsOn, windows])
+  }, [
+    allCompany,
+    approvalRequired,
+    endsOn,
+    initial,
+    kind,
+    name,
+    playlistVersionId,
+    priority,
+    props,
+    router,
+    startsOn,
+    targets,
+    windows,
+  ])
 
   const patchWindow = (index: number, patch: Partial<DraftWindow>) => {
     setWindows((current) => current.map((window, position) => (position === index ? { ...window, ...patch } : window)))
@@ -478,13 +569,14 @@ function CampaignForm(props: {
   return (
     <Card>
       <CardHeader
-        title="Новая кампания"
-        description="Пустые окна означают «круглосуточно в срок действия». Окно можно задать для части недели — например, только будни с 09:00 до 18:00."
+        title={initial ? `Изменить кампанию «${initial.name}»` : 'Новая кампания'}
+        description="Кампания работает поверх обычного плейлиста: в выбранные дни и часы экраны показывают её контент, в остальное время — назначенный плейлист. Пустые окна показа означают «круглосуточно в срок действия»."
       />
       <CardBody className="flex flex-col gap-4">
         {error ? (
           <Notice tone="danger">{error}</Notice>
         ) : null}
+        {notice ? <Notice>{notice}</Notice> : null}
 
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
@@ -557,45 +649,117 @@ function CampaignForm(props: {
             </select>
           </label>
 
-          <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
-            Область
-            <select
-              value={scopeType}
-              onChange={(event) => {
-                setScopeType(event.target.value as typeof scopeType)
-                setScopeId('')
-              }}
-              className="field w-36"
-            >
-              <option value="company">Вся компания</option>
-              <option value="branch">Филиал</option>
-              <option value="group">Группа экранов</option>
-              <option value="screen">Один экран</option>
-            </select>
-          </label>
-
-          {scopeType !== 'company' ? (
-            <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
-              {scopeType === 'branch' ? 'Филиал' : scopeType === 'group' ? 'Группа' : 'Экран'}
-              <select
-                value={scopeId}
-                onChange={(event) => setScopeId(event.target.value)}
-                className="field w-56"
-              >
-                <option value="">Выберите</option>
-                {scopeOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-
           <label className="flex items-center gap-2 pb-2 text-[13px] text-text">
             <input type="checkbox" checked={approvalRequired} onChange={(event) => setApprovalRequired(event.target.checked)} />
             Требуется согласование
           </label>
+        </div>
+
+        <div className="flex flex-col gap-2 border-t border-border pt-3">
+          <span className="text-[12px] font-medium text-text">Где показывать</span>
+          <label className="flex items-center gap-2 text-[13px] text-text">
+            <input type="checkbox" checked={allCompany} onChange={(event) => setAllCompany(event.target.checked)} />
+            Вся компания
+            <span className="text-[12px] text-text-subtle">включая экраны, которые добавят позже</span>
+          </label>
+
+          {!allCompany ? (
+            <>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ['branch', 'Филиалы', props.branches],
+                    ['group', 'Группы', props.groups],
+                    ['screen', 'Экраны', props.screens],
+                  ] as const
+                ).map(([value, label, options]) => {
+                  const selectedCount = targets.filter((target) => target.scopeType === value).length
+
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setTargetTab(value)}
+                      className={`h-8 rounded-[var(--radius-md)] border px-3 text-[12.5px] transition-colors ${
+                        targetTab === value
+                          ? 'border-primary bg-primary text-primary-text'
+                          : 'border-border text-text-muted hover:bg-surface-2'
+                      }`}
+                    >
+                      {label}
+                      <span className="ml-1.5 opacity-70">
+                        {selectedCount > 0 ? `${selectedCount}/${options.length}` : options.length}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {targetTab === 'screen' ? (
+                <input
+                  value={screenFilter}
+                  onChange={(event) => setScreenFilter(event.target.value)}
+                  className="field w-full max-w-xs"
+                  placeholder="Найти экран по названию"
+                />
+              ) : null}
+
+              <div className="max-h-52 overflow-y-auto rounded-[var(--radius-md)] border border-border">
+                {visibleTargetOptions.length === 0 ? (
+                  <p className="px-3 py-2 text-[12.5px] text-text-subtle">
+                    {query ? 'Ничего не найдено.' : 'Здесь пока пусто — добавьте филиалы, группы или экраны в разделе «Структура».'}
+                  </p>
+                ) : (
+                  visibleTargetOptions.map((option) => {
+                    const checked = targets.some(
+                      (target) => target.scopeType === targetTab && target.scopeId === option.id,
+                    )
+
+                    return (
+                      <label
+                        key={option.id}
+                        className="flex cursor-pointer items-center gap-2 border-b border-border px-3 py-1.5 text-[13px] last:border-0 hover:bg-surface-2"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleTarget(targetTab, option.id)}
+                        />
+                        {option.name}
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+
+              {targets.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {targets.map((target) => (
+                    <button
+                      key={`${target.scopeType}:${target.scopeId}`}
+                      type="button"
+                      onClick={() => toggleTarget(target.scopeType, target.scopeId)}
+                      className="flex items-center gap-1.5 rounded-full bg-surface-3 px-2.5 py-1 text-[12px] text-text-muted hover:text-text"
+                      title="Убрать площадку"
+                    >
+                      {scopeLabel(
+                        { scopeType: target.scopeType, scopeId: target.scopeId },
+                        {
+                          companyName: props.companyName,
+                          branches: props.branches,
+                          groups: props.groups,
+                          screens: props.screens,
+                        },
+                      )}
+                      <span aria-hidden>×</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[12px] text-warn">Отметьте хотя бы одну площадку.</p>
+              )}
+            </>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-2 border-t border-border pt-3">
@@ -654,10 +818,15 @@ function CampaignForm(props: {
           ))}
         </div>
 
-        <div>
+        <div className="flex flex-wrap items-center gap-3">
           <Button size="sm" variant="primary" disabled={busy} onClick={() => void submit()}>
-            Создать кампанию
+            {initial ? 'Сохранить изменения' : 'Создать кампанию'}
           </Button>
+          {initial && props.onCancel ? (
+            <Button size="sm" variant="ghost" disabled={busy} onClick={props.onCancel}>
+              Отмена
+            </Button>
+          ) : null}
         </div>
       </CardBody>
     </Card>

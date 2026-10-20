@@ -69,6 +69,8 @@ export type CampaignSummary = {
   playlistVersionId: string | null
   playlistName: string | null
   playlistVersion: number | null
+  fallbackPlaylistVersionId: string | null
+  timezoneOverride: string | null
   targets: CampaignTargetInput[]
   windows: CampaignWindowInput[]
   /** Активна ли кампания по датам прямо сейчас. */
@@ -499,6 +501,8 @@ function toSummary(
     // каждого плейлиста, и у двух плейлистов есть версия 3.
     playlistName: version?.playlistName ?? null,
     playlistVersion: version?.version ?? null,
+    fallbackPlaylistVersionId: row.fallbackPlaylistVersionId,
+    timezoneOverride: row.timezoneOverride,
     targets,
     windows,
     withinDates: row.startsOn <= today && (!row.endsOn || row.endsOn >= today),
