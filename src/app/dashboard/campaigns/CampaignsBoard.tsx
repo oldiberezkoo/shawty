@@ -304,7 +304,8 @@ export function CampaignsBoard(props: {
                     ) : null}
                   </td>
                   <td data-label="Сроки" className="px-5 py-2 text-text-muted">
-                    {campaign.startsOn} — {campaign.endsOn ?? 'бессрочно'}
+                    {periodLabel(campaign.startsOn, campaign.startsAt)} —{' '}
+                    {campaign.endsOn ? periodLabel(campaign.endsOn, campaign.endsAt) : 'бессрочно'}
                   </td>
                   <td data-label="Расписание" className="px-5 py-2 text-text-muted">
                     {campaign.windows.length === 0 ? (
@@ -363,7 +364,8 @@ export function CampaignsBoard(props: {
               </p>
 
               <p>
-                Срок: {selected.startsOn} — {selected.endsOn ?? 'бессрочно'}
+                Срок: {periodLabel(selected.startsOn, selected.startsAt)} —{' '}
+                {selected.endsOn ? periodLabel(selected.endsOn, selected.endsAt) : 'бессрочно'}
                 {selected.withinDates ? ' (идёт по датам)' : ' (вне текущих дат)'}. Приоритет {selected.priority}.
               </p>
             </div>
@@ -561,6 +563,8 @@ function CampaignForm(props: {
             priority,
             startsOn,
             endsOn: endsOn || null,
+            startsAt,
+            endsAt,
             approvalRequired,
             playlistVersionId,
             // Запасной плейлист и часовой пояс в форме не редактируются, но при
@@ -596,6 +600,7 @@ function CampaignForm(props: {
     allCompany,
     approvalRequired,
     endsOn,
+    endsTime,
     initial,
     kind,
     name,
@@ -604,6 +609,7 @@ function CampaignForm(props: {
     props,
     router,
     startsOn,
+    startsTime,
     targets,
     windows,
   ])
@@ -658,7 +664,7 @@ function CampaignForm(props: {
           </label>
 
           <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
-            Начало
+            Дата начала
             <input
               type="date"
               value={startsOn}
@@ -668,7 +674,17 @@ function CampaignForm(props: {
           </label>
 
           <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
-            Окончание
+            Время начала
+            <input
+              type="time"
+              value={startsTime}
+              onChange={(event) => setStartsTime(event.target.value)}
+              className="field w-28"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
+            Дата окончания
             <input
               type="date"
               value={endsOn}
@@ -676,7 +692,22 @@ function CampaignForm(props: {
               className="field w-36"
             />
           </label>
+
+          <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
+            Время окончания
+            <input
+              type="time"
+              value={endsTime}
+              onChange={(event) => setEndsTime(event.target.value)}
+              className="field w-28"
+            />
+          </label>
         </div>
+
+        <p className="text-[11.5px] text-text-subtle">
+          Время можно не указывать: тогда кампания действует с начала первого дня по конец последнего.
+          Если время задано, период начинается и заканчивается точно в этот момент.
+        </p>
 
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">

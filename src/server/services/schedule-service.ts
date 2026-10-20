@@ -9,7 +9,7 @@
  * пересечения окон — иначе два телевизора с чуть разными версиями плеера
  * показали бы разное в один и тот же момент.
  */
-import { and, asc, eq, inArray, isNotNull, ne } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNotNull, ne, or } from 'drizzle-orm'
 import { db } from '@/db/client'
 import {
   branches,
@@ -512,14 +512,28 @@ export function schedulePreview(params: { companyId: string; screenId: string; f
  */
 export function finishExpiredCampaigns(now: Date = new Date()): number {
   const rows = db
-    .select({ id: campaigns.id, endsOn: campaigns.endsOn, timezone: companies.timezone })
+    .select({
+      id: campaigns.id,
+      endsOn: campaigns.endsOn,
+      endsAt: campaigns.endsAt,
+      timezone: companies.timezone,
+    })
     .from(campaigns)
     .innerJoin(companies, eq(companies.id, campaigns.companyId))
-    .where(and(inArray(campaigns.status, [...LIVE_CAMPAIGN_STATUSES]), isNotNull(campaigns.endsOn)))
+    .where(
+      and(
+        inArray(campaigns.status, [...LIVE_CAMPAIGN_STATUSES]),
+        or(isNotNull(campaigns.endsOn), isNotNull(campaigns.endsAt)),
+      ),
+    )
     .all()
 
   const expired = rows
-    .filter((row) => row.endsOn !== null && localDateString(now, row.timezone) > (row.endsOn as string))
+    .filter((row) =>
+      row.endsAt
+        ? now.getTime() >= row.endsAt.getTime()
+        : row.endsOn !== null && localDateString(now, row.timezone) > row.endsOn,
+    )
     .map((row) => row.id)
 
   if (expired.length === 0) return 0

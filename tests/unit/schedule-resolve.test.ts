@@ -180,6 +180,35 @@ describe('даты кампании', () => {
     expect(a.start).toBe('2026-09-30T19:00:00Z')
     expect(b.start).toBe('2026-09-30T22:00:00Z')
   })
+
+  it('точное время важнее дат: период начинается и кончается в указанный момент', () => {
+    const range = campaignRange(
+      {
+        startsOn: '2026-10-01',
+        endsOn: '2026-10-15',
+        startsAt: new Date('2026-10-01T09:30:00+05:00'),
+        endsAt: new Date('2026-10-15T18:00:00+05:00'),
+      },
+      TASHKENT,
+    )
+
+    expect(range.start).toBe('2026-10-01T04:30:00.000Z')
+    expect(range.end).toBe('2026-10-15T13:00:00.000Z')
+  })
+
+  it('время начала без времени окончания оставляет конец открытым', () => {
+    const range = campaignRange(
+      {
+        startsOn: '2026-10-01',
+        endsOn: null,
+        startsAt: new Date('2026-10-01T09:30:00+05:00'),
+      },
+      TASHKENT,
+    )
+
+    expect(range.start).toBe('2026-10-01T04:30:00.000Z')
+    expect(range.end > range.start).toBe(true)
+  })
 })
 
 describe('разрешение конфликтов', () => {
