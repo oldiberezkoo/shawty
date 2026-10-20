@@ -270,6 +270,137 @@ export function telemetryHistory(companyId: string, screenId: string, limit = 28
     .all()
 }
 
+export type TelemetryPoint = {
+  at: Date
+  pingMs: number | null
+  downlinkKbps: number | null
+  networkRttMs: number | null
+  stateLatencyMs: number | null
+}
+
+/**
+ * Почасовая история связи по всем экранам компании.
+ *
+ * Усреднение идёт в SQL, а не в браузере: за сутки на сотню экранов приходит
+ * больше десяти тысяч замеров, и передавать их целиком ради полоски в сто
+ * пикселей бессмысленно. Час — достаточное разрешение, чтобы увидеть вечерние
+ * провалы, и достаточно мелкое, чтобы график не превратился в точку.
+ */
+export function telemetrySeriesByScreen(companyId: string, hours = 24): Map<string, TelemetryPoint[]> {
+  const cutoff = new Date(Date.now() - hours * 60 * 60_000)
+
+  // `at` хранится в миллисекундах; округляем до часа в секундах, чтобы
+  // SQLite мог сгруппировать одинаковые интервалы.
+  const bucket = sql<number>`(cast(${deviceTelemetrySamples.at} / 1000 as integer) / 3600) * 3600`
+
+  const rows = db
+    .select({
+      screenId: deviceTelemetrySamples.screenId,
+      bucket,
+      pingMs: sql<number | null>`avg(${deviceTelemetrySamples.pingMs})`,
+      downlinkKbps: sql<number | null>`avg(${deviceTelemetrySamples.downlinkKbps})`,
+      networkRttMs: sql<number | null>`avg(${deviceTelemetrySamples.networkRttMs})`,
+      stateLatencyMs: sql<number | null>`avg(${deviceTelemetrySamples.stateLatencyMs})`,
+    })
+    .from(deviceTelemetrySamples)
+    .where(and(eq(deviceTelemetrySamples.companyId, companyId), gte(deviceTelemetrySamples.at, cutoff)))
+    .groupBy(deviceTelemetrySamples.screenId, bucket)
+    .orderBy(asc(deviceTelemetrySamples.screenId), asc(bucket))
+    .all()
+
+  const round = (value: number | null): number | null =>
+    value === null ? null : Math.round(Number(value))
+
+  const byScreen = new Map<string, TelemetryPoint[]>()
+
+  for (const row of rows) {
+    const point: TelemetryPoint = {
+      at: new Date(Number(row.bucket) * 1000),
+      pingMs: round(row.pingMs),
+      downlinkKbps: round(row.downlinkKbps),
+      networkRttMs: round(row.networkRttMs),
+      stateLatencyMs: round(row.stateLatencyMs),
+    }
+
+    const list = byScreen.get(row.screenId)
+    if (list) list.push(point)
+    else byScreen.set(row.screenId, [point])
+  }
+
+  return byScreen
+}
+
+export type DeviceProfile = {
+  platform: string | null
+  userAgent: string | null
+  screenWidth: number | null
+  screenHeight: number | null
+  deviceMemoryGb: number | null
+  hardwareConcurrency: number | null
+}
+
+/**
+ * Профиль устройства по каждому экрану.
+ *
+ * Платформа приходит вместе с телеметрией и складывается в `capabilitiesJson`:
+ * отдельной колонки ради одного поля не нужно, а профиль всё равно читается
+ * только панелью.
+ */
+export function deviceProfilesByScreen(companyId: string): Map<string, DeviceProfile> {
+  const rows = db
+    .select({ id: screens.id, capabilitiesJson: screens.capabilitiesJson })
+    .from(screens)
+    .where(eq(screens.companyId, companyId))
+    .all()
+
+  const byScreen = new Map<string, DeviceProfile>()
+
+  for (const row of rows) {
+    const capabilities = parseCapabilities(row.capabilitiesJson)
+    if (!capabilities) continue
+
+    const screen = (capabilities.screen ?? null) as { width?: unknown; height?: unknown } | null
+    const string = (value: unknown): string | null => (typeof value === 'string' && value ? value : null)
+    const number = (value: unknown): number | null =>
+      typeof value === 'number' && Number.isFinite(value) ? value : null
+
+    byScreen.set(row.id, {
+      platform: string(capabilities.platform) ?? describePlatform(string(capabilities.userAgent)),
+      userAgent: string(capabilities.userAgent),
+      screenWidth: number(screen?.width),
+      screenHeight: number(screen?.height),
+      deviceMemoryGb: number(capabilities.deviceMemoryGb),
+      hardwareConcurrency: number(capabilities.hardwareConcurrency),
+    })
+  }
+
+  return byScreen
+}
+
+/**
+ * Понятное имя платформы из User-Agent.
+ *
+ * Нужно для телевизоров: браузер на Tizen или webOS часто не отдаёт
+ * `userAgentData.platform`, и в панели остаётся длинная строка UA. Короткая
+ * подпись отвечает на вопрос «что это за устройство» без чтения всей строки.
+ */
+export function describePlatform(userAgent: string | null): string | null {
+  if (!userAgent) return null
+  const ua = userAgent.toLowerCase()
+
+  if (ua.includes('tizen')) return 'Tizen'
+  if (ua.includes('web0s') || ua.includes('webos') || ua.includes('netcast')) return 'webOS'
+  if (ua.includes('android tv') || ua.includes('googletv') || ua.includes('google tv')) return 'Android TV'
+  if (ua.includes('android')) return 'Android'
+  if (ua.includes('cros')) return 'ChromeOS'
+  if (ua.includes('iphone') || ua.includes('ipad')) return 'iOS'
+  if (ua.includes('mac os') || ua.includes('macintosh')) return 'macOS'
+  if (ua.includes('windows')) return 'Windows'
+  if (ua.includes('linux')) return 'Linux'
+
+  return null
+}
+
 /** Разобранные возможности устройства: сохраняет плеер, читает панель. */
 export function parseCapabilities(json: string | null): Record<string, unknown> | null {
   if (!json) return null

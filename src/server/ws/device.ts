@@ -249,10 +249,24 @@ function handleHeartbeat(
 
   const update: Partial<typeof screens.$inferInsert> = { lastSeenAt: now, updatedAt: now }
   if (frame.playerVersion) update.playerVersion = frame.playerVersion
-  if (frame.capabilities) update.capabilitiesJson = JSON.stringify(frame.capabilities)
+
+  if (frame.capabilities || frame.telemetry) {
+    // Платформа и объём памяти приходят в телеметрии, а не в возможностях.
+    // Храним их вместе с профилем: отдельная колонка ради трёх полей не нужна,
+    // а мониторингу нужен один читаемый профиль устройства.
+    const existing = frame.capabilities
+      ? null
+      : db
+          .select({ capabilitiesJson: screens.capabilitiesJson })
+          .from(screens)
+          .where(eq(screens.id, screenId))
+          .get()?.capabilitiesJson ?? null
+
+    const merged = mergeCapabilities(existing, frame.capabilities, frame.telemetry)
+    if (merged) update.capabilitiesJson = merged
+  }
 
   db.update(screens).set(update).where(eq(screens.id, screenId)).run()
-
   if (frame.telemetry && companyId) {
     recordTelemetry(screenId, companyId, frame.telemetry, now)
   }
@@ -261,6 +275,41 @@ function handleHeartbeat(
     { screenId, version: frame.playerVersion, applied: frame.appliedVersion },
     'heartbeat устройства',
   )
+}
+
+/**
+ * Профиль устройства из heartbeat.
+ *
+ * Возможности приходят отдельным кадром, а платформа и память — в телеметрии.
+ * Склеиваем их в один JSON: панель читает профиль одним запросом, и ей не
+ * нужно знать, в каком именно поле плеер прислал «Tizen» или «webOS».
+ */
+function mergeCapabilities(
+  existingJson: string | null,
+  capabilities: Record<string, unknown> | undefined,
+  telemetry: Record<string, unknown> | undefined,
+): string | null {
+  let base: Record<string, unknown> = {}
+
+  if (capabilities) {
+    base = { ...capabilities }
+  } else if (existingJson) {
+    try {
+      const parsed = JSON.parse(existingJson)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        base = parsed as Record<string, unknown>
+      }
+    } catch {
+      // Повреждённый профиль заменяем свежим: старые данные уже не прочитать.
+    }
+  }
+
+  for (const key of ['platform', 'deviceMemoryGb', 'hardwareConcurrency', 'viewport'] as const) {
+    const value = telemetry?.[key]
+    if (value !== undefined && value !== null) base[key] = value
+  }
+
+  return Object.keys(base).length > 0 ? JSON.stringify(base) : null
 }
 
 /**
