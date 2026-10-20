@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm'
 import { db } from '@/db/client'
 import {
   branches,
@@ -73,6 +73,20 @@ export function listScreens(companyId: string, options: { branchId?: string | nu
   const filters = [eq(screens.companyId, companyId)]
   if (options.branchId) filters.push(eq(screens.branchId, options.branchId))
 
+  // Действующие учётные данные берутся подзапросом, а не join'ом. У экрана
+  // может оказаться несколько неотозванных записей (гонка при обмене, старые
+  // данные), и тогда join размножал бы строку экрана: список показывал дубли,
+  // а суммарные счётчики считали один телевизор дважды. Показываем самую
+  // свежую выдачу — она и есть текущая. Отозванные не считаются привязкой.
+  const activeDeviceId = sql<string | null>`(
+    select ${deviceCredentials.deviceId}
+    from ${deviceCredentials}
+    where ${deviceCredentials.screenId} = ${screens.id}
+      and ${deviceCredentials.revokedAt} is null
+    order by ${deviceCredentials.issuedAt} desc, ${deviceCredentials.id} desc
+    limit 1
+  )`
+
   const rows = db
     .select({
       id: screens.id,
@@ -87,17 +101,12 @@ export function listScreens(companyId: string, options: { branchId?: string | nu
       groupName: screenGroups.name,
       desiredVersion: screenPublications.desiredVersion,
       appliedVersion: screenPublications.appliedVersion,
-      deviceId: deviceCredentials.deviceId,
+      deviceId: activeDeviceId,
     })
     .from(screens)
     .leftJoin(branches, eq(branches.id, screens.branchId))
     .leftJoin(screenGroups, eq(screenGroups.id, screens.groupId))
     .leftJoin(screenPublications, eq(screenPublications.screenId, screens.id))
-    .leftJoin(
-      // Только действующие учётные данные: отозванные не считаются наличием привязки.
-      deviceCredentials,
-      and(eq(deviceCredentials.screenId, screens.id), isNull(deviceCredentials.revokedAt)),
-    )
     .where(and(...filters))
     .orderBy(asc(branches.name), asc(screens.name))
     .all()
