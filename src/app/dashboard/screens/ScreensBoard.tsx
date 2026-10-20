@@ -5,7 +5,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Modal } from '@/components/ui/modal'
-import { FormError, FormSuccess, SelectField, ToggleField } from '@/components/ui/form'
+import { FormError, FormSuccess, SelectField } from '@/components/ui/form'
 import { StatusBadge, type ScreenState } from '@/components/ui/status-badge'
 import { DataTable, type TableColumn } from '@/components/ui/table'
 import { CSRF_COOKIE } from '@/lib/cookie-names'
@@ -85,7 +85,6 @@ export function ScreensBoard(props: {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [assignOpen, setAssignOpen] = useState(false)
   const [versionId, setVersionId] = useState('')
-  const [publishNow, setPublishNow] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -164,9 +163,7 @@ export function ScreensBoard(props: {
 
     if (!assigned) return
 
-    const version = props.versions.find((item) => item.id === versionId)
-
-    if (publishNow && props.canPublish) {
+    if (props.canPublish) {
       const published = await call('/api/dashboard/releases', {
         method: 'POST',
         body: JSON.stringify({ screenIds }),
@@ -175,17 +172,15 @@ export function ScreensBoard(props: {
       if (!published) return
 
       setNotice(
-        `Назначено экранам: ${screenIds.length}. Публикация версии ${published.version} выпущена — экраны применят её в ближайшие секунды.`,
+        `Назначено экранам: ${screenIds.length}. Экран получит программу автоматически в ближайшие секунды.`,
       )
     } else {
-      setNotice(
-        `Назначено экранам: ${screenIds.length} («${version?.playlistName ?? ''}» в.${version?.version ?? ''}). Публикация не выпущена: изменения начнут показываться после «Опубликовать» в разделе «Публикация».`,
-      )
+      setNotice(`Назначено экранам: ${screenIds.length}. Для показа нужна публикация.`)
     }
 
     setAssignOpen(false)
     setSelected(new Set())
-  }, [call, props.canPublish, props.versions, publishNow, selected, versionId])
+  }, [call, props.canPublish, selected, versionId])
 
   return (
     <div className="flex flex-col gap-4">
@@ -214,7 +209,7 @@ export function ScreensBoard(props: {
 
           {props.versions.length === 0 ? (
             <span className="text-[12px] text-text-muted">
-              Нет опубликованных версий плейлистов — сначала опубликуйте версию в разделе «Плейлисты».
+              Нет плейлистов — сначала добавьте файлы в разделе «Плейлисты».
             </span>
           ) : null}
 
@@ -278,7 +273,7 @@ export function ScreensBoard(props: {
         open={assignOpen}
         onClose={() => setAssignOpen(false)}
         title={`Назначить плейлист: ${selected.size} ${plural(selected.size, 'экран', 'экрана', 'экранов')}`}
-        description="Выбирается опубликованная версия. Каждому экрану назначение ставится отдельно, поэтому позже его можно изменить у одного, не задевая остальные."
+        description="Выбирается плейлист. Каждому экрану назначение ставится отдельно, поэтому позже его можно изменить у одного, не задевая остальные."
         footer={
           <>
             <Button size="md" onClick={() => setAssignOpen(false)}>
@@ -298,21 +293,15 @@ export function ScreensBoard(props: {
             onValueChange={(value) => setVersionId(value ?? '')}
             options={props.versions.map((version) => ({
               value: version.id,
-              label: `${version.playlistName} · версия ${version.version}${
-                version.isCurrent ? ' (текущая)' : ''
-              } · ${version.itemCount} мат. · ${formatDuration(version.totalDurationMs)}`,
+              label: `${version.playlistName} · ${version.itemCount} мат. · ${formatDuration(version.totalDurationMs)}`,
             }))}
-            placeholder="Выберите версию"
+            placeholder="Выберите плейлист"
           />
 
           {props.canPublish ? (
-            <ToggleField
-              name="publish-now"
-              label="Опубликовать сразу"
-              description="Экраны получат новую программу в ближайшие секунды. Без этого назначение сохранится, но останется невидимым, пока публикация не выпущена."
-              defaultChecked
-              onChange={setPublishNow}
-            />
+            <p className="text-[12px] leading-relaxed text-text-muted">
+              После назначения экран получит программу автоматически — отдельная публикация не нужна.
+            </p>
           ) : null}
         </div>
       </Modal>

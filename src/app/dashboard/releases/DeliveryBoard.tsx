@@ -155,10 +155,10 @@ export function DeliveryBoard(props: {
   }, [props.companyId])
 
   const versionOptions = props.playlistVersions.flatMap((playlist) =>
-    playlist.versions.map((entry) => ({
-      id: entry.id,
-      label: `${playlist.name} · версия ${entry.version}`,
-    })),
+    playlist.versions.map(() => ({
+      id: playlist.versions[0]?.id ?? '',
+      label: playlist.name,
+    })).filter((option) => option.id.length > 0),
   )
 
   const call = useCallback(
@@ -193,7 +193,7 @@ export function DeliveryBoard(props: {
   const assign = useCallback(async () => {
     const targetId = scopeType === 'company' ? props.companyId : scopeId
     if (!targetId || !versionId) {
-      setError('Выберите область и версию плейлиста')
+      setError('Выберите область и плейлист')
       return
     }
 
@@ -293,7 +293,7 @@ export function DeliveryBoard(props: {
               ) : null}
 
               <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
-                Версия плейлиста
+                Плейлист
                 <select
                   value={versionId}
                   onChange={(event) => setVersionId(event.target.value)}
@@ -319,7 +319,7 @@ export function DeliveryBoard(props: {
 
             {versionOptions.length === 0 ? (
               <p className="text-[12px] text-text-subtle">
-                Нет зафиксированных версий. Сначала соберите плейлист и нажмите «Зафиксировать версию».
+                Нет плейлистов. Сначала соберите плейлист в разделе «Плейлисты».
               </p>
             ) : null}
 

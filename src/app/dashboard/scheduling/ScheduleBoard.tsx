@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
-import { FormError, FormSuccess, SelectField, ToggleField } from '@/components/ui/form'
+import { FormError, FormSuccess, SelectField } from '@/components/ui/form'
 import { CSRF_COOKIE } from '@/lib/cookie-names'
 import { formatDuration } from '@/domain/playlist/rules'
 
@@ -205,12 +205,21 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
 
     if (!result) return
 
+    if (canPublish) {
+      await call('/api/dashboard/releases', {
+        method: 'POST',
+        body: JSON.stringify({ screenIds }),
+      })
+    }
+
     setNotice(
-      `Назначений снято: ${result.removed}. Экраны продолжат играть последнюю выложенную программу до следующей публикации.`,
+      canPublish
+        ? `Назначения снято: ${result.removed}. Экраны освобождены и обновятся автоматически.`
+        : `Назначений снято: ${result.removed}. Для применения нужна публикация.`,
     )
     setPicked(new Set())
     await load()
-  }, [call, load, picked])
+  }, [call, canPublish, load, picked])
 
   useEffect(() => {
     let stopped = false
@@ -297,8 +306,8 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
 
       {canAssign && versions.length === 0 ? (
         <Notice>
-          Назначить пока нечего: нет ни одной опубликованной версии плейлиста. Откройте «Плейлисты» и нажмите
-          «Опубликовать версию» — после этого программа станет доступна здесь.
+          Назначить пока нечего: нет ни одного плейлиста. Откройте «Плейлисты», добавьте файлы — после этого
+          программа станет доступна здесь.
         </Notice>
       ) : null}
 
@@ -426,7 +435,7 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
         open={assignOpen}
         onClose={() => setAssignOpen(false)}
         title={`Назначить программу: ${pickedCount} экранов`}
-        description="Выбирается опубликованная версия плейлиста. Назначение на конкретный экран перекрывает назначения филиала и компании."
+        description="Выбирается плейлист. Назначение на конкретный экран перекрывает назначения филиала и компании."
         footer={
           <>
             <Button size="md" onClick={() => setAssignOpen(false)}>
@@ -446,19 +455,15 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
             onValueChange={(value) => setVersionId(value ?? '')}
             options={versions.map((version) => ({
               value: version.id,
-              label: `${version.playlistName} · версия ${version.version}${version.isCurrent ? ' (текущая)' : ''} · ${version.itemCount} мат. · ${formatDuration(version.totalDurationMs)}`,
+              label: `${version.playlistName} · ${version.itemCount} мат. · ${formatDuration(version.totalDurationMs)}`,
             }))}
-            placeholder="Выберите версию"
+            placeholder="Выберите плейлист"
           />
 
           {canPublish ? (
-            <ToggleField
-              name="publish-now"
-              label="Опубликовать сразу"
-              description="Экраны получат программу в ближайшие секунды. Без публикации назначение сохранится, но останется невидимым."
-              defaultChecked
-              onChange={setPublishNow}
-            />
+            <p className="text-[12px] leading-relaxed text-text-muted">
+              После назначения экран получит программу автоматически — отдельная публикация не нужна.
+            </p>
           ) : null}
         </div>
       </Modal>

@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
-import { FormError, FormField, FormSuccess, SelectField, ToggleField } from '@/components/ui/form'
+import { FormError, FormField, FormSuccess, SelectField } from '@/components/ui/form'
 import { CSRF_COOKIE } from '@/lib/cookie-names'
 import { formatDuration } from '@/domain/playlist/rules'
 
@@ -52,7 +52,6 @@ export function ScreenActions(props: {
   const [editOpen, setEditOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
   const [versionId, setVersionId] = useState(props.versions[0]?.id ?? '')
-  const [publishNow, setPublishNow] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -121,21 +120,21 @@ export function ScreenActions(props: {
 
     if (!assigned) return
 
-    if (publishNow && props.canPublish) {
+    if (props.canPublish) {
       const published = await call('/api/dashboard/releases', {
         method: 'POST',
         body: JSON.stringify({ screenIds: [props.screen.id] }),
       })
 
       if (!published) return
-      setNotice(`Назначено и опубликовано (версия ${published.version}). Экран применит программу в ближайшие секунды.`)
+      setNotice('Назначено. Экран получит программу автоматически в ближайшие секунды.')
     } else {
-      setNotice('Назначение сохранено. Оно начнёт показываться после публикации.')
+      setNotice('Назначение сохранено. Для показа нужна публикация.')
     }
 
     setAssignOpen(false)
     router.refresh()
-  }, [call, props.canPublish, props.screen.id, publishNow, router, versionId])
+  }, [call, props.canPublish, props.screen.id, router, versionId])
 
   return (
     <div className="flex flex-col gap-3">
@@ -166,8 +165,7 @@ export function ScreenActions(props: {
 
       {props.versions.length === 0 ? (
         <p className="text-[12.5px] text-text-subtle">
-          Назначить пока нечего: в компании нет ни одной опубликованной версии плейлиста. Опубликуйте версию в
-          разделе «Плейлисты».
+          Назначить пока нечего: в компании нет плейлистов. Добавьте файлы в разделе «Плейлисты».
         </p>
       ) : null}
 
@@ -250,19 +248,15 @@ export function ScreenActions(props: {
             onValueChange={(value) => setVersionId(value ?? '')}
             options={props.versions.map((version) => ({
               value: version.id,
-              label: `${version.playlistName} · версия ${version.version}${version.isCurrent ? ' (текущая)' : ''} · ${version.itemCount} мат. · ${formatDuration(version.totalDurationMs)}`,
+              label: `${version.playlistName} · ${version.itemCount} мат. · ${formatDuration(version.totalDurationMs)}`,
             }))}
-            placeholder="Выберите версию"
+            placeholder="Выберите плейлист"
           />
 
           {props.canPublish ? (
-            <ToggleField
-              name="publish-now"
-              label="Опубликовать сразу"
-              description="Без публикации назначение сохранится, но на экране ничего не изменится."
-              defaultChecked
-              onChange={setPublishNow}
-            />
+            <p className="text-[12px] leading-relaxed text-text-muted">
+              Экран получит программу автоматически — отдельная публикация не нужна.
+            </p>
           ) : null}
         </div>
       </Modal>
