@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Link2, Loader2, MonitorPlay, WifiOff } from 'lucide-react'
 import {
   decideAfterFailure,
+  manifestEpoch,
   normalizeManifest,
   positionForInstant,
   refreshManifestUrls,
@@ -147,6 +148,27 @@ export function PlayerDisplay() {
   const lastFrameAtRef = useRef(Date.now())
 
   /**
+   * Смещение часов устройства относительно сервера и лучший замер задержки.
+   *
+   * Показ синхронизируется по серверной шкале: два телевизора с одним
+   * плейлистом обязаны переключать материал в одну и ту же миллисекунду.
+   * Локальные часы для этого не годятся — они расходятся на секунды.
+   */
+  const clockOffsetRef = useRef(0)
+  const clockBestRttRef = useRef(Number.POSITIVE_INFINITY)
+  const clockSyncedAtRef = useRef(0)
+  const [clockRevision, setClockRevision] = useState(0)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+
+  const serverNow = useCallback(() => Date.now() + clockOffsetRef.current, [])
+
+  const requestClockSync = useCallback(() => {
+    const socket = socketRef.current
+    if (socket?.readyState !== WebSocket.OPEN) return
+    socket.send(JSON.stringify({ type: 'clock', at: Date.now() }))
+  }, [])
+
+  /**
    * Последние измерения связи.
    *
    * Ping считает сам плеер по кадру сервера: кадр несёт время отправки, а
@@ -223,25 +245,34 @@ export function PlayerDisplay() {
    * Позиция считается от времени начала показа с сервера: так перезагрузка
    * страницы телевизора и переподключение канала не сбрасывают показ в начало.
    */
-  const applyManifest = useCallback((manifest: PlayerManifest) => {
-    manifestRef.current = manifest
-    setManifestVersion(manifest.version)
+  const applyManifest = useCallback(
+    (manifest: PlayerManifest) => {
+      manifestRef.current = manifest
+      setManifestVersion(manifest.version)
 
-    if (manifest.items.length === 0) {
-      setPhase('empty')
-      return
-    }
+      if (manifest.items.length === 0) {
+        setPhase('empty')
+        return
+      }
 
-    failuresRef.current = 0
-    setPhase('ready')
+      failuresRef.current = 0
+      setPhase('ready')
 
-    const position = positionForInstant(manifest.items, manifest.since, new Date())
-    if (!position) return
+      // Считаем позицию по серверной шкале и общей точке публикации, а не по
+      // локальным часам: иначе соседние телевизоры стартуют с разным сдвигом.
+      const position = positionForInstant(
+        manifest.items,
+        manifestEpoch(manifest),
+        new Date(serverNow()),
+      )
+      if (!position) return
 
-    positionRef.current = position
-    setItemIndex(position.itemIndex)
-    setItem(manifest.items[position.itemIndex] ?? manifest.items[0] ?? null)
-  }, [])
+      positionRef.current = position
+      setItemIndex(position.itemIndex)
+      setItem(manifest.items[position.itemIndex] ?? manifest.items[0] ?? null)
+    },
+    [serverNow],
+  )
 
   /**
    * Обновление адресов файлов без смены программы.
@@ -399,9 +430,32 @@ export function PlayerDisplay() {
       lastFrameAtRef.current = Date.now()
 
       if (frame.type === 'hello.ok') {
+        // Новый канал — новый лучший замер: старый мог быть снят на плохой
+        // сети и больше не отражает текущую задержку.
+        clockBestRttRef.current = Number.POSITIVE_INFINITY
+        requestClockSync()
         // Каждое (пере)подключение — повод сверить состояние: пока канал был
         // закрыт, публикация могла выйти и не дойти.
         void loadState({ isRefresh: true })
+        return
+      }
+
+      if (frame.type === 'clock') {
+        const receivedAt = Date.now()
+        const rtt = Math.max(0, receivedAt - frame.clientAt)
+        // Смещение считаем по середине пути «туда-обратно». Берём замер с
+        // наименьшей задержкой: он меньше всего страдает от очередей.
+        const offset = frame.serverAt - (frame.clientAt + receivedAt) / 2
+        const stale = receivedAt - clockSyncedAtRef.current > 5 * 60_000
+
+        if (rtt <= clockBestRttRef.current + 1 || stale) {
+          clockOffsetRef.current = offset
+          clockBestRttRef.current = rtt
+          clockSyncedAtRef.current = receivedAt
+          // Пересчитываем таймеры и, если часы разошлись сильнее, чем на
+          // один материал, переходим в правильную точку цикла.
+          setClockRevision((value) => value + 1)
+        }
         return
       }
 
@@ -421,6 +475,14 @@ export function PlayerDisplay() {
       if (frame.type === 'assignment') {
         // Манифест пришёл по каналу: применяем его без обращения к серверу.
         const payload = frame as { type: 'assignment'; releaseVersion: number; manifest: unknown }
+
+        // Пустая публикация: показывать нечего. Сразу забираем состояние,
+        // чтобы экран перешёл в «ждёт контент», не дожидаясь опроса.
+        if (payload.manifest == null) {
+          void loadState({ isRefresh: true })
+          return
+        }
+
         void (async () => {
           const verdict = await verifyManifest(payload.manifest)
 
@@ -457,7 +519,7 @@ export function PlayerDisplay() {
         void clearAndReturnToPairing()
       }
     },
-    [applyManifest, clearAndReturnToPairing, loadState],
+    [applyManifest, clearAndReturnToPairing, loadState, requestClockSync],
   )
 
   // ── Первый запуск ────────────────────────────────────────────────────────
@@ -602,6 +664,10 @@ export function PlayerDisplay() {
       const socket = socketRef.current
       if (socket?.readyState !== WebSocket.OPEN) return
 
+      // Часы дрейфуют даже на телевизоре, который неделями не выключали.
+      // Перед каждым heartbeat обновляем смещение по самому быстрому замеру.
+      requestClockSync()
+
       socket.send(
         JSON.stringify({
           type: 'heartbeat',
@@ -620,7 +686,7 @@ export function PlayerDisplay() {
     const timer = setInterval(sendHeartbeat, 30_000)
 
     return () => clearInterval(timer)
-  }, [phase])
+  }, [phase, requestClockSync])
 
   // ── Периодический опрос публикации ────────────────────────────────────────
 
@@ -822,6 +888,47 @@ export function PlayerDisplay() {
     [],
   )
 
+  /**
+   * Переход к следующему материалу по общей серверной шкале.
+   *
+   * Не «текущий индекс + 1»: если экран отстал (загрузка файла, сон, обрыв),
+   * позиция берётся из общего времени публикации. Тогда все телевизоры
+   * возвращаются в одну точку цикла, а не накапливают расхождение.
+   */
+  const advancePlayback = useCallback(
+    (force = false) => {
+      const manifest = manifestRef.current
+      const current = manifest?.items[itemIndex]
+      if (!manifest || !current) return
+
+      const position = positionForInstant(
+        manifest.items,
+        manifestEpoch(manifest),
+        new Date(serverNow()),
+      )
+
+      let nextIndex = position?.itemIndex ?? (itemIndex + 1) % manifest.items.length
+      let nextOffset = position?.offsetMs ?? 0
+      const stillCurrent = nextIndex === itemIndex && nextOffset < current.durationMs - 250
+
+      // Таймер мог сработать на несколько миллисекунд раньше границы. Для
+      // изображения это повод не прыгать назад, а дождаться следующего тика.
+      if (stillCurrent && !force) return
+
+      if (stillCurrent) {
+        nextIndex = (itemIndex + 1) % manifest.items.length
+        nextOffset = 0
+      }
+
+      failuresRef.current = 0
+      reportPlayback('ended', current.id, current.durationMs)
+      positionRef.current = { itemIndex: nextIndex, offsetMs: nextOffset }
+      setItemIndex(nextIndex)
+      setItem(manifest.items[nextIndex] ?? null)
+    },
+    [itemIndex, reportPlayback, serverNow],
+  )
+
   // Таймер перехода живёт здесь, а не в отдельном компоненте: он обязан
   // пересоздаваться при смене материала, иначе длительность нового слайда
   // применялась бы к таймеру предыдущего.
@@ -832,18 +939,166 @@ export function PlayerDisplay() {
     const current = manifest?.items[itemIndex]
     if (!manifest || !current) return
 
-    const timer = setTimeout(() => {
-      failuresRef.current = 0
-      // Материал доигран до конца: это единственное событие, за которое
-      // можно сказать «материал показан целиком».
-      reportPlayback('ended', current.id, current.durationMs)
-      const next = itemIndex + 1 >= manifest.items.length ? 0 : itemIndex + 1
-      setItemIndex(next)
-      setItem(manifest.items[next] ?? null)
-    }, current.durationMs)
+    const position = positionForInstant(
+      manifest.items,
+      manifestEpoch(manifest),
+      new Date(serverNow()),
+    )
+    const offset = position?.itemIndex === itemIndex ? position.offsetMs : 0
+    const remaining = Math.max(20, current.durationMs - offset)
+
+    // Видео переключает `onEnded`: это фактический конец файла, поэтому
+    // последний кадр и звук не обрезаются. Таймер — только страховка на
+    // случай, если браузер не прислал событие (зависший декодер, фон).
+    const delay = current.kind === 'video' ? remaining + 4_000 : remaining + 15
+    const timer = setTimeout(() => advancePlayback(true), delay)
 
     return () => clearTimeout(timer)
-  }, [itemIndex, phase, reportPlayback])
+  }, [advancePlayback, clockRevision, item?.id, itemIndex, manifestVersion, phase, serverNow])
+
+  /**
+   * После уточнения часов проверяем, тот ли материал показывается.
+   *
+   * До первого замера экран мог считать позицию по своим часам. Если они
+   * расходятся с сервером на несколько секунд, после синхронизации нужно
+   * перейти в правильную точку, иначе соседние телевизоры останутся в разных
+   * материалах до конца ролика.
+   */
+  useEffect(() => {
+    if (phase !== 'ready') return
+
+    const manifest = manifestRef.current
+    if (!manifest) return
+
+    const position = positionForInstant(
+      manifest.items,
+      manifestEpoch(manifest),
+      new Date(serverNow()),
+    )
+    if (!position || position.itemIndex === itemIndex) return
+
+    positionRef.current = position
+    setItemIndex(position.itemIndex)
+    setItem(manifest.items[position.itemIndex] ?? null)
+  }, [clockRevision, itemIndex, phase, serverNow])
+
+  /**
+   * Показ видео ровно в общей точке.
+   *
+   * Если телевизор подключился позже, он догоняет текущий ролик перемоткой.
+   * Дальше небольшие расхождения (единицы миллисекунд) гасятся скоростью
+   * воспроизведения, а заметный дрейф — перемоткой. Это единственный способ
+   * синхронизировать и картинку, и звук средствами браузера.
+   */
+  useEffect(() => {
+    if (phase !== 'ready' || item?.kind !== 'video') return
+
+    let stopped = false
+
+    const correct = () => {
+      if (stopped) return
+
+      const video = videoRef.current
+      const manifest = manifestRef.current
+      if (!video || !manifest || video.readyState < 1) return
+
+      const position = positionForInstant(
+        manifest.items,
+        manifestEpoch(manifest),
+        new Date(serverNow()),
+      )
+      if (!position || position.itemIndex !== itemIndex) return
+
+      const target = position.offsetMs / 1000
+      const drift = target - video.currentTime
+
+      if (Math.abs(drift) > 0.25) {
+        try {
+          video.currentTime = Math.max(0, target)
+          video.playbackRate = 1
+        } catch {
+          // Метаданные ещё не готовы: следующий тик повторит.
+        }
+        return
+      }
+
+      // 0.98–1.02 не слышны как изменение тона, но убирают дрейф за секунды.
+      video.playbackRate = Math.min(1.02, Math.max(0.98, 1 + drift / 8_000))
+    }
+
+    const timer = setInterval(correct, 1_000)
+    correct()
+
+    return () => {
+      stopped = true
+      clearInterval(timer)
+    }
+  }, [item?.id, itemIndex, phase, serverNow])
+
+  /**
+   * Предзагрузка следующего материала.
+   *
+   * Переключение не должно ждать сеть: пока играет текущий ролик, следующий
+   * уже лежит в кеше. Это особенно важно для синхронной группы — один
+   * телевизор не должен отставать из-за медленной загрузки.
+   */
+  useEffect(() => {
+    if (phase !== 'ready') return
+
+    const manifest = manifestRef.current
+    const next = manifest?.items[(itemIndex + 1) % (manifest.items.length || 1)]
+    if (!next) return
+
+    if (next.kind === 'image') {
+      const image = new Image()
+      image.src = next.url
+      return
+    }
+
+    const link = document.createElement('link')
+    link.rel = 'preload'
+    link.as = 'video'
+    link.href = next.url
+    document.head.appendChild(link)
+    return () => {
+      link.remove()
+    }
+  }, [itemIndex, manifestVersion, phase])
+
+  const onVideoEnded = useCallback(() => {
+    // Событие конца файла важнее таймера: оно гарантирует, что ролик
+    // действительно доигран, а не обрезан на середине.
+    advancePlayback(true)
+  }, [advancePlayback])
+
+  const alignVideo = useCallback(
+    (video: HTMLVideoElement) => {
+      const manifest = manifestRef.current
+      if (!manifest) return
+
+      const position = positionForInstant(
+        manifest.items,
+        manifestEpoch(manifest),
+        new Date(serverNow()),
+      )
+
+      if (position?.itemIndex === itemIndex && position.offsetMs > 250) {
+        try {
+          video.currentTime = position.offsetMs / 1000
+        } catch {
+          // Браузер сам начнёт с нуля; следующий тик догонит.
+        }
+      }
+
+      void video.play().catch(() => {
+        // Автовоспроизведение со звуком может быть запрещено политикой
+        // браузера. Не блокируем показ и не показываем ошибку: следующий
+        // материал и повторный `play` при взаимодействии попробуют снова.
+        logger.debug({}, 'видео не запустилось автоматически')
+      })
+    },
+    [itemIndex, serverNow],
+  )
 
   /**
    * Начало показа материала.
@@ -923,10 +1178,14 @@ export function PlayerDisplay() {
       {item.kind === 'video' ? (
         <video
           key={item.id}
+          ref={videoRef}
           src={item.url}
           autoPlay
+          preload="auto"
           muted={item.audio === 'mute'}
           playsInline
+          onLoadedMetadata={(event) => alignVideo(event.currentTarget)}
+          onEnded={onVideoEnded}
           onError={onItemError}
           className="player-media-in size-full object-contain"
         />
