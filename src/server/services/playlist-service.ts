@@ -32,6 +32,8 @@ export type PlaylistItemView = PlaylistItemInput & {
   state: string
   assetKind: 'image' | 'video' | 'template'
   hasPoster: boolean
+  /** Хеш постера для URL: браузер не должен показывать старую версию. */
+  posterSha256: string | null
   width: number | null
   height: number | null
   transition: 'none' | 'fade'
@@ -69,6 +71,7 @@ function loadItems(playlistId: string): PlaylistItemView[] {
       bytes: mediaAssets.bytes,
       state: mediaAssets.state,
       hasPoster: sql<boolean>`${mediaAssets.posterSha256} is not null`,
+      posterSha256: mediaAssets.posterSha256,
       width: mediaAssets.width,
       height: mediaAssets.height,
     })
@@ -103,6 +106,7 @@ function loadItems(playlistId: string): PlaylistItemView[] {
       bytes: row.bytes,
       state: row.state,
       hasPoster: Boolean(row.hasPoster),
+      posterSha256: row.posterSha256,
       width: row.width,
       height: row.height,
     }))

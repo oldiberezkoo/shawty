@@ -104,7 +104,6 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [assignOpen, setAssignOpen] = useState(false)
   const [versionId, setVersionId] = useState('')
-  const [publishNow, setPublishNow] = useState(true)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -174,7 +173,10 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
 
     if (!assigned) return
 
-    if (publishNow && canPublish) {
+    // Назначение и показ — одно действие. Отдельный переключатель
+    // «опубликовать сейчас» оставлял экран со старой программой, и оператор
+    // не понимал, почему телевизор не обновился.
+    if (canPublish) {
       const published = await call('/api/dashboard/releases', {
         method: 'POST',
         body: JSON.stringify({ screenIds }),
@@ -182,15 +184,15 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
 
       if (!published) return
 
-      setNotice(`Программа назначена экранам: ${screenIds.length}. Публикация ${published.version} выпущена.`)
+      setNotice(`Программа назначена экранам: ${screenIds.length}. Экран обновится автоматически.`)
     } else {
-      setNotice(`Программа назначена экранам: ${screenIds.length}. Публикация не выпущена.`)
+      setNotice(`Программа назначена экранам: ${screenIds.length}. Для показа нужна публикация.`)
     }
 
     setAssignOpen(false)
     setPicked(new Set())
     await load()
-  }, [call, canPublish, load, picked, publishNow, versionId])
+  }, [call, canPublish, load, picked, versionId])
 
   const unassign = useCallback(async () => {
     const screenIds = [...picked]

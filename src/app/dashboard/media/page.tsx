@@ -93,6 +93,7 @@ export default async function MediaPage() {
             transcoded: asset.transcoded,
             error: asset.error,
             hasPoster: Boolean(asset.posterSha256),
+            posterSha256: asset.posterSha256,
             createdAt: asset.createdAt.toISOString(),
           }))}
       />

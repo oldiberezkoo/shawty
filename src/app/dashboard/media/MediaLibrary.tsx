@@ -22,6 +22,8 @@ export type MediaItem = {
   transcoded: boolean
   error: string | null
   hasPoster: boolean
+  /** Хеш постера: меняется вместе с файлом и служит ключом кеша браузера. */
+  posterSha256: string | null
   createdAt: string
 }
 
@@ -71,12 +73,22 @@ export function MediaLibrary(props: {
   const inputRef = useRef<HTMLInputElement>(null)
 
   /**
+   * Защита от гонки запросов. Пока один список в пути, сервер может ответить
+   * на более ранний запрос позже — и тогда «готовый» файл на мгновение снова
+   * станет «обрабатывается», а превью исчезнет. Применяем только последний
+   * ответ и никогда не откатываем уже готовый файл назад.
+   */
+  const latestRefreshRef = useRef(0)
+
+  /**
    * Обработка идёт на сервере: новый файл появляется в состоянии
    * «обработка» и становится готовым через несколько секунд. Поэтому
    * опрашиваем список, пока есть незавершённые элементы, и останавливаемся,
    * как только всё готово — пустой опрос в простое не нужен.
    */
   const refresh = useCallback(async () => {
+    const requestId = ++latestRefreshRef.current
+
     try {
       const response = await fetch('/api/dashboard/media', {
         headers: { 'x-company-id': props.companyId },
@@ -84,7 +96,21 @@ export function MediaLibrary(props: {
       if (!response.ok) return
 
       const data = (await response.json()) as { assets: MediaItem[] }
-      setAssets(data.assets)
+      if (requestId !== latestRefreshRef.current) return
+
+      setAssets((current) => {
+        const byId = new Map(current.map((asset) => [asset.id, asset]))
+        return data.assets.map((fresh) => {
+          const previous = byId.get(fresh.id)
+          // Сервер — источник истины, но обратный переход ready → processing
+          // не должен гасить уже показанное превью: это почти всегда ответ
+          // старого запроса, а не реальная повторная обработка.
+          if (previous?.state === 'ready' && fresh.state === 'processing') {
+            return { ...fresh, state: 'ready', hasPoster: previous.hasPoster || fresh.hasPoster }
+          }
+          return fresh
+        })
+      })
     } catch {
       // Сеть моргнула: следующая попытка повторит.
     }
@@ -97,7 +123,7 @@ export function MediaLibrary(props: {
 
     const timer = setInterval(() => {
       void refresh()
-    }, 2500)
+    }, 1500)
     return () => clearInterval(timer)
   }, [hasPending, refresh])
 
@@ -129,9 +155,40 @@ export function MediaLibrary(props: {
             continue
           }
 
-          const data = (await response.json().catch(() => null)) as { deduplicated?: boolean } | null
+          const data = (await response.json().catch(() => null)) as {
+            deduplicated?: boolean
+            assetId?: string
+            state?: MediaItem['state']
+          } | null
 
-          if (data?.deduplicated) seen.push(file.name)
+          if (data?.deduplicated) {
+            seen.push(file.name)
+            continue
+          }
+
+          if (data?.assetId) {
+            // Карточка появляется сразу после ответа сервера, не дожидаясь
+            // следующего опроса: иначе оператор видит «ничего не произошло»
+            // и загружает файл повторно.
+            const optimistic: MediaItem = {
+              id: data.assetId,
+              fileName: file.name,
+              kind: file.type.startsWith('video/') ? 'video' : 'image',
+              state: data.state === 'ready' ? 'ready' : 'processing',
+              mime: file.type,
+              bytes: file.size,
+              width: null,
+              height: null,
+              durationMs: null,
+              transcoded: false,
+              error: null,
+              hasPoster: false,
+              posterSha256: null,
+              createdAt: new Date().toISOString(),
+            }
+
+            setAssets((current) => [optimistic, ...current.filter((asset) => asset.id !== optimistic.id)])
+          }
         } catch {
           setError(`Сервер недоступен при загрузке ${file.name}`)
         } finally {
@@ -355,7 +412,19 @@ function MediaCard(props: {
   const { asset } = props
 
   const [dimensions, setDimensions] = useState<string>('')
-  const posterUrl = `/api/dashboard/media/file?companyId=${props.companyId}&assetId=${asset.id}&variant=poster`
+  const [posterAttempt, setPosterAttempt] = useState(0)
+  const [posterFailed, setPosterFailed] = useState(false)
+
+  // Хеш постера — это и ключ кеша, и признак того, что картинка обновилась.
+  // Без него браузер мог запомнить неудачный ответ и показывать пустую
+  // карточку даже после готовности файла.
+  const posterVersion = asset.posterSha256 ?? asset.createdAt
+  const posterUrl = `/api/dashboard/media/file?companyId=${encodeURIComponent(props.companyId)}&assetId=${encodeURIComponent(asset.id)}&variant=poster&v=${encodeURIComponent(posterVersion)}${posterAttempt > 0 ? `&retry=${posterAttempt}` : ''}`
+
+  useEffect(() => {
+    setPosterAttempt(0)
+    setPosterFailed(false)
+  }, [asset.id, asset.posterSha256])
 
   // Разрешение показываем из метаданных, а не из картинки: превью уменьшено,
   // и по нему размер не восстановить.
@@ -366,9 +435,28 @@ function MediaCard(props: {
   return (
     <div className="card overflow-hidden transition-colors hover:border-border-strong">
       <div className="relative aspect-video bg-surface-2">
-        {asset.state === 'ready' && asset.hasPoster ? (
+        {asset.state === 'ready' && asset.hasPoster && !posterFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={posterUrl} alt="" className="size-full object-cover" loading="lazy" />
+          <img
+            key={posterVersion}
+            src={posterUrl}
+            alt=""
+            className="size-full object-cover"
+            loading="lazy"
+            onError={() => {
+              // Постер мог ещё не успеть записаться, когда ассет уже стал
+              // ready. Пара повторов с новым URL закрывает эту гонку.
+              if (posterAttempt < 2) setPosterAttempt((attempt) => attempt + 1)
+              else setPosterFailed(true)
+            }}
+          />
+        ) : null}
+
+        {asset.state === 'ready' && (!asset.hasPoster || posterFailed) ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-[11.5px] text-text-subtle">
+            <span className="text-[18px]">{asset.kind === 'video' ? '▶' : '▧'}</span>
+            {asset.kind === 'video' ? 'Видео' : 'Изображение'}
+          </div>
         ) : null}
 
         {asset.state === 'processing' ? (

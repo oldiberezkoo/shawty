@@ -24,15 +24,14 @@ export default async function PlaylistsPage() {
       <div>
         <h1 className="page-title">Плейлисты</h1>
         <p className="mt-1 max-w-[74ch] text-[13px] leading-relaxed text-text-muted">
-          Плейлист задаёт, что и в каком порядке играет на экране. Пока версия не опубликована, изменения
-          живут только в панели: экраны продолжают играть прошлую версию.
+          Плейлист задаёт, что и в каком порядке играет на экране. Любое изменение сохраняется сразу и
+          применяется к назначенным экранам автоматически — публиковать отдельно не нужно.
         </p>
       </div>
 
       <PlaylistList
         companyId={membership.companyId}
         canWrite={access.can(PERMISSIONS.playlistsWrite)}
-        canPublish={access.can(PERMISSIONS.playlistsPublish)}
         canUpload={access.can(PERMISSIONS.mediaWrite)}
         defaultImageDurationMs={serverConfig.media.defaultImageDurationMs}
         initialPlaylists={playlists.map((playlist) => ({
@@ -53,6 +52,7 @@ export default async function PlaylistsPage() {
           height: asset.height,
           durationMs: asset.durationMs,
           hasPoster: Boolean(asset.posterSha256),
+          posterSha256: asset.posterSha256,
           state: asset.state,
         }))}
       />

@@ -28,6 +28,7 @@ export type AssetOption = {
   height: number | null
   durationMs: number | null
   hasPoster: boolean
+  posterSha256: string | null
   state: string
 }
 
@@ -43,6 +44,7 @@ type PlaylistItem = {
   assetDurationMs: number | null
   state: string
   hasPoster: boolean
+  posterSha256: string | null
 }
 
 type Detail = {
@@ -68,10 +70,6 @@ function plural(value: number, one: string, few: string, many: string): string {
   return many
 }
 
-function formatDate(value: string): string {
-  return new Date(value).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })
-}
-
 function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} КБ`
   return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`
@@ -88,7 +86,6 @@ function formatBytes(bytes: number): string {
 export function PlaylistList(props: {
   companyId: string
   canWrite: boolean
-  canPublish: boolean
   /** Загрузка файлов — отдельное право: `media:write`. */
   canUpload: boolean
   defaultImageDurationMs: number
@@ -99,7 +96,6 @@ export function PlaylistList(props: {
   const [assets, setAssets] = useState(props.availableAssets)
   const [selectedId, setSelectedId] = useState<string | null>(props.initialPlaylists[0]?.id ?? null)
   const [detail, setDetail] = useState<Detail | null>(null)
-  const [versions, setVersions] = useState<VersionEntry[]>([])
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -109,7 +105,6 @@ export function PlaylistList(props: {
   const [createOpen, setCreateOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [confirmPublishOpen, setConfirmPublishOpen] = useState(false)
   const [uploading, setUploading] = useState(0)
 
   const selected = useMemo(
@@ -153,9 +148,8 @@ export function PlaylistList(props: {
         headers: { 'x-company-id': props.companyId },
       })
       if (!response.ok) return
-      const data = (await response.json()) as { playlist: Detail; versions: VersionEntry[] }
+      const data = (await response.json()) as { playlist: Detail }
       setDetail(data.playlist)
-      setVersions(data.versions ?? [])
     },
     [props.companyId],
   )
@@ -163,7 +157,6 @@ export function PlaylistList(props: {
   useEffect(() => {
     if (!selectedId) {
       setDetail(null)
-      setVersions([])
       return
     }
     void loadDetail(selectedId)
@@ -245,7 +238,7 @@ export function PlaylistList(props: {
 
     if (result && typeof result.id === 'string') {
       setSelectedId(result.id)
-      setNotice('Копия создана как черновик: назначения и версии не копируются.')
+      setNotice('Копия создана как отдельный плейлист: назначения на экранах у копии свои.')
     }
   }, [call, refreshList, selectedId])
 
@@ -258,7 +251,6 @@ export function PlaylistList(props: {
 
     setDeleteOpen(false)
     setDetail(null)
-    setVersions([])
     setSelectedId(null)
     await refreshList()
     setNotice('Плейлист удалён.')
@@ -444,29 +436,6 @@ export function PlaylistList(props: {
     [call, refreshList, selectedId],
   )
 
-  const publish = useCallback(async () => {
-    if (!selectedId) return
-
-    const result = await call(`/api/dashboard/playlists/${selectedId}/publish`, {
-      method: 'POST',
-      body: '{}',
-    })
-
-    if (result) {
-      setConfirmPublishOpen(false)
-      setNotice(
-        `Версия ${result.version} опубликована: ${result.itemCount} ${plural(
-          Number(result.itemCount ?? 0),
-          'материал',
-          'материала',
-          'материалов',
-        )}, цикл ${formatDuration(Number(result.cycleDurationMs ?? 0))}. Правки черновика теперь не влияют на экраны, пока не опубликуете следующую версию.`,
-      )
-      await refreshList()
-      await loadDetail(selectedId)
-    }
-  }, [call, loadDetail, refreshList, selectedId])
-
   const playableAssets = useMemo(
     () => assets.filter((asset) => asset.kind !== 'template'),
     [assets],
@@ -488,7 +457,6 @@ export function PlaylistList(props: {
           {playlists.map((playlist) => (
             <option key={playlist.id} value={playlist.id}>
               {playlist.name}
-              {playlist.version ? ` · версия ${playlist.version}` : ' · черновик'}
             </option>
           ))}
         </select>
@@ -530,11 +498,7 @@ export function PlaylistList(props: {
                 'материал',
                 'материала',
                 'материалов',
-              )} · ${
-                detail.state === 'published'
-                  ? `опубликована версия ${detail.version ?? '—'}`
-                  : 'черновик — изменения на экранах не видны'
-              }`}
+              )} · изменения сохраняются и применяются на экранах сразу`}
               action={
                 props.canWrite ? (
                   <Button size="md" variant="primary" onClick={() => setShowPicker((current) => !current)}>
@@ -612,57 +576,6 @@ export function PlaylistList(props: {
             </Card>
           ) : null}
 
-          <Card>
-            <CardHeader
-              title="Версии"
-              description="Версия — неизменяемый снимок состава. Экраны играют опубликованную версию, правки черновика её не меняют."
-              action={
-                props.canPublish ? (
-                  <Button
-                    size="md"
-                    variant="primary"
-                    disabled={busy || detail.items.length === 0}
-                    onClick={() => setConfirmPublishOpen(true)}
-                  >
-                    Опубликовать версию
-                  </Button>
-                ) : null
-              }
-            />
-
-            <CardBody className="p-0">
-              {versions.length === 0 ? (
-                <p className="px-5 py-6 text-[13px] text-text-muted">
-                  Версий ещё нет. Пока версия не опубликована, назначить плейлист экранам нельзя.
-                </p>
-              ) : (
-                <ul>
-                  {versions.map((version) => (
-                    <li
-                      key={version.id}
-                      className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-5 py-3 last:border-0"
-                    >
-                      <span className="tnum text-[13px] font-medium">Версия {version.version}</span>
-
-                      {version.isCurrent ? (
-                        <span className="rounded-full bg-success-bg px-2.5 py-1 text-[11.5px] font-medium text-success">
-                          Текущая
-                        </span>
-                      ) : null}
-
-                      <span className="text-[12px] text-text-muted">{formatDate(version.createdAt)}</span>
-                      <span className="text-[12px] text-text-muted">
-                        {version.itemCount} {plural(version.itemCount, 'материал', 'материала', 'материалов')}
-                      </span>
-                      <span className="tnum text-[12px] text-text-muted">
-                        цикл {formatDuration(version.totalDurationMs)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardBody>
-          </Card>
         </>
       ) : (
         <Card>
@@ -713,7 +626,7 @@ export function PlaylistList(props: {
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         title="Удалить плейлист?"
-        description={`«${detail?.name ?? ''}» будет удалён вместе с составом и версиями. Назначения на экранах не меняются — экраны останутся на последней опубликованной версии.`}
+        description={`«${detail?.name ?? ''}» будет удалён вместе с составом. Экраны, где он назначен, освободятся автоматически.`}
         size="sm"
         footer={
           <>
@@ -727,29 +640,6 @@ export function PlaylistList(props: {
         }
       />
 
-      <Modal
-        open={confirmPublishOpen}
-        onClose={() => setConfirmPublishOpen(false)}
-        title="Опубликовать версию"
-        description="Будет создан снимок текущего состава. Правки после публикации попадут только в следующую версию, поэтому экраны не изменятся посреди дня."
-        size="sm"
-        footer={
-          <>
-            <Button size="md" onClick={() => setConfirmPublishOpen(false)}>
-              Отмена
-            </Button>
-            <Button size="md" variant="primary" disabled={busy} onClick={() => void publish()}>
-              Опубликовать
-            </Button>
-          </>
-        }
-      >
-        <ul className="flex flex-col gap-1.5 text-[13px] text-text-muted">
-          <li>Материалов: {detail?.items.length ?? 0}</li>
-          <li>Длительность цикла: {formatDuration(detail?.cycleDurationMs ?? 0)}</li>
-          <li>Предыдущая версия: {detail?.version ?? 'нет'}</li>
-        </ul>
-      </Modal>
     </div>
   )
 }
@@ -774,7 +664,7 @@ function CreatePlaylistModal(props: {
       open={props.open}
       onClose={props.onClose}
       title="Новый плейлист"
-      description="Плейлист — это порядок и длительность показа. Экраны играют опубликованную версию."
+      description="Плейлист — это порядок и длительность показа. Изменения применяются на экранах сразу."
       size="sm"
       footer={
         <>
@@ -870,7 +760,7 @@ function ItemRow(props: {
       {item.hasPoster ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={`/api/dashboard/media/file?companyId=${props.companyId}&assetId=${item.assetId}&variant=poster`}
+          src={`/api/dashboard/media/file?companyId=${props.companyId}&assetId=${item.assetId}&variant=poster&v=${encodeURIComponent(item.posterSha256 ?? item.id)}`}
           alt=""
           className="h-9 w-16 shrink-0 rounded-[var(--radius-sm)] bg-surface-2 object-cover"
           loading="lazy"
@@ -893,7 +783,11 @@ function ItemRow(props: {
         </span>
       </span>
 
-      {props.canWrite ? (
+      {item.kind === 'video' ? (
+        // У видео нет «показ, сек»: ролик всегда играет до конца. Поле здесь
+        // только путало бы и позволяло обрезать рекламу на середине.
+        <span className="w-24 shrink-0 text-right text-[12px] text-text-subtle">до конца</span>
+      ) : props.canWrite ? (
         <input
           type="number"
           min={0}
@@ -1069,7 +963,7 @@ function AssetPicker(props: {
               {asset.hasPoster ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={`/api/dashboard/media/file?companyId=${props.companyId}&assetId=${asset.id}&variant=poster`}
+                  src={`/api/dashboard/media/file?companyId=${props.companyId}&assetId=${asset.id}&variant=poster&v=${encodeURIComponent(asset.posterSha256 ?? asset.id)}`}
                   alt=""
                   className="size-full object-cover"
                   loading="lazy"
