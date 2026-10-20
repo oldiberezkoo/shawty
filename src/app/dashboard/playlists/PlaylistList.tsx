@@ -534,7 +534,8 @@ export function PlaylistList(props: {
                       companyId={props.companyId}
                       canWrite={props.canWrite}
                       defaultImageMs={props.defaultImageDurationMs}
-                      onMove={(from) => void move(from, index)}
+                      onMove={(toIndex) => void move(index, toIndex)}
+                      onDropItem={(fromIndex) => void move(fromIndex, index)}
                       onDuration={(seconds) => void setDuration(item.id, seconds)}
                       onRemove={() => void removeItem(item.id)}
                     />
@@ -712,6 +713,7 @@ function ItemRow(props: {
   canWrite: boolean
   defaultImageMs: number
   onMove: (toIndex: number) => void
+  onDropItem: (fromIndex: number) => void
   onDuration: (seconds: number | null) => void
   onRemove: () => void
 }) {
@@ -750,7 +752,7 @@ function ItemRow(props: {
       onDrop={(event) => {
         event.preventDefault()
         const from = Number(event.dataTransfer.getData('text/plain'))
-        if (Number.isInteger(from)) props.onMove(from)
+        if (Number.isInteger(from)) props.onDropItem(from)
       }}
       className="flex items-center gap-3 border-b border-border px-5 py-2.5 last:border-0"
     >
