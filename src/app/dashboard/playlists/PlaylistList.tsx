@@ -534,7 +534,7 @@ export function PlaylistList(props: {
                       companyId={props.companyId}
                       canWrite={props.canWrite}
                       defaultImageMs={props.defaultImageDurationMs}
-                      onMove={(to) => void move(index, to)}
+                      onMove={(from) => void move(from, index)}
                       onDuration={(seconds) => void setDuration(item.id, seconds)}
                       onRemove={() => void removeItem(item.id)}
                     />

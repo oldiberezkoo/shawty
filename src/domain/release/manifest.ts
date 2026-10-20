@@ -30,6 +30,11 @@ export type ManifestSource = {
     audio: 'keep' | 'mute'
   }[]
   nextChangeAt: Date | null
+  /**
+   * Единая точка отсчёта для всех экранов одной публикации. Если не задана,
+   * плеер откатывается к `since` — манифест остаётся совместимым.
+   */
+  syncEpoch?: Date | null
 }
 
 const DEFAULT_IMAGE_DURATION_MS = 8000
@@ -53,6 +58,7 @@ export function buildManifest(source: ManifestSource, now = new Date()): PlayerM
     loop: true,
     nextChangeAt: source.nextChangeAt ? source.nextChangeAt.toISOString() : null,
     since: now.toISOString(),
+    syncEpoch: source.syncEpoch ? source.syncEpoch.toISOString() : null,
   }
 
   // Хеш считается по канонической строке без самого поля хеша: иначе

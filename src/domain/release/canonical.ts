@@ -42,6 +42,7 @@ export function canonicalManifestJson(manifest: PlayerManifest): string {
   return JSON.stringify({
     version: manifest.version,
     screenId: manifest.screenId,
+    syncEpoch: manifest.syncEpoch ?? null,
     items: manifest.items.map((item) => ({
       id: item.id,
       url: stableUrl(item.url),

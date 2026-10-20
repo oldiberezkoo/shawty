@@ -23,7 +23,7 @@ import { deviceHub } from './hub'
 import { logger } from '@/lib/logger'
 
 /** Как часто просматриваем очередь доставки. */
-const TICK_MS = 2000
+const TICK_MS = 1_000
 
 /**
  * Через сколько повторно отправляем уже отправленное.
@@ -32,7 +32,7 @@ const TICK_MS = 2000
  * закрылся, манифест не доехал. Без повторной отправки такой экран ждал бы
  * следующей публикации, показывая старое — при формально успешной доставке.
  */
-const RESEND_AFTER_MS = 60_000
+const RESEND_AFTER_MS = 5_000
 
 /**
  * После скольких попыток перестаём досылать и признаём неудачу.
@@ -42,7 +42,7 @@ const RESEND_AFTER_MS = 60_000
  * за вечным «Загружают». Поздний ack всё равно переведёт чек в `applied` —
  * обработчик подтверждения не смотрит на прежнее состояние.
  */
-const MAX_ATTEMPTS = 8
+const MAX_ATTEMPTS = 20
 
 /** Как часто печатать накопленную сводку доставки, в тиках насоса. */
 const SUMMARY_EVERY_TICKS = Math.round(60_000 / TICK_MS)
@@ -144,14 +144,14 @@ function deliver(row: PendingRow): 'sent' | 'skipped' | 'failed' {
   }
 
   const release = db
-    .select({ version: releases.manifestVersion })
+    .select({ version: releases.manifestVersion, createdAt: releases.createdAt })
     .from(releases)
     .where(eq(releases.id, row.releaseId))
     .get()
 
   if (!release) return 'skipped'
 
-  const manifest = buildScreenManifest(row.companyId, row.screenId, release.version)
+  const manifest = buildScreenManifest(row.companyId, row.screenId, release.version, new Date(), release.createdAt)
 
   if (!manifest) {
     // Назначение есть, но показывать нечего: все файлы не готовы или удалены.

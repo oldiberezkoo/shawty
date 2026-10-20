@@ -84,6 +84,13 @@ export function handleDeviceConnection(socket: WebSocket, request: IncomingMessa
           connection.isAlive = true
           break
 
+        case 'clock':
+          // Отвечаем сразу: клиент вычислит смещение по середине интервала
+          // отправки и получения. Это точнее, чем брать время из HTTP-ответа,
+          // где к задержке добавляется время рендеринга.
+          send(connection, { type: 'clock', clientAt: frame.at, serverAt: Date.now() })
+          break
+
         case 'watch-pairing':
           handleWatchPairing(connection, frame.sessionId, frame.deviceNonce)
           break

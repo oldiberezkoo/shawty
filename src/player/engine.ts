@@ -38,6 +38,15 @@ export type PlayerManifest = {
    * страницы: часы телевизора для этого ненадёжны.
    */
   since: string
+  /**
+   * Общая точка отсчёта для экранов одной публикации.
+   *
+   * В отличие от `since`, которая пересчитывается при каждой сборке ответа,
+   * это время создания публикации: оно одинаково у всех экранов, получивших
+   * её одним действием. Плеер считает позицию от него, поэтому два телевизора
+   * с одним плейлистом находятся в одной точке цикла.
+   */
+  syncEpoch?: string | null
 }
 
 export type PlaybackPosition = {
@@ -122,6 +131,16 @@ export function advance(items: readonly PlayerItem[], position: PlaybackPosition
  * начинать с нуля, он показывает то, что по расписанию должно идти сейчас.
  * Без этого после ночного простоя сеть утром начинает не с той картинки.
  */
+/**
+ * Точка отсчёта цикла для манифеста.
+ *
+ * `syncEpoch` появляется у публикаций, выпущенных после включения синхронизации.
+ * Старые манифесты остаются рабочими: для них используется прежний `since`.
+ */
+export function manifestEpoch(manifest: Pick<PlayerManifest, 'syncEpoch' | 'since'>): string {
+  return manifest.syncEpoch ?? manifest.since
+}
+
 export function positionForInstant(
   items: readonly PlayerItem[],
   itemsSince: string | null,

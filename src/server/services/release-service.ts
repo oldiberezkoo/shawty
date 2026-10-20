@@ -33,6 +33,7 @@ import {
 import type { PlayerManifest } from '@/player/engine'
 import { HttpError } from '@/server/http/errors'
 import { recordAudit, recordAuditTx } from '@/server/services/audit-service'
+import { deviceHub } from '@/server/ws/hub'
 import { logger } from '@/lib/logger'
 
 /**
@@ -232,6 +233,11 @@ export function buildScreenManifest(
   screenId: string,
   version: number,
   at: Date = new Date(),
+  /**
+   * Время публикации, общее для всех её экранов. По нему плееры вычисляют
+   * позицию цикла, поэтому оно не должно зависеть от момента запроса.
+   */
+  syncEpoch: Date | null = null,
 ): PlayerManifest | null {
   const plan = planForScreen(companyId, screenId, at)
 
@@ -269,6 +275,7 @@ export function buildScreenManifest(
       screenId,
       companyId,
       nextChangeAt: plan.nextChangeAt,
+      syncEpoch,
       items: playable.map((row) => ({
         id: row.itemId,
         kind: row.assetKind === 'video' ? ('video' as const) : ('image' as const),
@@ -330,7 +337,17 @@ export function publishScreens(params: {
     throw HttpError.badRequest('nothing_assigned', 'Ни одному экрану не назначен плейлист')
   }
 
-  return withImmediateTransaction((tx) => {
+  /**
+   * Манифесты, которые нужно отдать сразу после коммита.
+   *
+   * Насос доставки — страховка и повтор, а не единственный путь: если ждать
+   * его тика, публикация ощущается как «через секунду-две», а при потерянном
+   * первом кадре — как «через минуту». Поэтому публикация сама отправляет
+   * манифест в живые сокеты, не дожидаясь фонового прохода.
+   */
+  const pendingDelivery: { screenId: string; receiptId: string; manifest: PlayerManifest | null }[] = []
+
+  const result = withImmediateTransaction((tx) => {
     const last = tx
       .select({ max: sql<number | null>`max(${releases.manifestVersion})` })
       .from(releases)
@@ -354,13 +371,17 @@ export function publishScreens(params: {
         itemCount: 0,
         reason: params.reason ?? null,
         createdByUserId: params.actorUserId ?? null,
+        // Та же миллисекунда, что ушла в манифесты: иначе экран, подключившийся
+        // позже, получил бы из базы чуть другое начало цикла и разошёлся бы
+        // с соседями на несколько миллисекунд.
+        createdAt: now,
       })
       .run()
 
     let itemCount = 0
 
     for (const screenId of uniqueScreens) {
-      const manifest = buildScreenManifest(companyId, screenId, version, now)
+      const manifest = buildScreenManifest(companyId, screenId, version, now, now)
       const plan = planForScreen(companyId, screenId, now)
 
       tx.insert(releaseTargets)
@@ -388,10 +409,14 @@ export function publishScreens(params: {
         .onConflictDoUpdate({ target: screenPublications.screenId, set })
         .run()
 
+      const receiptId = crypto.randomUUID()
+
       tx.insert(deliveryReceipts)
-        .values({ id: crypto.randomUUID(), releaseId, screenId, state: 'queued', updatedAt: now })
+        .values({ id: receiptId, releaseId, screenId, state: 'queued', updatedAt: now })
         .onConflictDoNothing()
         .run()
+
+      pendingDelivery.push({ screenId, receiptId, manifest })
 
       if (manifest) {
         itemCount = Math.max(itemCount, manifest.items.length)
@@ -422,6 +447,53 @@ export function publishScreens(params: {
 
     return { releaseId, version, screens: uniqueScreens.length }
   })
+
+  deliverImmediately(result.version, pendingDelivery)
+
+  return result
+}
+
+/**
+ * Немедленная отправка выпуска в живые каналы.
+ *
+ * Ничего не бросает: публикация уже закоммичена, и сбой сокета не должен
+ * превращать успешную публикацию в ошибку. Нет связи — запись останется
+ * `queued`, и её заберёт насос доставки, когда экран вернётся.
+ */
+function deliverImmediately(
+  version: number,
+  pending: readonly { screenId: string; receiptId: string; manifest: PlayerManifest | null }[],
+): void {
+  const sentAt = new Date()
+
+  for (const entry of pending) {
+    try {
+      if (!deviceHub.isOnline(entry.screenId)) continue
+
+      // Пустой манифест — тоже событие: экран должен сразу показать «нет
+      // назначенного контента», а не ждать следующего опроса. Плеер увидит
+      // `manifest: null` и попросит актуальное состояние.
+      const delivered = deviceHub.sendToScreens([entry.screenId], {
+        type: 'assignment',
+        releaseVersion: version,
+        manifest: entry.manifest,
+      })
+
+      if (delivered === 0) continue
+
+      db.update(deliveryReceipts)
+        .set({
+          state: 'sent',
+          sentAt,
+          updatedAt: sentAt,
+          attempts: sql`${deliveryReceipts.attempts} + 1`,
+        })
+        .where(eq(deliveryReceipts.id, entry.receiptId))
+        .run()
+    } catch (error) {
+      logger.warn({ err: error, screenId: entry.screenId }, 'не удалось отправить публикацию сразу после коммита')
+    }
+  }
 }
 
 /**
@@ -460,9 +532,27 @@ export function stateForScreen(companyId: string, screenId: string) {
     .where(eq(screenPublications.screenId, screenId))
     .get()
 
+  const release =
+    publication?.desiredReleaseId != null
+      ? db
+          .select({ createdAt: releases.createdAt })
+          .from(releases)
+          .where(eq(releases.id, publication.desiredReleaseId))
+          .get()
+      : null
+
   const manifest =
     publication?.desiredVersion != null
-      ? buildScreenManifest(companyId, screenId, publication.desiredVersion)
+      ? buildScreenManifest(
+          companyId,
+          screenId,
+          publication.desiredVersion,
+          new Date(),
+          // Публикация могла быть выпущена несколько дней назад. Для всех её
+          // экранов точка отсчёта одна и та же, поэтому опрос состояния не
+          // сдвигает цикл и не рассинхронизирует телевизоры.
+          release?.createdAt ?? publication.updatedAt,
+        )
       : null
 
   return {

@@ -107,6 +107,18 @@ export const devicePlaybackFrame = z.object({
 
 export const devicePongFrame = z.object({ type: z.literal('pong') })
 
+/**
+ * Запрос точного времени сервера.
+ *
+ * Телевизоры должны переключать материалы одновременно, поэтому им нужна не
+ * локальная дата, а общая шкала. `at` — время отправки по часам устройства:
+ * по нему сервер и клиент вычисляют задержку и смещение.
+ */
+export const deviceClockFrame = z.object({
+  type: z.literal('clock'),
+  at: z.number().int().nonnegative(),
+})
+
 export const deviceFrameSchema = z.discriminatedUnion('type', [
   deviceHelloFrame,
   deviceHeartbeatFrame,
@@ -115,6 +127,7 @@ export const deviceFrameSchema = z.discriminatedUnion('type', [
   deviceErrorFrame,
   devicePlaybackFrame,
   devicePongFrame,
+  deviceClockFrame,
 ])
 
 export type DeviceFrame = z.infer<typeof deviceFrameSchema>
@@ -149,6 +162,7 @@ export type ServerFrame =
    */
   | { type: 'assignment'; releaseVersion: number; manifest: unknown }
   | { type: 'ping'; at: number }
+  | { type: 'clock'; clientAt: number; serverAt: number }
 
 export function encodeFrame(frame: ServerFrame): string {
   return JSON.stringify(frame)
