@@ -5,6 +5,7 @@ import { listCampaigns } from '@/server/services/campaign-service'
 import { companyToday } from '@/server/services/schedule-service'
 import { listBranches, listGroups, listScreens } from '@/server/services/screen-service'
 import { listPlaylists, listVersions } from '@/server/services/playlist-service'
+import { Notice } from '@/components/ui/status-badge'
 import { CampaignsBoard } from './CampaignsBoard'
 
 export const dynamic = 'force-dynamic'
@@ -31,6 +32,11 @@ export default async function CampaignsPage() {
           более свежая кампания.
         </p>
       </div>
+
+      <Notice>
+        Пример: «Скидка 20%» на экранах филиала «Центр» по будням с 10:00 до 20:00. Вне этого окна экраны
+        показывают обычный назначенный плейлист — отдельно останавливать кампанию не нужно.
+      </Notice>
 
       <CampaignsBoard
         companyId={companyId}

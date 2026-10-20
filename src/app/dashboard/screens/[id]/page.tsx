@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, MonitorPlay } from 'lucide-react'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
-import { getBranchOptions, getGroupOptions, getScreenDetail, listScreens } from '@/server/services/screen-service'
+import { describePlatform, getBranchOptions, getGroupOptions, getScreenDetail, listScreens } from '@/server/services/screen-service'
 import { listPublishedVersions, versionItems } from '@/server/services/playlist-service'
 import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -73,8 +73,12 @@ export default async function ScreenDetailPage({ params }: { params: Promise<{ i
   const items = detail.planned ? versionItems(detail.planned.id) : []
   const history = [...detail.telemetryHistory].reverse()
   const capabilities = detail.capabilities ?? {}
-  const platform = typeof capabilities.platform === 'string' ? capabilities.platform : null
   const userAgent = typeof capabilities.userAgent === 'string' ? capabilities.userAgent : null
+  const platform =
+    typeof capabilities.platform === 'string' ? capabilities.platform : describePlatform(userAgent)
+  const deviceMemoryGb = typeof capabilities.deviceMemoryGb === 'number' ? capabilities.deviceMemoryGb : null
+  const hardwareConcurrency =
+    typeof capabilities.hardwareConcurrency === 'number' ? capabilities.hardwareConcurrency : null
 
   const screen = capabilities.screen as { width?: number; height?: number } | undefined
 
@@ -190,7 +194,9 @@ export default async function ScreenDetailPage({ params }: { params: Promise<{ i
               <div>
                 <dt className="text-[12px] text-text-subtle">Скорость канала</dt>
                 <dd className="tnum font-medium">
-                  {detail.telemetry?.downlinkKbps ? `${(detail.telemetry.downlinkKbps / 1000).toFixed(1)} Мбит/с` : '—'}
+                  {detail.telemetry?.downlinkKbps !== null && detail.telemetry?.downlinkKbps !== undefined
+                    ? `${(detail.telemetry.downlinkKbps / 1000).toFixed(1)} Мбит/с`
+                    : '—'}
                 </dd>
               </div>
               <div>
@@ -218,6 +224,14 @@ export default async function ScreenDetailPage({ params }: { params: Promise<{ i
                 <dd className="tnum font-medium">
                   {screen?.width && screen?.height ? `${screen.width}×${screen.height}` : '—'}
                 </dd>
+              </div>
+              <div>
+                <dt className="text-[12px] text-text-subtle">Память устройства</dt>
+                <dd className="tnum font-medium">{deviceMemoryGb !== null ? `${deviceMemoryGb} ГБ` : '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-[12px] text-text-subtle">Ядра процессора</dt>
+                <dd className="tnum font-medium">{hardwareConcurrency !== null ? hardwareConcurrency : '—'}</dd>
               </div>
             </dl>
 

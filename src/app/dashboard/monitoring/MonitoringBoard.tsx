@@ -77,6 +77,25 @@ type Totals = { screens: number; online: number; offline: number; inactive: numb
 
 const REFRESH_MS = 10_000
 
+/** Порядок в таблице: сначала то, что требует внимания. */
+const DEVICE_STATE_ORDER: Record<DeviceRow['onlineState'], number> = {
+  offline: 0,
+  error: 0,
+  syncing: 1,
+  unpaired: 2,
+  disabled: 3,
+  revoked: 3,
+  online: 4,
+}
+
+function sortDevices(devices: DeviceRow[]): DeviceRow[] {
+  return [...devices].sort(
+    (left, right) =>
+      DEVICE_STATE_ORDER[left.onlineState] - DEVICE_STATE_ORDER[right.onlineState] ||
+      left.name.localeCompare(right.name, 'ru'),
+  )
+}
+
 const INCIDENT_LABEL: Record<string, string> = {
   offline: 'нет связи',
   reconnected: 'вернулся на связь',
@@ -157,7 +176,7 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
       }
 
       setTotals(data.totals)
-      setDevices(data.devices)
+      setDevices(sortDevices(data.devices))
       setSilent(data.silent)
       setOpen(data.openDowntimes)
       setFeed(data.feed)
@@ -229,7 +248,7 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
       <Card>
         <CardHeader
           title="Устройства и связь"
-          description="Пинг и скорость — со слов самого телевизора, замер раз в 4 минуты. График — почасовая история за сутки: провал вечером виден сразу. Прочерк значит «плеер не сообщает это поле», а не ноль."
+          description="Пинг и скорость — со слов самого телевизора (оценка браузера, а не спидтест), замер раз в 4 минуты. График — почасовая история за сутки: провал вечером виден сразу. Прочерк значит «плеер не сообщает это поле», а не ноль."
         />
         <CardBody className="p-0">
           {devices.length === 0 ? (

@@ -303,7 +303,12 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
       <Card>
         <CardHeader
           title="Что и когда идёт на экранах"
-          description="Расписание считает сервер. «Ожидает смены» значит, что программа по расписанию отличается от выложенной — публикацию выпустит насос расписания в ближайшие секунды. Отметьте экраны, чтобы назначить или снять программу сразу нескольким."
+          description="Расписание считает сервер. «Ожидает смены» значит, что программа по расписанию отличается от выложенной — публикацию выпустит насос расписания в ближайшие секунды. Отметьте экраны, чтобы назначить или снять программу сразу нескольким. Окна по дням и часам задаются кампанией: выберите экран ниже и откройте «Кампании»."
+          action={
+            <Link href="/dashboard/campaigns">
+              <Button size="sm">Кампании и окна показа</Button>
+            </Link>
+          }
         />
         <CardBody className="p-0">
           <div className="@container w-full overflow-x-auto">
@@ -491,6 +496,17 @@ function Timeline({ preview }: { preview: Preview }) {
               />
             )
           })}
+        </div>
+
+        <div className="flex flex-wrap gap-3 text-[12px] text-text-subtle">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block size-2.5 rounded-[2px] bg-primary/70" />
+            кампания
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block size-2.5 rounded-[2px] border border-border bg-surface-3" />
+            постоянная программа
+          </span>
         </div>
 
         <div className="flex justify-between text-[12px] text-text-subtle">
