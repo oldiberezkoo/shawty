@@ -521,7 +521,7 @@ export function PlaylistList(props: {
                     <span className="w-6 shrink-0">№</span>
                     <span className="w-16 shrink-0">Кадр</span>
                     <span className="min-w-0 flex-1">Файл</span>
-                    <span className="w-24 shrink-0 text-right">Показ</span>
+                    <span className="w-24 shrink-0 text-right">Длительность</span>
                     <span className="w-[104px] shrink-0 text-right">Порядок</span>
                   </li>
 

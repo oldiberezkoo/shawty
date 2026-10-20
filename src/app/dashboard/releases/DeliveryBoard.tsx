@@ -217,10 +217,10 @@ export function DeliveryBoard(props: {
       // отсылает к живым числам, а не выдумывает «доставлено N».
       setNotice(
         summary
-          ? `Опубликована версия ${result.version} для ${summary.total} экранов. ` +
+          ? `Публикация №${result.version} для ${summary.total} экранов. ` +
               `Отправлено ${summary.sent}, применяют ${summary.applied}. ` +
               `Точные числа обновятся на этой странице автоматически.`
-          : `Опубликована версия ${result.version}`,
+          : `Публикация №${result.version}`,
       )
     }
   }, [call])
