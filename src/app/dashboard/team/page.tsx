@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS, ROLE_LABELS, ROLE_PERMISSIONS } from '@/domain/authz/permissions'
 import { listInvitations, listMembers } from '@/server/services/team-service'
+import { listBranches, listGroups, listScreens } from '@/server/services/screen-service'
 import { TeamBoard } from './TeamBoard'
 
 export const dynamic = 'force-dynamic'
@@ -21,8 +22,8 @@ export default async function TeamPage() {
       <div>
         <h1 className="page-title">Команда</h1>
         <p className="mt-1 max-w-[70ch] text-[13px] text-text-muted">
-          Кто работает с контентом и экранами и за что отвечает. Роль действует только в этой компании: один человек
-          может вести две компании и нигде не иметь доступа к оплате.
+          Кто работает с контентом и экранами. Роль отвечает за действия, доступ — за то, какие филиалы и экраны
+          человек видит. И то, и другое действует только в этой компании.
         </p>
       </div>
 
@@ -52,6 +53,14 @@ export default async function TeamPage() {
           role,
           label,
           permissions: ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS] ?? [],
+        }))}
+        branches={listBranches(companyId).map((branch) => ({ id: branch.id, name: branch.name }))}
+        groups={listGroups(companyId).map((group) => ({ id: group.id, name: group.name }))}
+        screens={listScreens(companyId).map((screen) => ({
+          id: screen.id,
+          name: screen.name,
+          branchId: screen.branchId,
+          branchName: screen.branchName,
         }))}
       />
     </div>
