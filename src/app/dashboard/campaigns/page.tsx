@@ -66,12 +66,10 @@ export default async function CampaignsPage() {
         branches={listBranches(companyId).map((branch) => ({ id: branch.id, name: branch.name }))}
         groups={listGroups(companyId).map((group) => ({ id: group.id, name: group.name }))}
         screens={listScreens(companyId).map((screen) => ({ id: screen.id, name: screen.name }))}
-        playlistVersions={playlists.flatMap((playlist) =>
-          listVersions(companyId, playlist.id).map((entry) => ({
-            id: entry.id,
-            label: `${playlist.name} · версия ${entry.version}`,
-          })),
-        )}
+        playlistVersions={playlists.flatMap((playlist) => {
+          const current = listVersions(companyId, playlist.id).find((entry) => entry.isCurrent)
+          return current ? [{ id: current.id, label: playlist.name }] : []
+        })}
       />
     </div>
   )

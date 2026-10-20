@@ -266,10 +266,7 @@ export function CampaignsBoard(props: {
                   </td>
                   <td data-label="Что показывает" className="px-5 py-2 text-text-muted">
                     {campaign.playlistName ? (
-                      <>
-                        {campaign.playlistName}
-                        <span className="text-text-subtle"> · версия {campaign.playlistVersion ?? '—'}</span>
-                      </>
+                      <>{campaign.playlistName}</>
                     ) : (
                       <span className="text-text-subtle">плейлист не выбран</span>
                     )}
@@ -320,9 +317,7 @@ export function CampaignsBoard(props: {
               <p>
                 Показывает{' '}
                 <span className="font-medium text-text">
-                  {selected.playlistName
-                    ? `${selected.playlistName}, версия ${selected.playlistVersion ?? '—'}`
-                    : 'плейлист не выбран'}
+                  {selected.playlistName ? selected.playlistName : 'плейлист не выбран'}
                 </span>{' '}
                 {selected.targets.length > 0 ? 'на ' : ''}
                 {selected.targets
@@ -488,7 +483,7 @@ function CampaignForm(props: {
     }
 
     if (!playlistVersionId) {
-      setError('Выберите опубликованную версию плейлиста — без неё кампании нечего показывать.')
+      setError('Выберите плейлист — без него кампании нечего показывать.')
       return
     }
 
@@ -634,7 +629,7 @@ function CampaignForm(props: {
 
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1.5 text-[12.5px] font-medium text-text">
-            Версия плейлиста
+            Плейлист
             <select
               value={playlistVersionId}
               onChange={(event) => setPlaylistVersionId(event.target.value)}

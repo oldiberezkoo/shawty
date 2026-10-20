@@ -96,13 +96,17 @@ export const GET = route(async (request) => {
 
   const url = new URL(request.url)
 
+  const assets = listMedia(companyId, {
+    kind: parseKind(url.searchParams.get('kind')),
+    folderId: url.searchParams.get('folderId') ?? undefined,
+    state: parseState(url.searchParams.get('state')),
+    search: url.searchParams.get('search') ?? undefined,
+  })
+
   return jsonResponse({
-    assets: listMedia(companyId, {
-      kind: parseKind(url.searchParams.get('kind')),
-      folderId: url.searchParams.get('folderId') ?? undefined,
-      state: parseState(url.searchParams.get('state')),
-      search: url.searchParams.get('search') ?? undefined,
-    }),
+    // `hasPoster` считаем на сервере: клиент не должен знать про хеш и не
+    // должен терять превью после очередного опроса списка.
+    assets: assets.map((asset) => ({ ...asset, hasPoster: Boolean(asset.posterSha256) })),
     folders: listFolders(companyId),
     usage: storageUsage(companyId),
     queue: queueStats(),

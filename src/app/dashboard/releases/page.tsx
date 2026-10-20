@@ -27,16 +27,22 @@ export default async function ReleasesPage() {
   const groups = listGroups(companyId)
   const playlists = listPlaylists(companyId)
 
-  // Версии нужны только для выбора в форме назначения.
-  const versions = playlists.map((playlist) => ({
-    playlistId: playlist.id,
-    name: playlist.name,
-    version: playlist.version,
-    versions: listVersions(companyId, playlist.id).map((entry) => ({
-      id: entry.id,
-      version: entry.version,
-    })),
-  }))
+  // В форме назначения — только текущая версия плейлиста: выбора версий
+  // в продукте больше нет.
+  const versions = playlists.flatMap((playlist) => {
+    const current = listVersions(companyId, playlist.id).find((entry) => entry.isCurrent)
+
+    return current
+      ? [
+          {
+            playlistId: playlist.id,
+            name: playlist.name,
+            version: playlist.version,
+            versions: [{ id: current.id, version: current.version }],
+          },
+        ]
+      : []
+  })
 
   const latest = releases[0]
   const receipts = latest ? receiptsForRelease(latest.id) : []

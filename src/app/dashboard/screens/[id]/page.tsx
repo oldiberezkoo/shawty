@@ -134,13 +134,13 @@ export default async function ScreenDetailPage({ params }: { params: Promise<{ i
         <Card>
           <CardHeader
             title="Что показывается"
-            description="«Сейчас» — выбор расписания и кампаний. «Выложено» — версия, которую экран подтвердил."
+            description="«Сейчас» — выбор расписания и кампаний. «Выложено» — то, что экран подтвердил."
           />
           <CardBody className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <span className="text-[12px] text-text-subtle">Сейчас</span>
               <span className="text-[14px] font-medium">
-                {detail.planned ? `${detail.planned.name} · версия ${detail.planned.version}` : 'Ничего не назначено'}
+                {detail.planned ? detail.planned.name : 'Ничего не назначено'}
               </span>
               {detail.nextChangeAt ? (
                 <span className="text-[12.5px] text-text-muted">Смена программы: {formatMoment(detail.nextChangeAt)}</span>
@@ -152,7 +152,7 @@ export default async function ScreenDetailPage({ params }: { params: Promise<{ i
             <div className="flex flex-col gap-1 border-t border-border pt-3">
               <span className="text-[12px] text-text-subtle">Выложено на экран</span>
               <span className="text-[14px] font-medium">
-                {detail.published ? `${detail.published.name} · версия ${detail.published.version}` : 'Публикаций не было'}
+                {detail.published ? detail.published.name : 'Публикаций не было'}
               </span>
               <span className="text-[12.5px] text-text-muted">
                 {detail.appliedVersion === null
