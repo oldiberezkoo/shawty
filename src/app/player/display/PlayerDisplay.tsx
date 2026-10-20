@@ -1040,7 +1040,9 @@ export function PlayerDisplay() {
       const target = position.offsetMs / 1000
       const drift = target - video.currentTime
 
-      if (Math.abs(drift) > 0.25) {
+      // 40 мс — примерно один кадр при 25 fps. Всё, что больше, лучше
+      // перемотать: аудио с такой задержкой уже слышно как эхо.
+      if (Math.abs(drift) > 0.04) {
         try {
           video.currentTime = Math.max(0, target)
           video.playbackRate = 1
@@ -1051,7 +1053,7 @@ export function PlayerDisplay() {
       }
 
       // 0.98–1.02 не слышны как изменение тона, но убирают дрейф за секунды.
-      video.playbackRate = Math.min(1.02, Math.max(0.98, 1 + drift / 8_000))
+      video.playbackRate = Math.min(1.02, Math.max(0.98, 1 + drift / 3_000))
     }
 
     const timer = setInterval(correct, 1_000)
@@ -1110,7 +1112,10 @@ export function PlayerDisplay() {
         new Date(serverNow()),
       )
 
-      if (position?.itemIndex === itemIndex && position.offsetMs > 250) {
+      // Даже небольшое отставание при загрузке стоит убрать сразу: на свежем
+      // видео перемотка на десятки миллисекунд незаметна, а расхождение
+      // звука между соседними экранами — заметно.
+      if (position?.itemIndex === itemIndex && position.offsetMs > 20) {
         try {
           video.currentTime = position.offsetMs / 1000
         } catch {
