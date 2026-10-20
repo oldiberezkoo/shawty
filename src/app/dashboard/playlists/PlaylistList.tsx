@@ -137,6 +137,7 @@ export function PlaylistList(props: {
         height: asset.height,
         durationMs: asset.durationMs,
         hasPoster: asset.hasPoster,
+        posterSha256: asset.posterSha256 ?? null,
         state: asset.state,
       })),
     )
