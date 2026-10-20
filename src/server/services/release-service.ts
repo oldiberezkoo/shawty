@@ -474,6 +474,36 @@ export function stateForScreen(companyId: string, screenId: string) {
 }
 
 /**
+ * Лёгкая «отметка» состояния экрана.
+ *
+ * Полный манифест — тяжёлый ответ: в нём ссылки на файлы. Опрашивать его
+ * каждые несколько секунд ради вопроса «ничего не изменилось?» расточительно,
+ * поэтому телевизор сначала спрашивает эту отметку, и только увидев новое
+ * значение, запрашивает манифест. Отметка меняется на каждой публикации, так
+ * что пропустить обновление невозможно.
+ */
+export function revisionForScreen(
+  companyId: string,
+  screenId: string,
+): { desiredVersion: number | null; appliedVersion: number | null; revision: string } {
+  const publication = db
+    .select({
+      desiredVersion: screenPublications.desiredVersion,
+      appliedVersion: screenPublications.appliedVersion,
+      updatedAt: screenPublications.updatedAt,
+    })
+    .from(screenPublications)
+    .where(and(eq(screenPublications.screenId, screenId), eq(screenPublications.companyId, companyId)))
+    .get()
+
+  const desiredVersion = publication?.desiredVersion ?? null
+  const appliedVersion = publication?.appliedVersion ?? null
+  const updatedAt = publication?.updatedAt?.getTime() ?? 0
+
+  return { desiredVersion, appliedVersion, revision: `${desiredVersion ?? 'none'}:${updatedAt}` }
+}
+
+/**
  * Четыре числа доставки.
  *
  * «Нет связи» определяется по heartbeat, а не по наличию сокета: сетевые

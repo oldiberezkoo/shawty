@@ -42,7 +42,26 @@ const TOKEN_REFRESH_MARGIN_MS = 60_000
  * а не итоговое: сеть в магазине может вернуться через минуту, и оператор не
  * должен перезагружать телевизор вручную, чтобы вернуть рекламу на экран.
  */
-const OFFLINE_RETRY_MS = 30_000
+const OFFLINE_RETRY_MS = 15_000
+
+/**
+ * Как часто экран проверяет отметку состояния.
+ *
+ * Первый механизм — канал: публикация приходит кадром за секунды. Второй —
+ * этот опрос: если сокет молчит, уснул или его закрыл прокси, экран сам
+ * заметит новую публикацию за считаные секунды. Отметка весит десятки байт,
+ * поэтому частый опрос дешёв, в отличие от полного манифеста.
+ */
+const REVISION_POLL_MS = 10_000
+
+/**
+ * Сколько ждать кадров сервера, прежде чем признать канал мёртвым.
+ *
+ * Сервер шлёт `ping` каждые полминуты. Если за три интервала не пришло
+ * ничего, соединение считается оборванным, даже если браузер показывает
+ * `OPEN`: так бывает, когда телевизор вышел из сна или сеть сменилась.
+ */
+const SOCKET_SILENCE_MS = 90_000
 
 /**
  * Задержки до следующей попытки переподключения, миллисекунды.
@@ -119,6 +138,12 @@ export function PlayerDisplay() {
   const tokenExpiryRef = useRef(0)
   const socketRef = useRef<WebSocket | null>(null)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+
+  /**
+   * Время последнего кадра сервера. По нему видно, жив ли канал на самом
+   * деле: состояние `OPEN` об этом не говорит.
+   */
+  const lastFrameAtRef = useRef(Date.now())
 
   /**
    * Последние измерения связи.
@@ -246,18 +271,27 @@ export function PlayerDisplay() {
   // ── Загрузка публикации ──────────────────────────────────────────────────
 
   const loadState = useCallback(
-    async (options: { isRefresh?: boolean } = {}): Promise<void> => {
+    async (options: { isRefresh?: boolean; retried?: boolean } = {}): Promise<void> => {
       const token = await ensureToken()
       if (!token) return
 
       try {
         const startedAt = Date.now()
         const response = await fetch('/api/player/state', {
-          headers: { authorization: `Bearer ${token}` },
+          headers: { authorization: `Bearer ${token}`, 'cache-control': 'no-store' },
         })
 
         // Замер делаем до всех проверок: медленный ответ — это тоже факт о связи.
         stateLatencyMsRef.current = Date.now() - startedAt
+
+        // Токен мог перестать приниматься раньше срока: сервер перезапускался,
+        // секрет устройства сменился. Одного повтора с новым токеном достаточно,
+        // чтобы это не превращалось в «экран завис на старой программе».
+        if (response.status === 401 && !options.retried) {
+          accessTokenRef.current = null
+          tokenExpiryRef.current = 0
+          return loadState({ ...options, retried: true })
+        }
 
         // Фоновый опрос не имеет права ронять работающий экран: недоступность
         // сервера на минуту — это «нет связи» в панели, а не чёрный экран в
@@ -277,6 +311,9 @@ export function PlayerDisplay() {
         if (!manifest) {
           // Пустая публикация — это осмысленное состояние, и сообщать
           // о нём нужно и при обновлении: контент могли снять с экрана.
+          manifestRef.current = null
+          setManifestVersion(null)
+          setItem(null)
           setPhase('empty')
           return
         }
@@ -291,6 +328,47 @@ export function PlayerDisplay() {
     },
     [ensureToken, applyManifest, refreshUrls],
   )
+
+  /**
+   * Второй механизм получения обновлений.
+   *
+   * Спрашивает только отметку состояния. Если она изменилась — значит, вышла
+   * новая публикация, и есть смысл забрать полный манифест. Так экран не
+   * зависит от того, жив ли канал в конкретный момент.
+   */
+  const checkRevision = useCallback(async (): Promise<void> => {
+    const token = await ensureToken()
+    if (!token) return
+
+    try {
+      const response = await fetch('/api/player/state/revision', {
+        headers: { authorization: `Bearer ${token}`, 'cache-control': 'no-store' },
+      })
+
+      if (response.status === 401) {
+        accessTokenRef.current = null
+        tokenExpiryRef.current = 0
+        return
+      }
+
+      if (!response.ok) return
+
+      const data = (await response.json()) as {
+        desiredVersion: number | null
+        revision: string
+      }
+
+      // Сравниваем именно версию публикации, а не строку отметки: отметка
+      // меняется и при служебных обновлениях, а манифест нужен только тогда,
+      // когда действительно появилась новая программа.
+      const currentVersion = manifestRef.current?.version ?? null
+      if (data.desiredVersion === currentVersion) return
+
+      await loadState({ isRefresh: currentVersion !== null })
+    } catch {
+      // Сеть моргнула: следующий опрос повторит, показ не трогаем.
+    }
+  }, [ensureToken, loadState])
 
   // ── Обработка кадров канала ───────────────────────────────────────────────
 
@@ -314,6 +392,15 @@ export function PlayerDisplay() {
       try {
         frame = JSON.parse(String(event.data))
       } catch {
+        return
+      }
+
+      lastFrameAtRef.current = Date.now()
+
+      if (frame.type === 'hello.ok') {
+        // Каждое (пере)подключение — повод сверить состояние: пока канал был
+        // закрыт, публикация могла выйти и не дойти.
+        void loadState({ isRefresh: true })
         return
       }
 
