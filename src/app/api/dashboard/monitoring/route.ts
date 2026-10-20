@@ -32,6 +32,15 @@ export const GET = route(async (request: Request) => {
   const profiles = deviceProfilesByScreen(companyId)
   const openDowntimes = openOfflineIncidents(companyId)
 
+  // Отключённый или отвязанный экран — не «нет связи»: он не должен выглядеть
+  // аварией. Считаем его отдельно, иначе оператор чинит кабель у телевизора,
+  // который просто снят с учёта.
+  const inactive = screenList.filter(
+    (screen) => screen.onlineState === 'disabled' || screen.onlineState === 'unpaired' || screen.onlineState === 'revoked',
+  ).length
+  const online = screenList.filter((screen) => screen.onlineState === 'online').length
+  const active = screenList.length - inactive
+
   const devices = screenList.map((screen) => {
     const profile = profiles.get(screen.id) ?? null
 
@@ -56,8 +65,9 @@ export const GET = route(async (request: Request) => {
   return jsonResponse({
     totals: {
       screens: screenList.length,
-      online: screenList.filter((screen) => screen.onlineState === 'online').length,
-      offline: screenList.filter((screen) => screen.onlineState !== 'online').length,
+      online,
+      offline: active - online,
+      inactive,
     },
     devices,
     silent: silentScreens(companyId, serverConfig.player.offlineAfterSec),

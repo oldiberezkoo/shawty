@@ -73,7 +73,7 @@ type DeviceRow = {
   history: TelemetryPoint[]
 }
 
-type Totals = { screens: number; online: number; offline: number }
+type Totals = { screens: number; online: number; offline: number; inactive: number }
 
 const REFRESH_MS = 10_000
 
@@ -131,7 +131,7 @@ function deviceHint(device: DeviceRow): string {
  * клиенте значило бы показать вторую версию правды рядом с первой.
  */
 export function MonitoringBoard({ companyId }: { companyId: string }) {
-  const [totals, setTotals] = useState<Totals>({ screens: 0, online: 0, offline: 0 })
+  const [totals, setTotals] = useState<Totals>({ screens: 0, online: 0, offline: 0, inactive: 0 })
   const [devices, setDevices] = useState<DeviceRow[]>([])
   const [silent, setSilent] = useState<SilentScreen[]>([])
   const [open, setOpen] = useState<OpenDowntime[]>([])
@@ -192,6 +192,10 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
           <CardBody className="flex flex-col gap-1">
             <span className="text-[12px] text-text-muted">Всего экранов</span>
             <span className="tnum text-3xl font-semibold tracking-[-0.02em] text-text">{totals.screens}</span>
+            <span className="text-[12px] text-text-subtle">
+              в работе {totals.screens - totals.inactive}
+              {totals.inactive > 0 ? ` · отключено или отвязано ${totals.inactive}` : ''}
+            </span>
           </CardBody>
         </Card>
         <Card>
@@ -206,6 +210,7 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
             <span className={`tnum text-3xl font-semibold tracking-[-0.02em] ${totals.offline > 0 ? 'text-warn' : 'text-success'}`}>
               {totals.offline}
             </span>
+            <span className="text-[12px] text-text-subtle">из {totals.screens - totals.inactive} рабочих</span>
           </CardBody>
         </Card>
         <Card>
