@@ -22,6 +22,9 @@ export type CampaignView = {
   status: string
   startsOn: string
   endsOn: string | null
+  /** Точное начало/окончание в ISO, если задано время. */
+  startsAt: string | null
+  endsAt: string | null
   approvalRequired: boolean
   playlistVersionId: string | null
   playlistName: string | null
@@ -76,6 +79,29 @@ function timeToMinutes(value: string): number {
   const [hours, minutes] = value.split(':').map(Number)
   const total = (hours || 0) * 60 + (minutes || 0)
   return total >= 1440 ? 1439 : total
+}
+
+/** Время из ISO в локальном поясе оператора, формат ЧЧ:ММ. */
+function isoTime(value: string | null): string {
+  if (!value) return ''
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+/** Дата и время для карточки кампании. Без времени показываем только дату. */
+function periodLabel(date: string, instant: string | null): string {
+  return instant ? `${date} ${isoTime(instant)}` : date
+}
+
+/** Локальные дата и время → абсолютный ISO. */
+function localInstant(date: string, time: string): string | null {
+  if (!date || !time) return null
+
+  const parsed = new Date(`${date}T${time}`)
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
 }
 
 function windowLabel(window: CampaignWindowView): string {
@@ -442,6 +468,8 @@ function CampaignForm(props: {
   const [priority, setPriority] = useState(initial?.priority ?? 0)
   const [startsOn, setStartsOn] = useState(initial?.startsOn ?? props.today)
   const [endsOn, setEndsOn] = useState(initial?.endsOn ?? '')
+  const [startsTime, setStartsTime] = useState(isoTime(initial?.startsAt ?? null))
+  const [endsTime, setEndsTime] = useState(isoTime(initial?.endsAt ?? null))
   const [approvalRequired, setApprovalRequired] = useState(initial?.approvalRequired ?? false)
   const [playlistVersionId, setPlaylistVersionId] = useState(initial?.playlistVersionId ?? '')
   const [allCompany, setAllCompany] = useState(
@@ -489,6 +517,29 @@ function CampaignForm(props: {
 
     if (!allCompany && targets.length === 0) {
       setError('Отметьте хотя бы один филиал, группу или экран.')
+      return
+    }
+
+    if (endsTime && !endsOn) {
+      setError('Для времени окончания укажите дату окончания периода.')
+      return
+    }
+
+    const startsAt = localInstant(startsOn, startsTime)
+    const endsAt = localInstant(endsOn, endsTime)
+
+    if (startsTime && !startsAt) {
+      setError('Проверьте время начала периода.')
+      return
+    }
+
+    if (endsTime && !endsAt) {
+      setError('Проверьте время окончания периода.')
+      return
+    }
+
+    if (startsAt && endsAt && new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+      setError('Окончание периода должно быть позже начала.')
       return
     }
 

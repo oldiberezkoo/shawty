@@ -53,6 +53,8 @@ export default async function CampaignsPage() {
           status: campaign.status,
           startsOn: campaign.startsOn,
           endsOn: campaign.endsOn,
+          startsAt: campaign.startsAt?.toISOString() ?? null,
+          endsAt: campaign.endsAt?.toISOString() ?? null,
           approvalRequired: campaign.approvalRequired,
           playlistVersionId: campaign.playlistVersionId,
           playlistName: campaign.playlistName,

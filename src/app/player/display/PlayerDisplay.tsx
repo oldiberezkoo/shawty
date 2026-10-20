@@ -420,7 +420,14 @@ export function PlayerDisplay() {
    */
   const handleDeviceFrame = useCallback(
     (event: MessageEvent) => {
-      let frame: { type: string; releaseVersion?: number; code?: string; at?: number }
+      let frame: {
+        type: string
+        releaseVersion?: number
+        code?: string
+        at?: number
+        clientAt?: number
+        serverAt?: number
+      }
       try {
         frame = JSON.parse(String(event.data))
       } catch {
@@ -441,6 +448,8 @@ export function PlayerDisplay() {
       }
 
       if (frame.type === 'clock') {
+        if (typeof frame.clientAt !== 'number' || typeof frame.serverAt !== 'number') return
+
         const receivedAt = Date.now()
         const rtt = Math.max(0, receivedAt - frame.clientAt)
         // Смещение считаем по середине пути «туда-обратно». Берём замер с

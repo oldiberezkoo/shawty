@@ -35,6 +35,12 @@ export type CampaignCandidate = {
   /** Даты в локальном времени зоны источника, формат YYYY-MM-DD. */
   startsOn: string
   endsOn: string | null
+  /**
+   * Точные границы кампании, если оператор задал время вместе с датой.
+   * Абсолютные моменты; при наличии заменяют начало/конец суток по датам.
+   */
+  startsAt?: Date | null
+  endsAt?: Date | null
   /** Часовой пояс кампании, если он задан явно; иначе зона филиала. */
   timezoneOverride?: string | null
   /** Назначение кампании — области экранов. */
@@ -122,16 +128,22 @@ export function specificityFor(
  *
  * `starts_on` начинается в 00:00:00 первого дня в локальном времени зоны,
  * `ends_on` — в 24:00:00 последнего дня (полночь следующих суток).
- * Открытый `ends_on` — плюс 100 лет (фактически бесконечность).
+ * Если заданы точные `starts_at`/`ends_at`, они важнее дат — оператор указал
+ * не «день», а конкретный промежуток времени.
+ * Открытый конец — плюс 100 лет (фактически бесконечность).
  */
 export function campaignRange(
-  campaign: Pick<CampaignCandidate, 'startsOn' | 'endsOn'>,
+  campaign: Pick<CampaignCandidate, 'startsOn' | 'endsOn' | 'startsAt' | 'endsAt'>,
   timezone: string,
 ): { start: string; end: string } {
-  const start = localMidnight(campaign.startsOn, timezone)
-  const end = campaign.endsOn
-    ? addCalendarDays(localMidnight(campaign.endsOn, timezone), 1, timezone)
-    : addCalendarDays(start, 36500, timezone)
+  const start = campaign.startsAt
+    ? campaign.startsAt.toISOString()
+    : localMidnight(campaign.startsOn, timezone).toString()
+  const end = campaign.endsAt
+    ? campaign.endsAt.toISOString()
+    : campaign.endsOn
+      ? addCalendarDays(localMidnight(campaign.endsOn, timezone), 1, timezone).toString()
+      : addCalendarDays(Temporal.Instant.from(start), 36500, timezone).toString()
 
   return {
     start: start.toString(),

@@ -528,6 +528,14 @@ export const campaigns = sqliteTable(
     /** Даты кампании в локальном времени филиала, формат YYYY-MM-DD. */
     startsOn: text('starts_on').notNull(),
     endsOn: text('ends_on'),
+    /**
+     * Точные границы, если оператор задал не только дату, но и время.
+     *
+     * Хранятся как абсолютные моменты: часовой пояс уже учтён при вводе.
+     * `null` — граница считается по дате (начало/конец суток в зоне экрана).
+     */
+    startsAt: integer('starts_at', { mode: 'timestamp_ms' }),
+    endsAt: integer('ends_at', { mode: 'timestamp_ms' }),
     approvalRequired: integer('approval_required', { mode: 'boolean' }).notNull().default(false),
     /**
      * Версия плейлиста, которую кампания выводит на экран.

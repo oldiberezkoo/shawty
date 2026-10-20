@@ -49,6 +49,9 @@ export type CampaignInput = {
   priority: number
   startsOn: string
   endsOn: string | null
+  /** Точные границы, если оператор указал время вместе с датой. */
+  startsAt?: string | null
+  endsAt?: string | null
   approvalRequired: boolean
   playlistVersionId: string | null
   fallbackPlaylistVersionId: string | null
@@ -65,6 +68,8 @@ export type CampaignSummary = {
   status: CampaignStatus
   startsOn: string
   endsOn: string | null
+  startsAt: Date | null
+  endsAt: Date | null
   approvalRequired: boolean
   playlistVersionId: string | null
   playlistName: string | null
@@ -105,6 +110,44 @@ function validateDates(startsOn: string, endsOn: string | null): void {
   if (endsOn < startsOn) {
     throw HttpError.badRequest('invalid_dates', 'Дата окончания раньше даты начала')
   }
+}
+
+/**
+ * Точные границы периода.
+ *
+ * В интерфейсе дата и время стоят рядом, но в базе это абсолютные моменты:
+ * переход на летнее время или смена часового пояса филиала не должны
+ * незаметно сдвигать уже согласованную кампанию.
+ */
+function parseBoundary(value: string | null | undefined, field: string): Date | null {
+  if (!value) return null
+
+  const parsed = new Date(value)
+
+  if (Number.isNaN(parsed.getTime())) {
+    throw HttpError.badRequest('invalid_dates', `Некорректное время в поле «${field}»`)
+  }
+
+  return parsed
+}
+
+function validateExactRange(
+  startsAtValue: string | null | undefined,
+  endsAtValue: string | null | undefined,
+  endsOn: string | null,
+): { startsAt: Date | null; endsAt: Date | null } {
+  const startsAt = parseBoundary(startsAtValue, 'начало')
+  const endsAt = parseBoundary(endsAtValue, 'окончание')
+
+  if (endsAt && !endsOn) {
+    throw HttpError.badRequest('invalid_dates', 'Для времени окончания укажите дату окончания')
+  }
+
+  if (startsAt && endsAt && endsAt.getTime() <= startsAt.getTime()) {
+    throw HttpError.badRequest('invalid_dates', 'Окончание периода должно быть позже начала')
+  }
+
+  return { startsAt, endsAt }
 }
 
 function validateWindows(windows: CampaignWindowInput[]): void {
@@ -175,6 +218,7 @@ function validateInput(companyId: string, input: CampaignInput): void {
   }
 
   validateDates(input.startsOn, input.endsOn)
+  validateExactRange(input.startsAt, input.endsAt, input.endsOn)
   validateWindows(input.windows)
   validateTargets(companyId, input.targets)
   requirePlaylistVersion(companyId, input.playlistVersionId)
@@ -248,6 +292,7 @@ export function createCampaign(params: {
 
   const id = crypto.randomUUID()
   const status: CampaignStatus = params.input.approvalRequired ? 'in_review' : 'approved'
+  const { startsAt, endsAt } = validateExactRange(params.input.startsAt, params.input.endsAt, params.input.endsOn)
 
   withImmediateTransaction((tx) => {
     tx.insert(campaigns)
@@ -260,6 +305,8 @@ export function createCampaign(params: {
         status,
         startsOn: params.input.startsOn,
         endsOn: params.input.endsOn,
+        startsAt,
+        endsAt,
         approvalRequired: params.input.approvalRequired,
         playlistVersionId: params.input.playlistVersionId,
         fallbackPlaylistVersionId: params.input.fallbackPlaylistVersionId,
@@ -303,6 +350,7 @@ export function updateCampaign(params: {
 }): void {
   const existing = requireCampaign(params.companyId, params.campaignId)
   validateInput(params.companyId, params.input)
+  const { startsAt, endsAt } = validateExactRange(params.input.startsAt, params.input.endsAt, params.input.endsOn)
 
   // Правка кампании, которая уже показывалась на экранах, обязана возвращать
   // её на согласование: иначе согласование проверяло бы только исходный
@@ -321,6 +369,8 @@ export function updateCampaign(params: {
         priority: params.input.priority,
         startsOn: params.input.startsOn,
         endsOn: params.input.endsOn,
+        startsAt,
+        endsAt,
         approvalRequired: params.input.approvalRequired,
         playlistVersionId: params.input.playlistVersionId,
         fallbackPlaylistVersionId: params.input.fallbackPlaylistVersionId,
@@ -495,6 +545,8 @@ function toSummary(
     status: row.status,
     startsOn: row.startsOn,
     endsOn: row.endsOn,
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
     approvalRequired: row.approvalRequired,
     playlistVersionId: row.playlistVersionId,
     // Без названия «версия 3» ничего не говорит: версии нумеруются внутри
@@ -505,7 +557,9 @@ function toSummary(
     timezoneOverride: row.timezoneOverride,
     targets,
     windows,
-    withinDates: row.startsOn <= today && (!row.endsOn || row.endsOn >= today),
+    withinDates:
+      (row.startsAt ? row.startsAt.getTime() <= Date.now() : row.startsOn <= today) &&
+      (row.endsAt ? row.endsAt.getTime() > Date.now() : !row.endsOn || row.endsOn >= today),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }

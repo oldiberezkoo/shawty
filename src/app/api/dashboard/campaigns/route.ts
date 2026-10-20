@@ -32,6 +32,12 @@ export const campaignSchema = z.object({
   priority: z.number().int().min(-100).max(100).default(0),
   startsOn: z.string().min(8).max(10),
   endsOn: z.string().min(8).max(10).nullable().default(null),
+  /**
+   * Точные границы периода. Необязательны: старые клиенты и кампании,
+   * заданные только датами, продолжают работать как раньше.
+   */
+  startsAt: z.string().datetime({ offset: true }).nullable().default(null),
+  endsAt: z.string().datetime({ offset: true }).nullable().default(null),
   approvalRequired: z.boolean().default(false),
   playlistVersionId: z.string().min(1).max(64).nullable().default(null),
   fallbackPlaylistVersionId: z.string().min(1).max(64).nullable().default(null),
