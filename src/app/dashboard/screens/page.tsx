@@ -3,9 +3,11 @@ import Link from 'next/link'
 import { MonitorSmartphone } from 'lucide-react'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
+import { serverConfig } from '@/config/server'
 import { listScreens } from '@/server/services/screen-service'
 import { listPublishedVersions } from '@/server/services/playlist-service'
 import { Card, EmptyState } from '@/components/ui/card'
+import { Notice } from '@/components/ui/status-badge'
 import { Button } from '@/components/ui/button'
 import { ScreensBoard } from './ScreensBoard'
 
@@ -84,6 +86,14 @@ export default async function ScreensPage() {
           </Button>
         </Link>
       </div>
+
+      <Notice>
+        Новый телевизор: откройте на нём{' '}
+        <code className="rounded bg-surface px-1.5 py-0.5 font-mono text-[12px]">
+          {serverConfig.publicUrl}/player/pairing
+        </code>{' '}
+        и введите показанный код на странице «Подключить экран».
+      </Notice>
 
       <ScreensBoard
         companyId={membership.companyId}

@@ -4,6 +4,7 @@ import { ArrowLeft, Tv } from 'lucide-react'
 import { requireSession } from '@/server/auth/require-session'
 import { serverConfig } from '@/config/server'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
+import { Notice } from '@/components/ui/status-badge'
 import { CodeLookupForm } from './CodeLookupForm'
 import { steps } from './steps'
 
@@ -48,6 +49,11 @@ export default async function PairStartPage() {
           ключи доступа.
         </p>
       </div>
+
+      <Notice>
+        На телевизоре откройте <code className="rounded bg-surface px-1.5 py-0.5 font-mono text-[12px]">{playerUrl}</code>{' '}
+        — он покажет восьмизначный код. Введите этот код в поле ниже.
+      </Notice>
 
       <Card>
         <CardHeader
