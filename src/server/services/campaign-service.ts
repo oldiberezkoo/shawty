@@ -450,8 +450,10 @@ export function listCampaigns(companyId: string, now: Date = new Date()): Campai
       id: playlistVersions.id,
       version: playlistVersions.version,
       playlistId: playlistVersions.playlistId,
+      playlistName: playlists.name,
     })
     .from(playlistVersions)
+    .innerJoin(playlists, eq(playlists.id, playlistVersions.playlistId))
     .all()
 
   return rows.map((row) => toSummary(row, versions, loadTargets(row.id), loadWindows(row.id), today))
@@ -461,14 +463,22 @@ export function getCampaign(companyId: string, campaignId: string, now: Date = n
   const today = companyToday(companyId, now)
 
   const row = requireCampaign(companyId, campaignId)
-  const versions = db.select({ id: playlistVersions.id, version: playlistVersions.version }).from(playlistVersions).all()
+  const versions = db
+    .select({
+      id: playlistVersions.id,
+      version: playlistVersions.version,
+      playlistName: playlists.name,
+    })
+    .from(playlistVersions)
+    .innerJoin(playlists, eq(playlists.id, playlistVersions.playlistId))
+    .all()
 
   return toSummary(row, versions, loadTargets(campaignId), loadWindows(campaignId), today)
 }
 
 function toSummary(
   row: typeof campaigns.$inferSelect,
-  versions: { id: string; version: number }[],
+  versions: { id: string; version: number; playlistName?: string }[],
   targets: CampaignTargetInput[],
   windows: CampaignWindowInput[],
   today: string,
@@ -485,7 +495,9 @@ function toSummary(
     endsOn: row.endsOn,
     approvalRequired: row.approvalRequired,
     playlistVersionId: row.playlistVersionId,
-    playlistName: null,
+    // Без названия «версия 3» ничего не говорит: версии нумеруются внутри
+    // каждого плейлиста, и у двух плейлистов есть версия 3.
+    playlistName: version?.playlistName ?? null,
     playlistVersion: version?.version ?? null,
     targets,
     windows,

@@ -24,6 +24,7 @@ export type CampaignView = {
   endsOn: string | null
   approvalRequired: boolean
   playlistVersionId: string | null
+  playlistName: string | null
   playlistVersion: number | null
   targets: CampaignTargetView[]
   windows: CampaignWindowView[]
@@ -90,6 +91,30 @@ function windowLabel(window: CampaignWindowView): string {
   return `${days}, ${minutesToTime(window.startMinute)}–${end === '24:00' ? '24:00' : end}`
 }
 
+function scopeLabel(
+  target: CampaignTargetView,
+  props: { companyName: string; branches: ScopeOption[]; groups: ScopeOption[]; screens: ScopeOption[] },
+): string {
+  switch (target.scopeType) {
+    case 'company':
+      return 'вся компания'
+    case 'branch':
+      return `филиал «${props.branches.find((item) => item.id === target.scopeId)?.name ?? 'удалён'}»`
+    case 'group':
+      return `группа «${props.groups.find((item) => item.id === target.scopeId)?.name ?? 'удалена'}»`
+    case 'screen':
+      return `экран «${props.screens.find((item) => item.id === target.scopeId)?.name ?? 'удалён'}»`
+  }
+}
+
+function plural(value: number, one: string, few: string, many: string): string {
+  const mod10 = value % 10
+  const mod100 = value % 100
+  if (mod10 === 1 && mod100 !== 11) return one
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
+  return many
+}
+
 function readCsrf(): string {
   const match = document.cookie.match(new RegExp(`(?:^|; )${CSRF_COOKIE}=([^;]+)`))
   return match?.[1] ? decodeURIComponent(match[1]) : ''
@@ -104,6 +129,7 @@ function readCsrf(): string {
  */
 export function CampaignsBoard(props: {
   companyId: string
+  companyName: string
   canWrite: boolean
   canApprove: boolean
   canPublish: boolean
@@ -116,6 +142,7 @@ export function CampaignsBoard(props: {
 }) {
   const router = useRouter()
   const [selectedId, setSelectedId] = useState<string | null>(props.campaigns[0]?.id ?? null)
+  const [editing, setEditing] = useState<CampaignView | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -261,60 +288,103 @@ export function CampaignsBoard(props: {
               selected.approvalRequired ? 'требуется согласование' : 'без согласования'
             }`}
           />
-          <CardBody className="flex flex-wrap items-center gap-3">
-            {selected.status === 'in_review' || selected.status === 'draft' ? (
+          <CardBody className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5 text-[13px] text-text-muted">
+              <p>
+                Показывает{' '}
+                <span className="font-medium text-text">
+                  {selected.playlistName
+                    ? `${selected.playlistName}, версия ${selected.playlistVersion ?? '—'}`
+                    : 'плейлист не выбран'}
+                </span>{' '}
+                {selected.targets.length > 0 ? 'на ' : ''}
+                {selected.targets
+                  .map((target) =>
+                    scopeLabel(target, {
+                      companyName: props.companyName,
+                      branches: props.branches,
+                      groups: props.groups,
+                      screens: props.screens,
+                    }),
+                  )
+                  .join(', ')}
+                {selected.windows.length === 0
+                  ? ' круглосуточно'
+                  : `: ${selected.windows.map(windowLabel).join('; ')}`}
+                .
+              </p>
+
+              <p>
+                Срок: {selected.startsOn} — {selected.endsOn ?? 'бессрочно'}
+                {selected.withinDates ? ' (идёт по датам)' : ' (вне текущих дат)'}. Приоритет {selected.priority}.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 border-t border-border pt-3">
+              {props.canWrite ? (
+                <Button size="sm" onClick={() => setEditing(selected)}>
+                  Изменить условия
+                </Button>
+              ) : null}
+
+              {selected.status === 'in_review' || selected.status === 'draft' ? (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  disabled={busy || !props.canApprove}
+                  title={props.canApprove ? undefined : 'Согласование доступно не этой роли'}
+                  onClick={() => void act('approve')}
+                >
+                  Согласовать
+                </Button>
+              ) : null}
+
+              {selected.status === 'approved' || selected.status === 'scheduled' ? (
+                <Button size="sm" disabled={busy || !props.canWrite} onClick={() => void act('activate')}>
+                  Перевести в «идёт»
+                </Button>
+              ) : null}
+
+              {selected.status === 'approved' || selected.status === 'scheduled' || selected.status === 'active' ? (
+                <Button size="sm" disabled={busy || !props.canWrite} onClick={() => void act('end')}>
+                  Завершить
+                </Button>
+              ) : null}
+
               <Button
                 size="sm"
                 variant="primary"
-                disabled={busy || !props.canApprove}
-                title={props.canApprove ? undefined : 'Согласование доступно не этой роли'}
-                onClick={() => void act('approve')}
+                disabled={busy || !props.canPublish || selected.status === 'in_review' || selected.status === 'draft'}
+                title={
+                  selected.status === 'in_review' || selected.status === 'draft'
+                    ? 'Сначала согласуйте кампанию'
+                    : undefined
+                }
+                onClick={() => void act('publish_now')}
               >
-                Согласовать
+                Опубликовать сейчас
               </Button>
-            ) : null}
 
-            {selected.status === 'approved' || selected.status === 'scheduled' ? (
-              <Button size="sm" disabled={busy || !props.canWrite} onClick={() => void act('activate')}>
-                Перевести в «идёт»
+              <Button size="sm" variant="danger" disabled={busy || !props.canWrite || selected.status === 'active'} onClick={() => void remove()}>
+                Удалить
               </Button>
-            ) : null}
-
-            {selected.status === 'approved' || selected.status === 'scheduled' || selected.status === 'active' ? (
-              <Button size="sm" disabled={busy || !props.canWrite} onClick={() => void act('end')}>
-                Завершить
-              </Button>
-            ) : null}
-
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={busy || !props.canPublish || selected.status === 'in_review' || selected.status === 'draft'}
-              title={
-                selected.status === 'in_review' || selected.status === 'draft'
-                  ? 'Сначала согласуйте кампанию'
-                  : undefined
-              }
-              onClick={() => void act('publish_now')}
-            >
-              Опубликовать сейчас
-            </Button>
-
-            <Button size="sm" variant="danger" disabled={busy || !props.canWrite || selected.status === 'active'} onClick={() => void remove()}>
-              Удалить
-            </Button>
+            </div>
           </CardBody>
         </Card>
       ) : null}
 
       {props.canWrite ? (
         <CampaignForm
+          key={editing?.id ?? 'new'}
           companyId={props.companyId}
+          companyName={props.companyName}
           today={props.today}
           branches={props.branches}
           groups={props.groups}
           screens={props.screens}
           playlistVersions={props.playlistVersions}
+          initial={editing}
+          onCancel={editing ? () => setEditing(null) : undefined}
         />
       ) : null}
     </div>
