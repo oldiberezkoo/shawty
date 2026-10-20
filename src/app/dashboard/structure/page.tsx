@@ -44,7 +44,8 @@ export default async function StructurePage() {
           name: screen.name,
           branchId: screen.branchId,
           groupId: screen.groupId,
-        }))}        canWriteBranches={access.can(PERMISSIONS.branchesWrite)}
+        }))}
+        canWriteBranches={access.can(PERMISSIONS.branchesWrite)}
         canWriteGroups={access.can(PERMISSIONS.groupsWrite)}
       />
     </div>

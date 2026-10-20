@@ -67,6 +67,28 @@ async function main() {
   console.log(`${player.status === 200 ? '✓' : '✗'} /player/display -> ${player.status} (страница существует)`)
   if (player.status !== 200) failed += 1
 
+  // Карточка экрана — отдельный маршрут с идентификатором. Берём первый экран
+  // из списка: без этого проверка молча пропускала бы поломку динамического
+  // сегмента `/dashboard/screens/[id]`.
+  const screensPage = await get('/dashboard/screens')
+  const screenHref = screensPage.text.match(/\/dashboard\/screens\/([a-z0-9-]{8,})/i)?.[1]
+
+  if (!screenHref) {
+    console.log('✗ /dashboard/screens/[id] -> не найден ни один экран в списке')
+    failed += 1
+  } else {
+    const detail = await get(`/dashboard/screens/${screenHref}`)
+    const detailMissing = ['Что показывается', 'Связь и устройство', 'Как включить показ'].filter(
+      (needle) => !detail.text.includes(needle),
+    )
+    const ok = detail.status === 200 && detailMissing.length === 0
+    if (!ok) failed += 1
+    console.log(
+      `${ok ? '✓' : '✗'} /dashboard/screens/[id] -> ${detail.status}`,
+      detailMissing.length ? `| нет: ${detailMissing.join(', ')}` : '',
+    )
+  }
+
   process.exit(failed === 0 ? 0 : 1)
 }
 
