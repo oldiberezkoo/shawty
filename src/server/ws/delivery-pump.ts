@@ -17,7 +17,7 @@
  */
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '@/db/client'
-import { deliveryReceipts, releases, screens } from '@/db/schema'
+import { deliveryReceipts, releases, screens, screenPublications } from '@/db/schema'
 import { buildScreenManifest } from '@/server/services/release-service'
 import { deviceHub } from './hub'
 import { logger } from '@/lib/logger'
@@ -104,8 +104,14 @@ function loadPending(): PendingRow[] {
     .from(deliveryReceipts)
     .innerJoin(releases, eq(releases.id, deliveryReceipts.releaseId))
     .innerJoin(screens, eq(screens.id, deliveryReceipts.screenId))
+    // Только актуальная публикация экрана. Без этого экран, вернувшийся
+    // после долгого офлайна, получал бы всю историю очереди — старые
+    // манифесты могли прийти раньше нового и на секунду вернуть старый
+    // контент. Насос доставки — доставка текущего состояния, а не архива.
+    .innerJoin(screenPublications, eq(screenPublications.screenId, deliveryReceipts.screenId))
     .where(
       and(
+        eq(screenPublications.desiredReleaseId, deliveryReceipts.releaseId),
         inArray(deliveryReceipts.state, ['queued', 'sent']),
         sql`(${deliveryReceipts.state} = 'queued' OR ${deliveryReceipts.updatedAt} < ${resendThreshold})`,
       ),
