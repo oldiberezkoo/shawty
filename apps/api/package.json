@@ -1,0 +1,51 @@
+{
+  "name": "@shawty/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/main.ts",
+    "start": "cross-env NODE_ENV=production tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:reset": "tsx scripts/reset.ts",
+    "db:backup": "tsx scripts/backup.ts",
+    "db:reset-limits": "tsx scripts/reset-rate-limits.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run tests/integration",
+    "smoke:http": "node scripts/smoke-http.cjs",
+    "smoke:pairing": "node scripts/smoke-pairing.cjs",
+    "smoke:pages": "node scripts/smoke-pages.cjs",
+    "smoke:pair-code": "node scripts/smoke-pair-code.mjs",
+    "smoke:schedule": "node scripts/smoke-schedule.cjs",
+    "check": "pnpm typecheck && pnpm test"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.5",
+    "@js-temporal/polyfill": "0.5.1",
+    "@shawty/contracts": "workspace:*",
+    "better-sqlite3": "13.0.3",
+    "drizzle-orm": "0.45.4",
+    "hono": "4.13.13",
+    "qrcode": "1.5.4",
+    "ws": "8.22.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0",
+    "@types/node": "26.6.5",
+    "@types/qrcode": "1.5.6",
+    "@types/ws": "8.18.2",
+    "cross-env": "10.1.0",
+    "drizzle-kit": "0.31.11",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}
