@@ -100,11 +100,11 @@ export function CommandMenu() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="hidden h-9 w-[210px] items-center gap-2 rounded-[var(--radius-md)] border border-border bg-surface-2/60 px-3 text-[12.5px] text-text-subtle shadow-[var(--shadow-xs)] transition-colors hover:border-border-strong hover:bg-surface-2 hover:text-text-muted lg:flex"
+        className="hidden h-9 w-[210px] items-center gap-2 border border-border-strong bg-transparent px-3 text-[12px] text-text-subtle transition-colors hover:border-text hover:text-text-muted lg:flex"
       >
-        <Search className="size-4 shrink-0" strokeWidth={1.9} />
+        <Search className="size-3.5 shrink-0" strokeWidth={1.8} />
         <span className="min-w-0 flex-1 truncate text-left">Найти раздел…</span>
-        <kbd className="shrink-0 rounded-[var(--radius-xs)] border border-border bg-surface px-1.5 py-0.5 font-sans text-[10px] font-medium text-text-subtle">
+        <kbd className="shrink-0 border border-border px-1.5 py-0.5 font-mono text-[9px] tracking-[0.04em] text-text-subtle">
           {shortcut}
         </kbd>
       </button>
@@ -113,9 +113,9 @@ export function CommandMenu() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Найти раздел"
-        className="flex size-9 items-center justify-center rounded-[var(--radius-md)] border border-border bg-surface text-text-muted shadow-[var(--shadow-xs)] transition-colors hover:bg-surface-2 hover:text-text lg:hidden"
+        className="flex size-9 items-center justify-center border border-border-strong text-text-muted transition-colors hover:border-text hover:text-text lg:hidden"
       >
-        <Search className="size-4" strokeWidth={1.9} />
+        <Search className="size-4" strokeWidth={1.8} />
       </button>
 
       <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -123,11 +123,24 @@ export function CommandMenu() {
           <Dialog.Backdrop className="fixed inset-0 z-50 bg-overlay backdrop-blur-[3px] transition-opacity duration-150 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0" />
 
           <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-[12vh]">
-            <Dialog.Popup className="w-full max-w-[540px] overflow-hidden rounded-[var(--radius-xl)] border border-border bg-surface shadow-[var(--shadow-lg)] transition-transform duration-150 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0">
+            <Dialog.Popup className="w-full max-w-[540px] overflow-hidden border border-border-strong bg-bg transition-opacity duration-150 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0">
               <Dialog.Title className="sr-only">Поиск по разделам</Dialog.Title>
 
+              {/* Титульная строка окна: та же, что у диалогов и плеера. */}
+              <div className="flex items-center gap-3 border-b border-border px-3 py-2">
+                <span className="bg-primary px-1 py-px font-sans text-[10px] leading-[1.35] font-medium text-primary-text uppercase">
+                  SHAWTY
+                </span>
+                <span className="min-w-0 flex-1 truncate font-mono text-[10px] tracking-[0.04em] text-text-subtle uppercase">
+                  Поиск по разделам
+                </span>
+                <kbd className="shrink-0 border border-border px-1.5 py-0.5 font-mono text-[9px] text-text-subtle">
+                  Esc
+                </kbd>
+              </div>
+
               <div className="flex items-center gap-3 border-b border-border px-4">
-                <Search className="size-4 shrink-0 text-text-subtle" strokeWidth={1.9} />
+                <Search className="size-4 shrink-0 text-text-subtle" strokeWidth={1.8} />
 
                 <input
                   ref={inputRef}
@@ -137,7 +150,7 @@ export function CommandMenu() {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={onInputKeyDown}
-                  placeholder="Найти раздел…"
+                  placeholder="Название раздела…"
                   aria-label="Поиск по разделам"
                   role="combobox"
                   aria-expanded
@@ -145,13 +158,9 @@ export function CommandMenu() {
                   aria-activedescendant={items[active] ? `command-option-${active}` : undefined}
                   className="h-12 min-w-0 flex-1 bg-transparent text-[14px] text-text outline-none placeholder:text-text-subtle"
                 />
-
-                <kbd className="shrink-0 rounded-[var(--radius-xs)] border border-border bg-surface-2 px-1.5 py-0.5 font-sans text-[10px] font-medium text-text-subtle">
-                  Esc
-                </kbd>
               </div>
 
-              <ul id="command-list" role="listbox" className="max-h-[320px] overflow-y-auto p-2">
+              <ul id="command-list" role="listbox" className="max-h-[320px] overflow-y-auto py-1">
                 {items.map((item, index) => {
                   const Icon = item.icon
                   const selected = index === active
@@ -164,18 +173,20 @@ export function CommandMenu() {
                       aria-selected={selected}
                       onMouseEnter={() => setActive(index)}
                       onClick={() => go(item.href)}
-                      className={`flex cursor-pointer items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-[13px] transition-colors ${
-                        selected ? 'bg-primary-soft text-primary' : 'text-text-muted hover:bg-surface-2'
+                      className={`relative flex cursor-pointer items-center gap-3 px-4 py-2.5 text-[13px] transition-colors ${
+                        selected ? 'bg-surface text-text' : 'text-text-muted hover:bg-surface-2'
                       }`}
                     >
+                      {selected ? (
+                        <span aria-hidden className="absolute inset-y-1 left-0 w-[2px] bg-primary" />
+                      ) : null}
+
                       <Icon
                         className={`size-4 shrink-0 ${selected ? 'text-primary' : 'text-text-subtle'}`}
-                        strokeWidth={1.8}
+                        strokeWidth={1.6}
                       />
                       <span className="min-w-0 flex-1 truncate font-medium">{item.label}</span>
-                      <span
-                        className={`shrink-0 text-[11px] ${selected ? 'text-primary/70' : 'text-text-subtle'}`}
-                      >
+                      <span className="shrink-0 font-mono text-[9px] tracking-[0.06em] text-text-subtle uppercase">
                         {item.group}
                       </span>
                     </li>
@@ -183,21 +194,19 @@ export function CommandMenu() {
                 })}
 
                 {items.length === 0 ? (
-                  <li className="px-3 py-8 text-center text-[13px] text-text-muted">
+                  <li className="px-4 py-8 text-center text-[12.5px] text-text-muted">
                     Раздел не найден. Попробуйте «экраны» или «тариф».
                   </li>
                 ) : null}
               </ul>
 
-              <div className="flex items-center gap-4 border-t border-border px-4 py-2.5 text-[11px] text-text-subtle">
+              <div className="flex items-center gap-4 border-t border-border px-4 py-2.5 font-mono text-[9px] tracking-[0.06em] text-text-subtle uppercase">
                 <span className="inline-flex items-center gap-1.5">
-                  <kbd className="rounded-[var(--radius-xs)] border border-border bg-surface-2 px-1 py-0.5 font-sans text-[10px]">
-                    ↑↓
-                  </kbd>
+                  <kbd className="border border-border px-1 py-0.5 text-[9px]">↑↓</kbd>
                   выбрать
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <CornerDownLeft className="size-3" strokeWidth={1.9} />
+                  <CornerDownLeft className="size-3" strokeWidth={1.8} />
                   открыть
                 </span>
               </div>

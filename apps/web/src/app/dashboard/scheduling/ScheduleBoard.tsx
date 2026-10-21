@@ -275,8 +275,8 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
       {notice ? <FormSuccess onDismiss={() => setNotice(null)}>{notice}</FormSuccess> : null}
 
       {pickedCount > 0 ? (
-        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-3 rounded-[var(--radius-lg)] border border-primary-border bg-primary-soft px-4 py-3 shadow-[var(--shadow-sm)]">
-          <span className="text-[13px] font-medium text-primary">Выбрано экранов: {pickedCount}</span>
+        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-3 border border-border-strong border-l-[3px] border-l-primary bg-surface-2 px-4 py-3">
+          <span className="text-[13px] font-medium text-text">Выбрано экранов: {pickedCount}</span>
 
           {canAssign ? (
             <Button
@@ -325,8 +325,8 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
           <div className="@container w-full overflow-x-auto">
           <table className="stack-table w-full border-collapse text-[13px]">
             <thead>
-              <tr className="border-b border-border text-left text-[12px] text-text-subtle">
-                <th className="w-10 px-5 py-2 font-normal">
+              <tr className="border-b border-border text-left text-text-subtle">
+                <th className="w-10 px-5 py-2.5 font-normal">
                   <input
                     type="checkbox"
                     aria-label="Выбрать все экраны"
@@ -337,11 +337,11 @@ export function ScheduleBoard({ companyId, versions, canAssign, canPublish }: {
                     className="size-4 cursor-pointer accent-[var(--primary)]"
                   />
                 </th>
-                <th className="px-5 py-2 font-normal">Экран</th>
-                <th className="px-5 py-2 font-normal">Сейчас идёт</th>
-                <th className="px-5 py-2 font-normal">Источник</th>
-                <th className="px-5 py-2 font-normal">Смена программы</th>
-                <th className="px-5 py-2 text-right font-normal">Состояние</th>
+                <th className="px-5 py-2.5">Экран</th>
+                <th className="px-5 py-2.5">Сейчас идёт</th>
+                <th className="px-5 py-2.5">Источник</th>
+                <th className="px-5 py-2.5">Смена программы</th>
+                <th className="px-5 py-2.5 text-right">Состояние</th>
               </tr>
             </thead>
             <tbody>
@@ -487,7 +487,7 @@ function Timeline({ preview }: { preview: Preview }) {
         description={`${formatDay(preview.from, zone)} — ${formatDay(preview.to, zone)} · ${zoneLabel(zone, preview.screen.timezoneSource)}`}
       />
       <CardBody className="flex flex-col gap-3">
-        <div className="relative h-9 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface-2">
+        <div className="relative h-9 overflow-hidden border border-border bg-surface-2">
           {preview.segments.map((segment, index) => {
             const left = position(segment.from)
             const right = position(segment.to)
@@ -507,11 +507,11 @@ function Timeline({ preview }: { preview: Preview }) {
 
         <div className="flex flex-wrap gap-3 text-[12px] text-text-subtle">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block size-2.5 rounded-[2px] bg-primary/70" />
+            <span className="inline-block size-2.5 bg-primary/70" />
             кампания
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block size-2.5 rounded-[2px] border border-border bg-surface-3" />
+            <span className="inline-block size-2.5 border border-border bg-surface-3" />
             постоянная программа
           </span>
         </div>

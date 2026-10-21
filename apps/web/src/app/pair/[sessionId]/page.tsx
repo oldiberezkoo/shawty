@@ -39,12 +39,12 @@ function TerminalState({
     <main className="flex min-h-dvh items-center justify-center px-5 py-12">
       <Card className="w-full max-w-[420px]">
         <CardBody className="flex flex-col items-center px-6 py-8 text-center">
-          <div className="mb-3 flex size-10 items-center justify-center rounded-[var(--radius-lg)] border border-border bg-surface-2 text-text-subtle">
+          <div className="mb-4 flex size-11 items-center justify-center border border-border-strong bg-surface-2 text-primary">
             {icon}
           </div>
 
-          <h1 className="text-[15px] font-semibold tracking-[-0.015em]">{title}</h1>
-          <p className="mt-1.5 max-w-[36ch] text-[13px] leading-relaxed text-text-muted">{hint}</p>
+          <h1 className="text-[16px] font-medium tracking-[-0.02em]">{title}</h1>
+          <p className="mt-1.5 max-w-[36ch] text-[12.5px] leading-relaxed text-text-muted">{hint}</p>
 
           <div className="mt-5 flex flex-wrap justify-center gap-2">{children}</div>
         </CardBody>
@@ -153,8 +153,9 @@ export default async function PairConfirmPage({
     <main className="mx-auto flex min-h-dvh w-full max-w-[540px] flex-col justify-center px-5 py-12">
       <div className="mb-7">
         <LinkToLogin href="/dashboard" />
-        <h1 className="mt-6 page-title">Подключение экрана</h1>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-text-muted">
+        <p className="section-title mt-6 mb-2">[01] Привязка</p>
+        <h1 className="page-title">Подключение экрана</h1>
+        <p className="mt-2 text-[12.5px] leading-relaxed text-text-muted">
           Вы вошли как {ROLE_LABELS[firstAccess.role]}. Выберите, куда привязать экран.
         </p>
       </div>

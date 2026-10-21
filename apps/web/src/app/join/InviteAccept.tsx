@@ -174,7 +174,7 @@ export function InviteAccept({ token }: { token: string }) {
       <Card>
         <CardBody className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5 text-[13px]">
-            <div className="text-[16px] font-semibold">{invitation.companyName}</div>
+            <div className="text-[16px] font-medium tracking-[-0.02em]">{invitation.companyName}</div>
             <div className="text-text-muted">
               Вас пригласили с правом «{invitation.roleLabel}» на адрес {invitation.email}.
             </div>
@@ -214,7 +214,7 @@ export function InviteAccept({ token }: { token: string }) {
       <CardBody className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5 text-[13px]">
           <div className="text-text-muted">Вас пригласили в</div>
-          <div className="text-[16px] font-semibold">{invitation.companyName}</div>
+          <div className="text-[16px] font-medium tracking-[-0.02em]">{invitation.companyName}</div>
           <div className="mt-2 flex items-center gap-2 text-text-muted">
             Роль:
             <Badge tone="info">{invitation.roleLabel}</Badge>

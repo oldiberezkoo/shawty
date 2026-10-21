@@ -273,7 +273,7 @@ export function CampaignsBoard(props: {
                   <td data-primary className="px-5 py-2">
                     <span className="font-medium">{campaign.name}</span>
                     {campaign.kind === 'commercial' ? (
-                      <span className="ml-2 rounded bg-surface-3 px-1.5 py-0.5 text-[11px] text-text-muted">реклама</span>
+                      <span className="ml-2  bg-surface-3 px-1.5 py-0.5 text-[11px] text-text-muted">реклама</span>
                     ) : null}
                     <span className="mt-0.5 block text-[12px] text-text-subtle">
                       {campaign.targets.length === 0
@@ -757,7 +757,7 @@ function CampaignForm(props: {
                       key={value}
                       type="button"
                       onClick={() => setTargetTab(value)}
-                      className={`h-8 rounded-[var(--radius-md)] border px-3 text-[12.5px] transition-colors ${
+                      className={`h-8 border px-3 text-[12.5px] transition-colors ${
                         targetTab === value
                           ? 'border-primary bg-primary text-primary-text'
                           : 'border-border text-text-muted hover:bg-surface-2'
@@ -781,7 +781,7 @@ function CampaignForm(props: {
                 />
               ) : null}
 
-              <div className="max-h-52 overflow-y-auto rounded-[var(--radius-md)] border border-border">
+              <div className="max-h-52 overflow-y-auto border border-border">
                 {visibleTargetOptions.length === 0 ? (
                   <p className="px-3 py-2 text-[12.5px] text-text-subtle">
                     {query ? 'Ничего не найдено.' : 'Здесь пока пусто — добавьте филиалы, группы или экраны в разделе «Структура».'}
@@ -816,7 +816,7 @@ function CampaignForm(props: {
                       key={`${target.scopeType}:${target.scopeId}`}
                       type="button"
                       onClick={() => toggleTarget(target.scopeType, target.scopeId)}
-                      className="flex items-center gap-1.5 rounded-full bg-surface-3 px-2.5 py-1 text-[12px] text-text-muted hover:text-text"
+                      className="flex items-center gap-1.5 bg-surface-3 px-2.5 py-1 text-[12px] text-text-muted hover:text-text"
                       title="Убрать площадку"
                     >
                       {scopeLabel(
@@ -863,9 +863,9 @@ function CampaignForm(props: {
                       const next = window.daysOfWeek ^ day.bit
                       patchWindow(index, { daysOfWeek: next === 0 ? 127 : next })
                     }}
-                    className={`h-7 w-7 rounded-[var(--radius-sm)] border text-[12px] transition-colors ${
+                    className={`h-7 w-7 border text-[12px] transition-colors ${
                       (window.daysOfWeek & day.bit) !== 0
-                        ? 'border-primary bg-primary text-primary-text'
+                        ? 'border-text bg-text text-bg'
                         : 'border-border text-text-subtle hover:bg-surface-2'
                     }`}
                   >
@@ -878,14 +878,14 @@ function CampaignForm(props: {
                 type="time"
                 value={minutesToTime(window.startMinute)}
                 onChange={(event) => patchWindow(index, { startMinute: timeToMinutes(event.target.value) })}
-                className="h-8 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[13px] text-text"
+                className="h-8 border border-border bg-surface px-2 text-[13px] text-text"
               />
               <span className="text-text-subtle">—</span>
               <input
                 type="time"
                 value={minutesToTime(window.endMinute)}
                 onChange={(event) => patchWindow(index, { endMinute: timeToMinutes(event.target.value) })}
-                className="h-8 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[13px] text-text"
+                className="h-8 border border-border bg-surface px-2 text-[13px] text-text"
               />
 
               <Button size="sm" variant="ghost" onClick={() => setWindows((current) => current.filter((_, position) => position !== index))}>

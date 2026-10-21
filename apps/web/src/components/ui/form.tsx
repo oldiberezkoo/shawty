@@ -12,16 +12,14 @@ import type { ReactNode } from 'react'
  * а вид полностью наш. Слой существует, чтобы замена или обновление Base UI
  * затрагивала только этот каталог.
  *
- * Общий стиль поля вынесен в константу: раньше он был повторён в семи местах
- * и разъехался по высоте от компонента к компоненту.
+ * Подписи полей намеренно остаются sans: mono-капс с трекингом на длинных
+ * русских подписях читается хуже, а поле ввода — рабочая зона, не метка.
  */
 
 const FIELD_CLASS = 'field'
 
-const INPUT_CLASS = FIELD_CLASS
-
-const LABEL_CLASS = 'text-[12.5px] font-medium text-text'
-const DESCRIPTION_CLASS = 'text-[12px] leading-relaxed text-text-subtle'
+const LABEL_CLASS = 'text-[12px] font-medium text-text'
+const DESCRIPTION_CLASS = 'text-[11.5px] leading-relaxed text-text-subtle'
 
 export function FormField({
   label,
@@ -64,7 +62,7 @@ export function FormField({
   autoComplete?: string
   autoFocus?: boolean
   description?: string
-  /** Ошибка поля: подсказка под полем, а не только красная рамка. */
+  /** Ошибка поля: подсказка под полем, а не только изменённая рамка. */
   error?: string | null
   inputMode?: 'text' | 'numeric' | 'decimal' | 'email'
   min?: number
@@ -99,11 +97,14 @@ export function FormField({
         readOnly={readOnly}
         list={list}
         aria-invalid={error ? true : undefined}
-        className={INPUT_CLASS}
+        className={FIELD_CLASS}
       />
 
       {error ? (
-        <Field.Error className="text-[12px] text-danger">{error}</Field.Error>
+        <Field.Error className="flex items-start gap-1.5 text-[11.5px] leading-relaxed text-text">
+          <span aria-hidden className="mt-[0.45em] block size-1.5 shrink-0 bg-current" />
+          {error}
+        </Field.Error>
       ) : description ? (
         <Field.Description className={DESCRIPTION_CLASS}>{description}</Field.Description>
       ) : null}
@@ -161,26 +162,30 @@ export function SelectField({
           <Select.Value placeholder={placeholder} />
           <Select.Icon className="shrink-0 text-text-subtle">
             <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-              <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
             </svg>
           </Select.Icon>
         </Select.Trigger>
 
         <Select.Portal>
-          <Select.Positioner className="z-50 mt-1 w-[var(--anchor-width)]">
-            <Select.Popup className="max-h-72 overflow-auto rounded-[var(--radius-lg)] border border-border bg-surface-raised p-1.5 shadow-[var(--shadow-md)]">
+          <Select.Positioner
+            alignItemWithTrigger={false}
+            sideOffset={4}
+            className="z-50 w-[var(--anchor-width)]"
+          >
+            <Select.Popup className="max-h-72 overflow-auto border border-border-strong bg-surface-raised p-1">
               <Select.List>
                 {options.map((option) => (
                   <Select.Item
                     key={option.value}
                     value={option.value}
                     disabled={option.disabled}
-                    className="flex cursor-default items-center justify-between gap-2 rounded-[var(--radius-sm)] px-2.5 py-2 text-[13.5px] text-text outline-none data-[highlighted]:bg-surface-2 data-[selected]:font-medium data-[disabled]:opacity-50"
+                    className="flex cursor-default items-center justify-between gap-2 border-l-2 border-transparent px-2.5 py-2 text-[13px] text-text outline-none data-[highlighted]:bg-surface-2 data-[selected]:border-primary data-[selected]:font-medium data-[disabled]:opacity-40"
                   >
                     <Select.ItemText>{option.label}</Select.ItemText>
-                    <Select.ItemIndicator className="text-text-muted">
+                    <Select.ItemIndicator className="text-primary">
                       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                        <path d="m2.5 6.2 2.2 2.3 4.8-4.8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                        <path d="m2.5 6.2 2.2 2.3 4.8-4.8" fill="none" stroke="currentColor" strokeWidth="1.6" />
                       </svg>
                     </Select.ItemIndicator>
                   </Select.Item>
@@ -191,7 +196,12 @@ export function SelectField({
         </Select.Portal>
       </Select.Root>
 
-      {error ? <Field.Error className="text-[12px] text-danger">{error}</Field.Error> : null}
+      {error ? (
+        <Field.Error className="flex items-start gap-1.5 text-[11.5px] leading-relaxed text-text">
+          <span aria-hidden className="mt-[0.45em] block size-1.5 shrink-0 bg-current" />
+          {error}
+        </Field.Error>
+      ) : null}
     </Field.Root>
   )
 }
@@ -228,7 +238,7 @@ export function ToggleField({
         className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[var(--primary)]"
       />
       <span className="flex flex-col gap-0.5">
-        <span className="text-[13px] leading-tight text-text">{label}</span>
+        <span className="text-[12.5px] leading-tight text-text">{label}</span>
         {description ? <span className={DESCRIPTION_CLASS}>{description}</span> : null}
       </span>
     </label>
@@ -245,15 +255,18 @@ export function FormError({ children, onDismiss }: { children: ReactNode; onDism
   return (
     <div
       role="alert"
-      className="flex items-start justify-between gap-3 rounded-[var(--radius-lg)] border border-danger-border bg-danger-bg px-3.5 py-3 text-[13px] text-danger"
+      className="flex items-start justify-between gap-3 border border-border-strong bg-surface-3 px-3.5 py-3"
     >
-      <span className="leading-relaxed">{children}</span>
+      <div className="min-w-0">
+        <div className="section-title mb-1">Ошибка</div>
+        <span className="text-[13px] leading-relaxed text-text">{children}</span>
+      </div>
       {onDismiss ? (
         <button
           type="button"
           onClick={onDismiss}
           aria-label="Скрыть сообщение"
-          className="-my-0.5 -mr-1 shrink-0 rounded px-1 opacity-70 transition-opacity hover:opacity-100"
+          className="-my-0.5 -mr-1 shrink-0 px-1 text-[16px] leading-none opacity-60 transition-opacity hover:opacity-100"
         >
           ×
         </button>
@@ -267,15 +280,18 @@ export function FormSuccess({ children, onDismiss }: { children: ReactNode; onDi
   return (
     <div
       role="status"
-      className="flex items-start justify-between gap-3 rounded-[var(--radius-lg)] border border-success-border bg-success-bg px-3.5 py-3 text-[13px] text-success"
+      className="flex items-start justify-between gap-3 border border-border-strong border-l-[3px] border-l-primary bg-surface-2 px-3.5 py-3"
     >
-      <span className="leading-relaxed">{children}</span>
+      <div className="min-w-0">
+        <div className="section-title mb-1">Готово</div>
+        <span className="text-[13px] leading-relaxed text-text">{children}</span>
+      </div>
       {onDismiss ? (
         <button
           type="button"
           onClick={onDismiss}
           aria-label="Скрыть сообщение"
-          className="-my-0.5 -mr-1 shrink-0 rounded px-1 opacity-70 transition-opacity hover:opacity-100"
+          className="-my-0.5 -mr-1 shrink-0 px-1 text-[16px] leading-none opacity-60 transition-opacity hover:opacity-100"
         >
           ×
         </button>

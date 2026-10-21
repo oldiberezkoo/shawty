@@ -5,6 +5,7 @@ import { requireSession } from '@/server/auth/require-session'
 import { publicConfig } from '@/config/public'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Notice } from '@/components/ui/status-badge'
+import { Lockup } from '@/components/visual/lockup'
 import { CodeLookupForm } from './CodeLookupForm'
 import { steps } from './steps'
 
@@ -35,15 +36,21 @@ export default async function PairStartPage() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[560px] flex-col justify-center gap-6 px-4 py-12 md:px-6">
       <div>
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-1.5 text-[13px] text-text-muted transition-colors hover:text-text"
-        >
-          <ArrowLeft className="size-3.5" strokeWidth={1.75} />
-          Назад в панель
-        </Link>
+        <div className="mb-7 flex items-center justify-between gap-4 border-b border-border pb-4">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.08em] text-text-muted uppercase transition-colors hover:text-text"
+          >
+            <ArrowLeft className="size-3.5" strokeWidth={1.75} />
+            Назад в панель
+          </Link>
 
-        <h1 className="mt-6 page-title">Подключение экрана</h1>
+          <Lockup size={18} chip={null} />
+        </div>
+
+        <p className="section-title mb-2">[02] Привязка</p>
+
+        <h1 className="page-title">Подключение экрана</h1>
         <p className="mt-1.5 max-w-[56ch] text-[13px] leading-relaxed text-text-muted">
           Телевизор показывает код. Введите его здесь — экран привяжется к выбранному филиалу и сам получит
           ключи доступа.
@@ -51,7 +58,10 @@ export default async function PairStartPage() {
       </div>
 
       <Notice>
-        На телевизоре откройте <code className="rounded bg-surface px-1.5 py-0.5 font-mono text-[12px]">{playerUrl}</code>{' '}
+        На телевизоре откройте{' '}
+        <code className="inline-block max-w-full border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] break-all text-text">
+          {playerUrl}
+        </code>{' '}
         — он покажет восьмизначный код. Введите этот код в поле ниже.
       </Notice>
 
@@ -73,7 +83,10 @@ export default async function PairStartPage() {
             экран ещё раз — скорее всего, он уже сменился.
           </p>
           <p>
-            Телевизор должен открыть страницу <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] text-text">{playerUrl}</code>{' '}
+            Телевизор должен открыть страницу{' '}
+            <code className="inline-block max-w-full border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] break-all text-text">
+              {playerUrl}
+            </code>{' '}
             и получить ключ доступа. Если страница не открывается — проверьте, что телевизор в сети с тем же
             интернетом, что и панель.
           </p>
@@ -94,7 +107,7 @@ export default async function PairStartPage() {
           <ol className="flex flex-col gap-2.5 text-[13px] leading-relaxed text-text-muted">
             {steps.map((step, index) => (
               <li key={step} className="flex gap-2.5">
-                <span className="tnum mt-px flex size-4 shrink-0 items-center justify-center rounded-full bg-surface-3 text-[10px] font-medium text-text-muted">
+                <span className="tnum mt-px flex size-5 shrink-0 items-center justify-center border border-border-strong font-mono text-[10px] text-text-muted">
                   {index + 1}
                 </span>
                 <span>{step}</span>

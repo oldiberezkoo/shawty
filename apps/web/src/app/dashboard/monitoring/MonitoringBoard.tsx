@@ -209,8 +209,8 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card>
           <CardBody className="flex flex-col gap-1">
-            <span className="text-[12px] text-text-muted">Всего экранов</span>
-            <span className="tnum text-3xl font-semibold tracking-[-0.02em] text-text">{totals.screens}</span>
+            <span className="section-title">Всего экранов</span>
+            <span className="tnum font-mono text-[30px] font-normal tracking-[-0.03em] text-text">{totals.screens}</span>
             <span className="text-[12px] text-text-subtle">
               в работе {totals.screens - totals.inactive}
               {totals.inactive > 0 ? ` · отключено или отвязано ${totals.inactive}` : ''}
@@ -219,14 +219,14 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
         </Card>
         <Card>
           <CardBody className="flex flex-col gap-1">
-            <span className="text-[12px] text-text-muted">На связи</span>
-            <span className="tnum text-3xl font-semibold tracking-[-0.02em] text-success">{totals.online}</span>
+            <span className="section-title">На связи</span>
+            <span className="tnum font-mono text-[30px] font-normal tracking-[-0.03em] text-success">{totals.online}</span>
           </CardBody>
         </Card>
         <Card>
           <CardBody className="flex flex-col gap-1">
-            <span className="text-[12px] text-text-muted">Нет связи</span>
-            <span className={`tnum text-3xl font-semibold tracking-[-0.02em] ${totals.offline > 0 ? 'text-warn' : 'text-success'}`}>
+            <span className="section-title">Нет связи</span>
+            <span className={`tnum font-mono text-[30px] font-normal tracking-[-0.03em] ${totals.offline > 0 ? 'text-warn' : 'text-success'}`}>
               {totals.offline}
             </span>
             <span className="text-[12px] text-text-subtle">из {totals.screens - totals.inactive} рабочих</span>
@@ -234,8 +234,8 @@ export function MonitoringBoard({ companyId }: { companyId: string }) {
         </Card>
         <Card>
           <CardBody className="flex flex-col gap-1">
-            <span className="text-[12px] text-text-muted">Открытых простоев</span>
-            <span className={`tnum text-3xl font-semibold tracking-[-0.02em] ${open.length > 0 ? 'text-warn' : 'text-success'}`}>
+            <span className="section-title">Открытых простоев</span>
+            <span className={`tnum font-mono text-[30px] font-normal tracking-[-0.03em] ${open.length > 0 ? 'text-warn' : 'text-success'}`}>
               {open.length}
             </span>
             <span className="text-[12px] text-text-subtle">

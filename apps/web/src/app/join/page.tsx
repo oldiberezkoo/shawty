@@ -31,7 +31,7 @@ export default async function JoinPage({
           Передумали?{' '}
           <Link
             href="/login"
-            className="font-medium text-text underline underline-offset-4 transition-colors hover:text-text-muted"
+            className="font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary-hover hover:decoration-primary-hover"
           >
             Вернуться к входу
           </Link>

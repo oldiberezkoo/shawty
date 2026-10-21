@@ -13,7 +13,6 @@ import {
   LogOut,
   Megaphone,
   Menu,
-  MonitorPlay,
   MonitorSmartphone,
   Network,
   ScrollText,
@@ -23,6 +22,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react'
+import { Mark } from '@/components/visual/mark'
 
 export type NavItem = {
   href: string
@@ -50,8 +50,8 @@ function initials(name: string): string {
  * строку не помещаются ни на каком экране, и на телефоне строка превращается
  * в кашу из обрезанных подписей, где половину пунктов не видно и не найти.
  *
- * Колонка повторяет приём shadcn/ui и Notion: разделы сгруппированы, у
- * активного пункта есть и заливка, и цвет текста — по одному признаку
+ * Колонка следует приёму дизайн-системы: разделы пронумерованы, у активного
+ * пункта есть и заливка, и акцентная полоса слева — по одному признаку
  * активность читается плохо, особенно людям с нарушениями зрения.
  */
 export function SidebarNav({
@@ -72,9 +72,10 @@ export function SidebarNav({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-3 pt-1 pb-4">
-        {groups.map((group) => (
-          <div key={group.title} className="flex flex-col gap-0.5">
-            <div className="px-3 pt-1 pb-2 text-[10.5px] font-semibold tracking-[0.1em] text-text-subtle uppercase">
+        {groups.map((group, groupIndex) => (
+          <div key={group.title} className="flex flex-col">
+            <div className="flex items-center gap-2 px-2.5 pt-1 pb-2 font-mono text-[9.5px] tracking-[0.1em] text-text-subtle uppercase">
+              <span className="text-text-subtle/70">[{String(groupIndex + 1).padStart(2, '0')}]</span>
               {group.title}
             </div>
 
@@ -90,35 +91,35 @@ export function SidebarNav({
       <div className="px-3 pb-3">
         <Link
           href="/pair"
-          className="group flex items-center gap-3 rounded-[var(--radius-lg)] border border-primary-border bg-primary-soft p-3 transition-colors hover:bg-primary-soft/75"
+          className="group flex items-center gap-3 border border-border bg-surface p-3 transition-colors hover:border-border-strong hover:bg-surface-2"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-surface text-primary shadow-[var(--shadow-xs)]">
-            <Tv className="size-4" strokeWidth={1.9} />
+          <span className="flex size-8 shrink-0 items-center justify-center border border-border-strong text-primary">
+            <Tv className="size-4" strokeWidth={1.6} />
           </span>
 
           <span className="min-w-0 flex-1">
-            <span className="block text-[12px] font-semibold text-primary">Подключить экран</span>
-            <span className="mt-0.5 block text-[10.5px] leading-snug text-text-muted">
+            <span className="block text-[12px] font-medium text-text">Подключить экран</span>
+            <span className="mt-0.5 block font-mono text-[9px] leading-snug tracking-[0.05em] text-text-subtle uppercase">
               Код на телевизоре — и экран в сети
             </span>
           </span>
 
           <ChevronRight
-            className="size-3.5 shrink-0 text-primary/60 transition-transform group-hover:translate-x-0.5"
-            strokeWidth={2}
+            className="size-3.5 shrink-0 text-text-subtle transition-transform group-hover:translate-x-0.5"
+            strokeWidth={1.8}
           />
         </Link>
       </div>
 
       <div className="border-t border-border p-3">
-        <div className="flex items-center gap-2.5 rounded-[var(--radius-lg)] px-1.5 py-1.5">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-primary-border bg-primary-soft text-[11px] font-semibold text-primary">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-9 shrink-0 items-center justify-center border border-border-strong font-mono text-[10px] text-text-muted">
             {initials(userName) || '—'}
           </span>
 
           <div className="min-w-0 flex-1 leading-tight">
             <div className="truncate text-[12.5px] font-medium">{userName}</div>
-            <div className="mt-0.5 truncate text-[10.5px] text-text-subtle">
+            <div className="mt-1 truncate font-mono text-[9px] tracking-[0.05em] text-text-subtle uppercase">
               {companyName} · {roleLabel}
             </div>
           </div>
@@ -128,9 +129,9 @@ export function SidebarNav({
             onClick={onSignOut}
             aria-label="Выйти"
             title="Выйти"
-            className="flex size-8 items-center justify-center rounded-[var(--radius-sm)] text-text-subtle transition-colors hover:bg-surface-2 hover:text-text"
+            className="flex size-8 items-center justify-center border border-transparent text-text-subtle transition-colors hover:border-border-strong hover:text-text"
           >
-            <LogOut className="size-4" strokeWidth={1.9} />
+            <LogOut className="size-4" strokeWidth={1.7} />
           </button>
         </div>
       </div>
@@ -151,9 +152,9 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string | null })
       <span
         aria-disabled
         title="Раздел появится в следующих этапах"
-        className="flex h-10 cursor-not-allowed items-center gap-3 rounded-[var(--radius-md)] px-3 text-[13.5px] text-text-subtle"
+        className="flex h-9 cursor-not-allowed items-center gap-2.5 px-2.5 text-[13px] text-text-subtle"
       >
-        <Icon className="size-[18px] shrink-0" strokeWidth={1.75} />
+        <Icon className="size-[17px] shrink-0" strokeWidth={1.6} />
         {item.label}
       </span>
     )
@@ -163,26 +164,19 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string | null })
     <Link
       href={item.href}
       aria-current={active ? 'page' : undefined}
-      className={`group relative flex h-10 items-center gap-3 rounded-[var(--radius-md)] px-3 text-[13.5px] transition-colors duration-150 ${
-        active
-          ? 'bg-primary-soft font-semibold text-primary'
-          : 'text-text-muted hover:bg-surface-2 hover:text-text'
+      className={`group relative flex h-9 items-center gap-2.5 px-2.5 text-[13px] transition-colors duration-100 ${
+        active ? 'bg-surface text-text' : 'text-text-muted hover:bg-surface-2 hover:text-text'
       }`}
     >
-      {/*
-        Полоска слева дублирует заливку. Одного фона мало: на светлом фоне
-        разница между «выбран» и «наведён» почти незаметна, и человек,
-        вернувшийся к экрану, ищет себя в списке заново.
-      */}
-      {active ? (
-        <span className="absolute inset-y-2.5 left-0 w-[3px] rounded-full bg-primary" />
-      ) : null}
+      {/* Полоска слева дублирует заливку: одного фона мало, когда разница
+          между «выбран» и «наведён» почти незаметна. */}
+      {active ? <span aria-hidden className="absolute inset-y-1.5 left-0 w-[2px] bg-primary" /> : null}
 
       <Icon
-        className={`size-[18px] shrink-0 transition-colors ${
+        className={`size-[17px] shrink-0 transition-colors ${
           active ? 'text-primary' : 'text-text-subtle group-hover:text-text-muted'
         }`}
-        strokeWidth={1.8}
+        strokeWidth={1.6}
       />
       {item.label}
     </Link>
@@ -242,16 +236,16 @@ export function SidebarSheet({
         className="absolute inset-0 bg-overlay backdrop-blur-[2px] motion-safe:animate-[fade-in_150ms_ease-out]"
       />
 
-      <div className="absolute inset-y-0 left-0 flex w-[284px] flex-col border-r border-border bg-surface shadow-[var(--shadow-lg)] motion-safe:animate-[slide-in_220ms_cubic-bezier(0.16,1,0.3,1)]">
-        <div className="flex h-16 shrink-0 items-center justify-between px-5">
+      <div className="absolute inset-y-0 left-0 flex w-[280px] flex-col border-r border-border-strong bg-bg motion-safe:animate-[slide-in_200ms_steps(6,end)]">
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-5">
           <BrandMark />
           <button
             type="button"
             onClick={onClose}
             aria-label="Закрыть меню"
-            className="flex size-8 items-center justify-center rounded-[var(--radius-sm)] text-text-subtle transition-colors hover:bg-surface-2 hover:text-text"
+            className="flex size-8 items-center justify-center text-text-subtle transition-colors hover:text-text"
           >
-            <X className="size-4" strokeWidth={1.75} />
+            <X className="size-4" strokeWidth={1.7} />
           </button>
         </div>
 
@@ -277,9 +271,9 @@ export function SidebarTrigger({ onOpen }: { onOpen: () => void }) {
       type="button"
       onClick={onOpen}
       aria-label="Открыть меню"
-      className="-ml-1 flex size-9 items-center justify-center rounded-[var(--radius-md)] border border-border bg-surface text-text-muted shadow-[var(--shadow-xs)] transition-colors hover:bg-surface-2 hover:text-text md:hidden"
+      className="-ml-1 flex size-9 items-center justify-center border border-border-strong text-text-muted transition-colors hover:border-text hover:text-text md:hidden"
     >
-      <Menu className="size-4.5" strokeWidth={1.8} />
+      <Menu className="size-4" strokeWidth={1.7} />
     </button>
   )
 }
@@ -287,20 +281,25 @@ export function SidebarTrigger({ onOpen }: { onOpen: () => void }) {
 /**
  * Знак продукта.
  *
- * Квадрат с иконкой экрана, а не просто слово: в колонке из одиннадцати
- * текстовых строк логотип-надпись сливается с пунктами, и верх перестаёт
- * читаться как «здесь начало».
+ * Кристалл и акцентная плита вместо иконки в синем квадрате: в колонке из
+ * одиннадцати текстовых строк логотип-надпись сливается с пунктами, и верх
+ * перестаёт читаться как «здесь начало».
  */
 export function BrandMark() {
   return (
     <Link href="/dashboard" className="flex items-center gap-2.5">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-primary text-primary-text shadow-[var(--shadow-brand)]">
-        <MonitorPlay className="size-4" strokeWidth={1.9} />
-      </span>
+      <Mark size={22} className="shrink-0 text-primary" />
 
-      <span className="leading-none">
-        <span className="block text-[14px] font-semibold tracking-[-0.025em]">SHAWTY</span>
-        <span className="mt-1 block text-[10.5px] text-text-subtle">Экранная сеть</span>
+      <span className="flex flex-col gap-1 leading-none">
+        <span
+          translate="no"
+          className="w-fit bg-primary px-[5px] py-px font-sans text-[15px] leading-[1.2] font-medium tracking-[-0.01em] text-primary-text uppercase"
+        >
+          SHAWTY
+        </span>
+        <span className="font-mono text-[8.5px] tracking-[0.14em] text-text-subtle uppercase">
+          Экранная сеть
+        </span>
       </span>
     </Link>
   )

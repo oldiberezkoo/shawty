@@ -90,7 +90,7 @@ export default async function ScreensPage() {
 
       <Notice>
         Новый телевизор: откройте на нём{' '}
-        <code className="rounded bg-surface px-1.5 py-0.5 font-mono text-[12px]">
+        <code className=" bg-surface px-1.5 py-0.5 font-mono text-[12px]">
           {publicConfig.appUrl}/player/pairing
         </code>{' '}
         и введите показанный код на странице «Подключить экран».

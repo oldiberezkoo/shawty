@@ -8,9 +8,8 @@ import type { ReactNode } from 'react'
  * вовсе. Из-за этого при переходе между разделами «шапка» прыгала по высоте
  * и по положению действия, и панель выглядела набором разных приложений.
  *
- * Здесь задан один порядок: заголовок, под ним объяснение, действие справа.
- * На узком экране действие уходит под текст, а не сжимает заголовок в
- * вертикальную полоску.
+ * Здесь задан один порядок: контекст, заголовок, объяснение, действие справа.
+ * Линия снизу отделяет шапку от данных — без неё заголовок «плывёт» в сетке.
  */
 export function PageHeader({
   title,
@@ -25,16 +24,18 @@ export function PageHeader({
   meta?: ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+    <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
       <div className="min-w-0">
         {meta ? (
-          <div className="mb-1.5 flex items-center gap-1.5 text-[12px] text-text-subtle">{meta}</div>
+          <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] tracking-[0.08em] text-text-subtle uppercase">
+            {meta}
+          </div>
         ) : null}
 
         <h1 className="page-title">{title}</h1>
 
         {description ? (
-          <p className="mt-2 max-w-[78ch] text-[13.5px] leading-relaxed text-text-muted">{description}</p>
+          <p className="mt-2.5 max-w-[78ch] text-[13px] leading-relaxed text-text-muted">{description}</p>
         ) : null}
       </div>
 

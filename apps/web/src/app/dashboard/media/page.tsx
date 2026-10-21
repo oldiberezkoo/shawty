@@ -60,7 +60,7 @@ export default async function MediaPage() {
           description={`${usage.files} ${plural(usage.files, 'файл', 'файла', 'файлов')} · ${formatBytes(usage.usedBytes)} из ${formatBytes(usage.limitBytes)}`}
         />
         <CardBody>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-surface-3">
+          <div className="h-2 w-full overflow-hidden bg-surface-3">
             <div
               className={`h-full transition-[width] ${percent > 90 ? 'bg-danger' : percent > 70 ? 'bg-warn' : 'bg-primary'}`}
               style={{ width: `${percent}%` }}

@@ -244,7 +244,10 @@ export function DeliveryBoard(props: {
       </div>
 
       {failed > 0 ? (
-        <div className="rounded-[var(--radius-md)] border border-danger/30 bg-danger-bg px-3 py-2 text-[13px] text-danger">
+        <div className="border border-text bg-text px-4 py-3 text-[12.5px] leading-relaxed text-bg">
+          <span className="mr-2 font-mono text-[10px] tracking-[0.08em] uppercase opacity-60">
+            Ошибка
+          </span>
           {failed} {failed === 1 ? 'экран не смог' : 'экрана не смогли'} применить публикацию. Такие чеки
           помечены «отказ» в таблице ниже — их придётся разобрать вручную: повторная отправка прекращена.
         </div>
@@ -328,7 +331,7 @@ export function DeliveryBoard(props: {
                 <span className="text-[12px] text-text-subtle">Текущие назначения</span>
                 {props.assignments.map((assignment) => (
                   <div key={assignment.id} className="flex items-center gap-2 text-[12px] text-text-muted">
-                    <span className="rounded bg-surface-3 px-1.5 py-0.5">{assignment.scopeType}</span>
+                    <span className=" bg-surface-3 px-1.5 py-0.5">{assignment.scopeType}</span>
                     <span>{scopeName(assignment, props)}</span>
                   </div>
                 ))}
@@ -405,9 +408,9 @@ function NumberTile({ label, value, tone }: { label: string; value: number; tone
 
   return (
     <Card>
-      <CardBody className="flex flex-col gap-1">
-        <span className="text-[12px] text-text-muted">{label}</span>
-        <span className={`tnum text-3xl font-semibold tracking-[-0.02em] ${toneClass[tone] ?? ''}`}>{value}</span>
+      <CardBody className="flex flex-col gap-2">
+        <span className="section-title">{label}</span>
+        <span className={`tnum font-mono text-[30px] leading-none font-normal tracking-[-0.03em] ${toneClass[tone] ?? ''}`}>{value}</span>
       </CardBody>
     </Card>
   )

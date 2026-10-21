@@ -219,7 +219,7 @@ function Metric({ label, value, tone }: { label: string; value: string; tone: st
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[12px] text-text-muted">{label}</span>
-      <span className={`tnum text-2xl font-semibold tracking-[-0.02em] ${toneClass[tone] ?? ''}`}>{value}</span>
+      <span className={`tnum font-mono text-[24px] font-normal tracking-[-0.03em] ${toneClass[tone] ?? ''}`}>{value}</span>
     </div>
   )
 }

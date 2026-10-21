@@ -189,7 +189,7 @@ export function TeamBoard({
       {inviteLink ? (
         <FormError onDismiss={() => setInviteLink(null)}>
           <span className="block">Ссылка-приглашение (показывается один раз):</span>
-          <code className="mt-1 block overflow-x-auto rounded bg-surface px-2 py-1 text-[12px] select-all">
+          <code className="mt-1 block overflow-x-auto  bg-surface px-2 py-1 text-[12px] select-all">
             {inviteLink}
           </code>
         </FormError>
@@ -236,7 +236,7 @@ export function TeamBoard({
                         {member.scopes.slice(0, 2).map((scope) => (
                           <span
                             key={`${scope.scopeType}:${scope.scopeId}`}
-                            className="rounded bg-surface-3 px-1.5 py-0.5 text-text-muted"
+                            className=" bg-surface-3 px-1.5 py-0.5 text-text-muted"
                           >
                             {scopeLabel(scope, { branches, groups, screens })}
                           </span>
@@ -265,7 +265,7 @@ export function TeamBoard({
                     disabled={busy}
                     onChange={(event) => void changeRole(member.membershipId, event.target.value)}
                     aria-label={`Роль: ${member.name}`}
-                    className="h-8 shrink-0 rounded-[var(--radius-sm)] border border-border bg-surface px-2 text-[13px] text-text disabled:opacity-50"
+                    className="h-8 shrink-0 border border-border bg-surface px-2 text-[13px] text-text disabled:opacity-50"
                   >
                     {roles
                       .filter((role) => role.role !== 'owner')
@@ -324,7 +324,7 @@ export function TeamBoard({
                     <span
                       key={area}
                       title={areaHint(area)}
-                      className="rounded-full border border-border px-2 py-0.5 text-[12px] text-text-muted"
+                      className=" border border-border px-2 py-0.5 text-[12px] text-text-muted"
                     >
                       {area}
                     </span>
@@ -520,7 +520,7 @@ function ScopeDialog({
         {error ? <FormError onDismiss={() => setError(null)}>{error}</FormError> : null}
 
         <div className="flex flex-col gap-2">
-          <label className="flex cursor-pointer items-start gap-2 rounded-[var(--radius-md)] border border-border px-3 py-2 text-[13px]">
+          <label className="flex cursor-pointer items-start gap-2 border border-border px-3 py-2 text-[13px]">
             <input
               type="radio"
               name="scope-mode"
@@ -536,7 +536,7 @@ function ScopeDialog({
             </span>
           </label>
 
-          <label className="flex cursor-pointer items-start gap-2 rounded-[var(--radius-md)] border border-border px-3 py-2 text-[13px]">
+          <label className="flex cursor-pointer items-start gap-2 border border-border px-3 py-2 text-[13px]">
             <input
               type="radio"
               name="scope-mode"
@@ -554,7 +554,7 @@ function ScopeDialog({
         </div>
 
         {restricted ? (
-          <div className="flex max-h-[46vh] flex-col gap-4 overflow-y-auto rounded-[var(--radius-md)] border border-border p-3">
+          <div className="flex max-h-[46vh] flex-col gap-4 overflow-y-auto border border-border p-3">
             <ScopeChecklist
               title="Филиалы"
               empty="Филиалов пока нет"
@@ -582,7 +582,7 @@ function ScopeDialog({
                 />
               </div>
 
-              <div className="flex max-h-56 flex-col overflow-y-auto rounded-[var(--radius-sm)] border border-border">
+              <div className="flex max-h-56 flex-col overflow-y-auto border border-border">
                 {visibleScreens.length === 0 ? (
                   <p className="px-3 py-2 text-[12.5px] text-text-subtle">
                     {query ? 'Ничего не найдено.' : 'Экранов пока нет.'}
@@ -636,7 +636,7 @@ function ScopeChecklist({
   return (
     <div className="flex flex-col gap-2">
       <span className="text-[12px] font-medium text-text-muted">{title}</span>
-      <div className="flex max-h-40 flex-col overflow-y-auto rounded-[var(--radius-sm)] border border-border">
+      <div className="flex max-h-40 flex-col overflow-y-auto border border-border">
         {options.length === 0 ? (
           <p className="px-3 py-2 text-[12.5px] text-text-subtle">{empty}</p>
         ) : (
@@ -722,6 +722,7 @@ function InviteDialog({
           label="Адрес почты"
           name="email"
           type="email"
+          autoFocus
           value={email}
           onValueChange={setEmail}
           placeholder="anna@example.uz"

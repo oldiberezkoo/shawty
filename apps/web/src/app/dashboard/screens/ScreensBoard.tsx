@@ -188,8 +188,8 @@ export function ScreensBoard(props: {
       {notice ? <FormSuccess onDismiss={() => setNotice(null)}>{notice}</FormSuccess> : null}
 
       {selected.size > 0 ? (
-        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-3 rounded-[var(--radius-lg)] border border-primary-border bg-primary-soft px-4 py-3 shadow-[var(--shadow-sm)]">
-          <span className="text-[13px] font-medium text-primary">
+        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-3 border border-border-strong border-l-[3px] border-l-primary bg-surface-2 px-4 py-3">
+          <span className="text-[13px] font-medium text-text">
             Выбрано {selected.size} {plural(selected.size, 'экран', 'экрана', 'экранов')}
           </span>
 

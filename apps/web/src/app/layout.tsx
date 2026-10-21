@@ -1,24 +1,27 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 
 /**
- * Интерфейсный шрифт.
+ * Интерфейсные шрифты.
  *
- * Системный шрифт на Windows — Segoe UI, и он заметно грубее на мелких
- * размерах: цифры разной ширины, плотные межбуквенные просветы, тонкие
- * начертания слипаются. Inter держит мелкий текст чистым и одинаково
- * выглядит на всех платформах, поэтому панель не зависит от того, чей
- * компьютер её открыл.
- *
- * `cyrillic` подключён отдельно: без него кириллица падала на системный
- * шрифт, и половина интерфейса выглядела иначе, чем вторая.
+ * Geist держит мелкий текст чистым, а Geist Mono — тот самый моноширинный из
+ * дизайн-системы: им набраны метки, чипы, таблицы и код. Оба подключаются с
+ * `cyrillic`: без него русский текст падал бы на системный шрифт, и половина
+ * интерфейса выглядела бы иначе, чем вторая.
  */
-const inter = Inter({
+const geistSans = Geist({
   subsets: ['latin', 'cyrillic'],
   display: 'swap',
-  variable: '--font-inter',
+  variable: '--font-geist-sans',
   fallback: ['ui-sans-serif', 'system-ui', 'Segoe UI', 'sans-serif'],
+})
+
+const geistMono = Geist_Mono({
+  subsets: ['latin', 'cyrillic'],
+  display: 'swap',
+  variable: '--font-geist-mono',
+  fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
 })
 
 export const metadata: Metadata = {
@@ -37,20 +40,24 @@ export const viewport: Viewport = {
   // Плеер на телевизоре: масштабирование пользователем не нужно и только мешает.
   maximumScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f6f7f9' },
-    { media: '(prefers-color-scheme: dark)', color: '#0b0f17' },
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
   ],
 }
 
 /**
  * Тема применяется до первой отрисовки, иначе тёмная тема моргает белым.
  * Скрипт намеренно инлайновый и синхронный: внешний файл не успевает загрузиться.
+ *
+ * Тема следует системной настройке, пока пользователь не выбрал её вручную:
+ * «Авто» хранится как пустая строка, а не как случайно зафиксированный выбор.
  */
 const themeInitScript = `
 (function () {
   try {
     var stored = localStorage.getItem('shawty-theme');
-    var dark = stored ? stored === 'dark'
+    var dark = stored
+      ? stored === 'dark'
       : window.matchMedia('(prefers-color-scheme: dark)').matches;
     document.documentElement.classList.toggle('dark', dark);
     document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
@@ -60,7 +67,11 @@ const themeInitScript = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" className={inter.variable} suppressHydrationWarning>
+    <html
+      lang="ru"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

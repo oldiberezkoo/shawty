@@ -5,9 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
 import { Activity, CalendarClock, MonitorCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardBody } from '@/components/ui/card'
 import { FormError, FormField } from '@/components/ui/form'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { Dither } from '@/components/visual/dither'
+import { Lockup } from '@/components/visual/lockup'
+import { Mark } from '@/components/visual/mark'
+import { Window } from '@/components/visual/window'
 
 /**
  * Что даёт панель.
@@ -73,53 +76,61 @@ function LoginForm() {
   }
 
   return (
-    <main className="grid min-h-dvh bg-bg lg:grid-cols-[minmax(0,1fr)_500px]">
+    <main className="grid min-h-dvh bg-bg lg:grid-cols-[minmax(0,1fr)_520px]">
       {/*
         Брендовая половина.
         На узком экране её нет: там каждый пиксель по вертикали занят формой,
         и вводный текст отодвигает поля ввода за пределы первого экрана.
       */}
-      <section className="relative hidden flex-col justify-between overflow-hidden border-r border-border bg-surface p-10 lg:flex xl:p-14">
+      <section className="relative hidden flex-col justify-between overflow-hidden border-r border-border p-10 lg:flex xl:p-14">
+        {/* Сцена живёт справа внизу: кристаллы растут от нижнего края и не
+            спорят с текстом. К левому краю сцена растворяется маской, чтобы
+            список возможностей оставался на чистом фоне. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(75%_55%_at_8%_0%,var(--primary-soft),transparent_68%)]"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-24 -bottom-32 size-[420px] rounded-full bg-primary-soft/60 blur-3xl"
-        />
+          className="pointer-events-none absolute right-0 bottom-0 h-[74%] w-[40%] [mask-image:radial-gradient(ellipse_at_bottom_right,#000_18%,transparent_78%)]"
+        >
+          <Dither scene="crystals" focus={0.55} cell={2} />
+        </div>
 
-        <div className="relative flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-[var(--radius-md)] bg-primary text-primary-text shadow-[var(--shadow-brand)]">
-            <MonitorCheck className="size-[18px]" strokeWidth={1.9} />
+        <div className="relative flex items-center justify-between">
+          <Lockup size={22} />
+          <span className="font-mono text-[9px] tracking-[0.14em] text-text-subtle uppercase">
+            Digital signage
           </span>
-          <div className="leading-none">
-            <div className="text-[15px] font-semibold tracking-[-0.025em]">SHAWTY</div>
-            <div className="mt-1 text-[10.5px] text-text-subtle">Экранная сеть</div>
-          </div>
         </div>
 
         <div className="relative max-w-[520px]">
-          <h2 className="text-[32px] leading-[1.12] font-semibold tracking-[-0.04em] text-balance">
-            Контент на экранах — с подтверждением доставки
+          <p className="section-title mb-5">[01] Публикация</p>
+
+          <h2 className="max-w-[17ch] text-[clamp(1.75rem,1.2rem+1.5vw,2.5rem)] leading-[1.06] font-medium tracking-[-0.035em] text-balance">
+            Контент на экранах. <em>С подтверждением доставки.</em>
           </h2>
-          <p className="mt-3.5 max-w-[48ch] text-[14px] leading-relaxed text-text-muted">
-            Публикация, расписание и состояние телевизоров сети в одном месте — без звонков «а у нас
-            точно обновилось?».
+
+          <p className="mt-4 max-w-[46ch] text-[13.5px] leading-relaxed text-text-muted">
+            Публикация, расписание и состояние телевизоров сети в одном месте — без звонков
+            «а у нас точно обновилось?».
           </p>
 
-          <ul className="mt-10 flex flex-col gap-5">
-            {FEATURES.map((feature) => {
+          <ul className="mt-10 flex flex-col">
+            {FEATURES.map((feature, index) => {
               const Icon = feature.icon
 
               return (
-                <li key={feature.title} className="flex gap-3.5">
-                  <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-primary-border bg-primary-soft text-primary">
-                    <Icon className="size-4" strokeWidth={1.85} />
+                <li
+                  key={feature.title}
+                  className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-4 border-t border-border py-4"
+                >
+                  <span className="font-mono text-[10px] leading-5 text-text-subtle">
+                    [{String(index + 1).padStart(2, '0')}]
                   </span>
+
                   <div>
-                    <div className="text-[13.5px] font-semibold">{feature.title}</div>
-                    <p className="mt-0.5 max-w-[44ch] text-[13px] leading-relaxed text-text-muted">
+                    <div className="flex items-center gap-2">
+                      <Icon className="size-3.5 shrink-0 text-primary" strokeWidth={1.6} />
+                      <span className="text-[13px] font-medium text-text">{feature.title}</span>
+                    </div>
+                    <p className="mt-1 max-w-[44ch] text-[12px] leading-relaxed text-text-muted">
                       {feature.text}
                     </p>
                   </div>
@@ -129,7 +140,10 @@ function LoginForm() {
           </ul>
         </div>
 
-        <div className="relative text-[11.5px] text-text-subtle">Управление цифровыми экранами</div>
+        <div className="relative flex items-center gap-2 font-mono text-[9px] tracking-[0.12em] text-text-subtle uppercase">
+          <Mark size={12} className="text-primary" />
+          Управление цифровыми экранами · 2026
+        </div>
       </section>
 
       <section className="relative flex flex-col justify-center px-5 py-14 sm:px-10">
@@ -138,51 +152,52 @@ function LoginForm() {
         </div>
 
         <div className="mx-auto w-full max-w-[360px] fade-in">
-          <div className="mb-7 lg:hidden">
-            <span className="flex size-10 items-center justify-center rounded-[var(--radius-md)] bg-primary text-primary-text shadow-[var(--shadow-brand)]">
-              <MonitorCheck className="size-5" strokeWidth={1.9} />
-            </span>
+          <div className="mb-8 lg:hidden">
+            <Lockup size={22} chip={null} />
           </div>
 
-          <h1 className="text-[24px] leading-tight font-semibold tracking-[-0.032em]">Вход в панель</h1>
-          <p className="mt-2 text-[13.5px] text-text-muted">Войдите, чтобы управлять экранами сети</p>
+          <p className="section-title mb-3">Вход</p>
+          <h1 className="text-[24px] leading-tight font-medium tracking-[-0.032em]">
+            Вход в панель
+          </h1>
+          <p className="mt-2 text-[12.5px] leading-relaxed text-text-muted">
+            Войдите, чтобы управлять экранами сети
+          </p>
 
-          <Card className="mt-7 shadow-[var(--shadow-sm)]">
-            <CardBody className="p-6">
-              <form onSubmit={onSubmit} className="flex flex-col gap-4">
-                {error ? <FormError>{error}</FormError> : null}
+          <Window title="auth" className="mt-7" bodyClassName="p-5">
+            <form onSubmit={onSubmit} className="flex flex-col gap-4">
+              {error ? <FormError>{error}</FormError> : null}
 
-                <FormField
-                  label="Почта"
-                  name="email"
-                  type="email"
-                  autoComplete="username"
-                  required
-                  autoFocus
-                  placeholder="owner@company.uz"
-                />
-                <FormField
-                  label="Пароль"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                />
+              <FormField
+                label="Почта"
+                name="email"
+                type="email"
+                autoComplete="username"
+                required
+                autoFocus
+                placeholder="owner@company.uz"
+              />
+              <FormField
+                label="Пароль"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+              />
 
-                <Button type="submit" variant="primary" size="lg" disabled={pending} className="mt-1 w-full">
-                  {pending ? 'Проверяем…' : 'Войти'}
-                </Button>
-              </form>
-            </CardBody>
-          </Card>
+              <Button type="submit" variant="primary" size="lg" disabled={pending} className="mt-1 w-full">
+                {pending ? 'Проверяем…' : 'Войти'}
+              </Button>
+            </form>
+          </Window>
 
           {/* Ссылка на регистрацию есть не всегда: обычно сотрудника зовут по
               приглашению, и тогда он приходит по своей ссылке. */}
-          <p className="mt-5 text-center text-[13px] text-text-muted">
+          <p className="mt-5 text-center text-[12.5px] text-text-muted">
             Получили приглашение?{' '}
             <Link
               href="/register"
-              className="font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary-hover"
+              className="font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary-hover hover:decoration-primary-hover"
             >
               Создать учётную запись
             </Link>

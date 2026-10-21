@@ -218,7 +218,7 @@ export function AuditLog({ companyId }: { companyId: string }) {
               <button
                 key={entry.prefix || 'all'}
                 onClick={() => setGroup(entry.prefix)}
-                className={`rounded-[var(--radius-sm)] px-2.5 py-1 text-[12px] transition-colors ${
+                className={`px-2.5 py-1.5 font-mono text-[10.5px] tracking-[0.06em] uppercase transition-colors ${
                   group === entry.prefix ? 'bg-primary text-primary-text' : 'bg-surface-2 text-text-muted hover:bg-surface-3'
                 }`}
               >
@@ -229,7 +229,7 @@ export function AuditLog({ companyId }: { companyId: string }) {
             <select
               value={actorUserId}
               onChange={(event) => setActorUserId(event.target.value)}
-              className="h-8 rounded-[var(--radius-md)] border border-border bg-surface px-2 text-[12px] text-text"
+              className="h-8 border border-border bg-surface px-2 text-[12px] text-text"
             >
               <option value="">Все сотрудники</option>
               {(data?.actors ?? [])

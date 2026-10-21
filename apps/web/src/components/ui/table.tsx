@@ -60,13 +60,13 @@ export function DataTable({
         {caption ? <caption className="sr-only">{caption}</caption> : null}
 
         <thead>
-          <tr className="border-b border-border">
+          <tr>
             {columns.map((column) => (
               <th
                 key={column.key}
                 scope="col"
                 style={column.width ? { width: column.width } : undefined}
-                className={`px-6 py-3 text-[10.5px] font-semibold tracking-[0.08em] text-text-subtle uppercase ${
+                className={`px-5 py-2.5 font-mono text-[10px] font-normal tracking-[0.08em] text-text-subtle uppercase ${
                   column.align === 'right' ? 'text-right' : 'text-left'
                 }`}
               >
@@ -89,7 +89,7 @@ export function DataTable({
                   data-label={column.label}
                   data-primary={column.primary ? '' : undefined}
                   data-secondary={column.secondary ? '' : undefined}
-                  className={`px-6 py-3.5 align-middle ${
+                  className={`px-5 py-3.5 align-middle ${
                     column.align === 'right' ? 'text-right' : 'text-left'
                   }`}
                 >
@@ -125,12 +125,16 @@ export function CardList({
   return (
     <ul className="divide-y divide-[var(--border)]">
       {items.map((item) => (
-        <li key={item.key} className="px-6 py-4">
+        <li key={item.key} className="px-5 py-4">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <div className="min-w-0 font-medium">{item.header}</div>
-            {item.meta ? <div className="shrink-0 text-[12px] text-text-muted">{item.meta}</div> : null}
+            {item.meta ? (
+              <div className="shrink-0 font-mono text-[10.5px] tracking-[0.04em] text-text-muted uppercase">
+                {item.meta}
+              </div>
+            ) : null}
           </div>
-          <div className="mt-1.5 text-[13px] text-text-muted">{item.body}</div>
+          <div className="mt-1.5 text-[12.5px] text-text-muted">{item.body}</div>
         </li>
       ))}
     </ul>

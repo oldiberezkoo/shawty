@@ -98,7 +98,7 @@ export function CodeLookupForm() {
     <div className="flex flex-col gap-4">
       {error ? <FormError onDismiss={() => setError(null)}>{error}</FormError> : null}
 
-      <div className="flex justify-center gap-1.5 sm:gap-2">
+      <div className="flex min-w-0 justify-center gap-1 sm:gap-2">
         {digits.map((digit, index) => (
           <input
             key={index}
@@ -140,7 +140,7 @@ export function CodeLookupForm() {
             aria-label={`Символ ${index + 1} из ${CODE_LENGTH}`}
             disabled={busy}
             maxLength={CODE_LENGTH}
-            className="tnum h-12 w-full max-w-[52px] rounded-[var(--radius-md)] border border-border bg-surface text-center text-[20px] font-medium text-text transition-colors focus:border-border-strong focus:ring-2 focus:ring-[var(--ring)]/25 focus:outline-none disabled:opacity-50"
+            className="tnum field h-12 min-w-0 max-w-[52px] px-0 text-center font-mono text-[20px] font-medium text-text"
           />
         ))}
       </div>

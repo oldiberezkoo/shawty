@@ -8,6 +8,7 @@ import { BrandMark, SidebarNav, SidebarSheet, SidebarTrigger, NAV } from './Side
 import { CommandMenu } from './CommandMenu'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { Toaster } from '@/components/ui/feedback'
+import { Mark } from '@/components/visual/mark'
 
 /**
  * Каркас панели.
@@ -15,6 +16,10 @@ import { Toaster } from '@/components/ui/feedback'
  * Держит три вещи, которые не могут жить на сервере: открытость колонки на
  * телефоне, подсветку текущего раздела и показ сообщений поверх всего.
  * Остальное — ссылки и данные — приходит готовым.
+ *
+ * Колонка и шапка живут на фоне страницы, а не на приподнятой поверхности:
+ * на near-black лишний слой поверхностей превращается в матрёшку. Разделение
+ * делают только hairline.
  */
 export function AppShell({
   children,
@@ -52,8 +57,8 @@ export function AppShell({
         начнёт расходиться между экранами, что и происходит в приложениях,
         где мобильную версию делают отдельно и забывают про новые разделы.
       */}
-      <aside className="sticky top-0 hidden h-dvh w-[260px] shrink-0 flex-col border-r border-border bg-surface md:flex">
-        <div className="flex h-16 shrink-0 items-center px-5">
+      <aside className="sticky top-0 hidden h-dvh w-[248px] shrink-0 flex-col border-r border-border bg-bg md:flex">
+        <div className="flex h-16 shrink-0 items-center border-b border-border px-5">
           <BrandMark />
         </div>
 
@@ -77,12 +82,13 @@ export function AppShell({
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 border-b border-border bg-surface/85 backdrop-blur-xl">
+        <header className="sticky top-0 z-40 border-b border-border bg-[color-mix(in_srgb,var(--bg)_86%,transparent)] backdrop-blur-xl">
           <div className="flex h-16 items-center gap-3 px-4 md:px-8">
             <SidebarTrigger onOpen={() => setNavOpen(true)} />
 
-            <Link href="/dashboard" className="md:hidden">
-              <span className="text-[14px] font-semibold tracking-[-0.02em]">SHAWTY</span>
+            <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
+              <Mark size={16} className="shrink-0 text-primary" />
+              <span className="text-[13px] font-medium tracking-[0.04em] uppercase">SHAWTY</span>
             </Link>
 
             {/*
@@ -91,10 +97,10 @@ export function AppShell({
               помнит, куда попал. Строка стоит копейки и убирает этот вопрос.
             */}
             {currentItem && currentGroup ? (
-              <div className="hidden min-w-0 items-center gap-1.5 text-[12.5px] md:flex">
+              <div className="hidden min-w-0 items-center gap-2 font-mono text-[10px] tracking-[0.06em] text-text-subtle uppercase md:flex">
                 <span className="text-text-subtle">{currentGroup.title}</span>
-                <ChevronRight className="size-3 shrink-0 text-text-subtle" strokeWidth={2} />
-                <span className="truncate font-medium text-text">{currentItem.label}</span>
+                <ChevronRight className="size-3 shrink-0" strokeWidth={1.6} />
+                <span className="truncate text-text">{currentItem.label}</span>
               </div>
             ) : null}
 
@@ -110,27 +116,28 @@ export function AppShell({
           // его до того, как начнёт планировать кампанию, которой хватит
           // приостановки на середине.
           <div
-            className={`border-b px-4 py-2.5 md:px-8 ${
-              notice.tone === 'danger' ? 'border-danger-border bg-danger-bg' : 'border-warn-border bg-warn-bg'
+            className={`border-b border-l-[3px] px-4 py-2.5 md:px-8 ${
+              notice.tone === 'danger'
+                ? 'border-text border-l-bg bg-text text-bg'
+                : 'border-border border-l-text-muted bg-surface-2 text-text'
             }`}
           >
-            <div
-              className={`mx-auto flex w-full max-w-[1280px] flex-wrap items-center justify-between gap-2 text-[12.5px] ${
-                notice.tone === 'danger' ? 'text-danger' : 'text-warn'
-              }`}
-            >
+            <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center justify-between gap-2 text-[12px]">
               <span className="flex items-start gap-2">
                 {notice.tone === 'danger' ? (
-                  <CircleAlert className="mt-0.5 size-4 shrink-0" strokeWidth={1.9} />
+                  <CircleAlert className="mt-0.5 size-3.5 shrink-0" strokeWidth={1.7} />
                 ) : (
-                  <TriangleAlert className="mt-0.5 size-4 shrink-0" strokeWidth={1.9} />
+                  <TriangleAlert className="mt-0.5 size-3.5 shrink-0" strokeWidth={1.7} />
                 )}
                 <span>
                   <span className="font-medium">{notice.title}.</span>{' '}
-                  <span className="opacity-90">{notice.hint}</span>
+                  <span className="opacity-80">{notice.hint}</span>
                 </span>
               </span>
-              <Link href="/dashboard/billing" className="shrink-0 font-medium underline underline-offset-4">
+              <Link
+                href="/dashboard/billing"
+                className="shrink-0 font-mono text-[10px] tracking-[0.08em] uppercase underline underline-offset-4"
+              >
                 К тарифу
               </Link>
             </div>
@@ -145,7 +152,7 @@ export function AppShell({
           строки.
         */}
         <main className="mx-auto w-full max-w-[1280px] min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">
-          <div className="motion-safe:animate-[fade-in_240ms_cubic-bezier(0.16,1,0.3,1)]">{children}</div>
+          <div className="motion-safe:animate-[fade-in_200ms_cubic-bezier(0.16,1,0.3,1)]">{children}</div>
         </main>
       </div>
 

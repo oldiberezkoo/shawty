@@ -8,6 +8,9 @@ type Theme = 'light' | 'dark'
 /**
  * Переключатель темы. Значение хранится в localStorage, иначе при выборе
  * вручную тема возвращалась бы к системной при следующей загрузке.
+ *
+ * Кнопка нарочно тихая: это настройка, а не действие. Квадрат с hairline,
+ * без акцентной заливки — акцент на экране должен остаться один.
  */
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme | null>(null)
@@ -35,14 +38,14 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      className="inline-flex size-9 items-center justify-center rounded-[var(--radius-md)] border border-border bg-surface text-text-muted shadow-[var(--shadow-xs)] transition-colors hover:bg-surface-2 hover:text-text"
+      className="inline-flex size-9 items-center justify-center border border-border-strong bg-transparent text-text-muted transition-colors hover:border-text hover:text-text"
       aria-label={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
       title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
     >
       {theme === 'dark' ? (
-        <Sun className="size-4" strokeWidth={1.75} />
+        <Sun className="size-4" strokeWidth={1.6} />
       ) : (
-        <Moon className="size-4" strokeWidth={1.75} />
+        <Moon className="size-4" strokeWidth={1.6} />
       )}
     </button>
   )

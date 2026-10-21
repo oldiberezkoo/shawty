@@ -8,27 +8,29 @@ type Size = 'sm' | 'md' | 'lg'
  *
  * Три состояния по важности, а не пять по цвету. Основное действие на экране
  * должно быть ровно одно — иначе взгляд не знает, куда нажать. Вторичные
- * действия уходят в приглушённый вид, опасные — подтверждением.
+ * действия уходят в тёмную плиту, опасные — в инверсию: белая плашка на
+ * near-black заметнее розовой и не спорит с акцентом.
  *
- * У основной кнопки есть собственная тень: на белом фоне синяя плашка и без
- * неё читается, но тень отделяет её от страницы в тот момент, когда кнопка
- * стоит рядом с карточкой того же цвета.
+ * Текст кнопки — mono-капс. Это «обслуживающий» слой интерфейса, и он
+ * отделяет действие от содержимого без рамок и теней.
  */
 const VARIANTS: Record<Variant, string> = {
   primary:
-    'bg-primary text-primary-text border border-transparent shadow-[0_1px_2px_rgb(70_95_255_/_0.28)] hover:bg-primary-hover active:bg-primary',
+    'border border-primary bg-primary text-primary-text hover:border-primary-hover hover:bg-primary-hover active:bg-primary',
   secondary:
-    'bg-surface text-text border border-border-strong shadow-[var(--shadow-xs)] hover:bg-surface-2 active:bg-surface-3',
-  ghost: 'bg-transparent text-text-muted border border-transparent hover:bg-surface-2 hover:text-text',
-  danger: 'bg-danger-bg text-danger border border-danger-border hover:bg-danger-bg/75 active:bg-danger-bg',
-  link: 'bg-transparent text-text border border-transparent underline underline-offset-4 hover:text-text-muted p-0 h-auto',
+    'border border-transparent bg-plate text-text hover:bg-plate-hover active:bg-plate',
+  ghost:
+    'border border-transparent bg-transparent text-text-muted hover:bg-surface-2 hover:text-text active:bg-surface-3',
+  danger:
+    'border border-text bg-text text-bg hover:border-text-muted hover:bg-text-muted active:bg-text',
+  link: 'h-auto border-0 bg-transparent p-0 text-text underline decoration-border-strong underline-offset-4 hover:text-primary hover:decoration-primary',
 }
 
 const SIZES: Record<Size, string> = {
   // Минимальная высота 32px — минимум для попадания пальцем на телефоне.
-  sm: 'h-8 px-3 text-[12.5px] gap-1.5 rounded-[var(--radius-sm)]',
-  md: 'h-10 px-4 text-[13px] gap-2 rounded-[var(--radius-md)]',
-  lg: 'h-11 px-5 text-[13.5px] gap-2 rounded-[var(--radius-md)]',
+  sm: 'h-8 px-3 text-[10.5px] gap-1.5',
+  md: 'h-10 px-4 text-[11px] gap-2',
+  lg: 'h-11 px-5 text-[11.5px] gap-2',
 }
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -51,7 +53,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={`inline-flex shrink-0 items-center justify-center font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,transform] duration-150 select-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]/35 focus-visible:ring-offset-1 focus-visible:ring-offset-bg focus-visible:outline-none active:translate-y-px disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center font-mono font-normal tracking-[0.08em] whitespace-nowrap uppercase transition-[background-color,border-color,color] duration-150 select-none disabled:pointer-events-none disabled:opacity-40 ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
       {...props}
     />
   )
@@ -64,5 +66,5 @@ export function Button({
  * ширина фиксирована, и текст перестаёт смещаться в момент нажатия.
  */
 export function ButtonIcon({ children }: { children: ReactNode }) {
-  return <span className="-ml-0.5 flex size-4 shrink-0 items-center justify-center">{children}</span>
+  return <span className="-ml-0.5 flex size-3.5 shrink-0 items-center justify-center">{children}</span>
 }

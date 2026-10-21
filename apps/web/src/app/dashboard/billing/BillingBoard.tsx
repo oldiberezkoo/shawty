@@ -160,8 +160,8 @@ export function BillingBoard({
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardBody className="flex flex-col gap-1">
-            <span className="text-[12px] text-text-muted">Тариф</span>
-            <span className="text-[22px] leading-tight font-semibold">{state.plan?.name ?? '—'}</span>
+            <span className="section-title">Тариф</span>
+            <span className="text-[22px] leading-tight font-medium">{state.plan?.name ?? '—'}</span>
             {state.plan ? (
               <span className="text-[12px] text-text-subtle">{formatPrice(state.plan.monthlyPriceCents, state.plan.currency)}</span>
             ) : null}
@@ -170,7 +170,7 @@ export function BillingBoard({
 
         <Card>
           <CardBody className="flex flex-col gap-1">
-            <span className="text-[12px] text-text-muted">Состояние</span>
+            <span className="section-title">Состояние</span>
             <span className="flex items-center gap-2 text-[15px] font-medium">
               {STATUS_LABEL[state.status ?? ''] ?? '—'}
             </span>
@@ -182,8 +182,8 @@ export function BillingBoard({
 
         <Card>
           <CardBody className="flex flex-col gap-1">
-            <span className="text-[12px] text-text-muted">Хранение событий</span>
-            <span className="text-[22px] leading-tight font-semibold">{state.plan?.eventRetentionDays ?? '—'}</span>
+            <span className="section-title">Хранение событий</span>
+            <span className="text-[22px] leading-tight font-medium">{state.plan?.eventRetentionDays ?? '—'}</span>
             <span className="text-[12px] text-text-subtle">дней по тарифу</span>
           </CardBody>
         </Card>

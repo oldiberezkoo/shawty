@@ -267,15 +267,15 @@ export function MediaLibrary(props: {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-border-strong bg-surface p-1 shadow-[var(--shadow-xs)]">
+        <div className="flex items-center gap-1 border border-border-strong bg-surface p-1">
           {(['all', 'image', 'video'] as const).map((value) => (
             <button
               key={value}
               type="button"
               onClick={() => setKind(value)}
-              className={`h-8 rounded-[var(--radius-sm)] px-3 text-[13px] transition-colors ${
+              className={`h-8 px-3 text-[13px] transition-colors ${
                 kind === value
-                  ? 'bg-primary-soft font-medium text-primary'
+                  ? 'bg-primary font-medium text-primary-text'
                   : 'text-text-muted hover:bg-surface-2 hover:text-text'
               }`}
             >
@@ -295,7 +295,7 @@ export function MediaLibrary(props: {
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Поиск по имени файла"
             aria-label="Поиск по имени файла"
-            className="h-10 w-full rounded-[var(--radius-md)] border border-border-strong bg-surface pr-3 pl-9 text-[13.5px] text-text shadow-[var(--shadow-xs)] placeholder:text-text-subtle focus:border-primary focus:ring-4 focus:ring-primary/10 focus:outline-none"
+            className="field pl-9"
           />
         </div>
 
@@ -341,10 +341,10 @@ export function MediaLibrary(props: {
             setDragActive(false)
             if (event.dataTransfer.files.length > 0) void upload(event.dataTransfer.files)
           }}
-          className={`flex flex-col items-center justify-center gap-1.5 rounded-[var(--radius-lg)] border border-dashed px-4 py-5 text-[13px] transition-colors ${
+          className={`flex flex-col items-center justify-center gap-1.5 border border-dashed px-4 py-5 text-[13px] transition-colors ${
             dragActive
-              ? 'border-primary bg-primary-soft text-primary'
-              : 'border-border-strong bg-surface/50 text-text-subtle hover:border-primary/40 hover:bg-primary-soft/30 hover:text-text-muted'
+              ? 'border-primary bg-surface-2 text-primary'
+              : 'border-border-strong bg-surface/50 text-text-subtle hover:border-border-strong hover:bg-surface-2 hover:text-text-muted'
           }`}
         >
           {/* Подпись меняется при наведении файла: покоящаяся полоса занимает
@@ -461,7 +461,7 @@ function MediaCard(props: {
 
         {asset.state === 'processing' ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[12px] text-text-muted">
-            <span className="size-4 animate-spin rounded-full border-2 border-border-strong border-t-text" />
+            <span className="size-4 animate-spin border-2 border-border-strong border-t-text" />
             Обработка
           </div>
         ) : null}
@@ -474,7 +474,7 @@ function MediaCard(props: {
         ) : null}
 
         {asset.kind === 'video' && asset.state === 'ready' ? (
-          <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[11px] tabular-nums text-white">
+          <span className="absolute bottom-1.5 right-1.5  bg-black/70 px-1.5 py-0.5 text-[11px] tabular-nums text-white">
             {formatDuration(asset.durationMs)}
           </span>
         ) : null}
@@ -490,7 +490,7 @@ function MediaCard(props: {
           {asset.transcoded ? (
             <span
               title="Файл приведён к профилю MP4/H.264"
-              className="shrink-0 rounded bg-surface-3 px-1.5 py-0.5 text-[10px] text-text-muted"
+              className="shrink-0  bg-surface-3 px-1.5 py-0.5 text-[10px] text-text-muted"
             >
               конвертирован
             </span>
@@ -502,7 +502,7 @@ function MediaCard(props: {
         </div>
 
         {props.blocked ? (
-          <div className="mt-1 rounded-[var(--radius-sm)] border border-warn/40 bg-warn-bg px-2 py-1.5">
+          <div className="mt-1 border border-border-strong bg-surface-2 px-2 py-1.5">
             <p className="text-[11px] leading-snug text-warn">{props.blocked}</p>
             <div className="mt-1.5 flex items-center gap-2">
               <button

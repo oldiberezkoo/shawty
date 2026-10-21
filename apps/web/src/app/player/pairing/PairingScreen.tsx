@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { clearCredential, forgetDeviceNonce, getDeviceNonce, loadCredential, saveCredential } from '@/player/credential-store'
 import { deviceSocketUrl } from '@/lib/ws-url'
+import { Button } from '@/components/ui/button'
+import { Dither } from '@/components/visual/dither'
+import { Lockup } from '@/components/visual/lockup'
 
 type Phase =
   | 'starting'
@@ -324,115 +327,182 @@ export function PairingScreen() {
   const retryLabel = `${Math.floor(retrySeconds / 60)}:${String(retrySeconds % 60).padStart(2, '0')}`
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-10 px-12 py-16 text-center">
-      <div>
-        <div className="text-[42px] font-semibold tracking-[-0.03em]">SHAWTY</div>
-        <div className="mt-2 text-[20px] text-[color:var(--text-muted)]">
-          Экран ожидает подключения
-        </div>
+    // Экран привязки — часть телевизора, а не панели: он всегда тёмный,
+    // независимо от темы интерфейса. Иначе на светлой теме телевизор в
+    // магазине показывал бы белое поле вместо кода.
+    <main className="dark relative flex min-h-dvh flex-col overflow-hidden bg-[#0a0a0a] px-6 py-6 text-white sm:px-10">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[70%] opacity-25 [mask-image:linear-gradient(to_top,#000_10%,transparent_78%)]"
+      >
+        <Dither scene="flow" focus={0.45} cell={3} />
       </div>
 
-      {phase === 'starting' ? (
-        <p className="text-[20px] text-[color:var(--text-subtle)]">Подготовка…</p>
-      ) : null}
+      <header className="relative z-10 flex items-center justify-between gap-4 border-b border-white/10 pb-4">
+        <Lockup size={20} chip={null} />
+        <span className="font-mono text-[10.5px] tracking-[0.16em] text-white/40 uppercase sm:text-[11.5px]">
+          Pairing · привязка
+        </span>
+      </header>
 
-      {phase === 'waiting' && session ? (
-        <>
-          <div className="rounded-[16px] bg-white p-5 shadow-[var(--shadow-md)]">
-            {qrDataUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={qrDataUrl} alt="QR-код для подключения экрана" className="size-[320px]" />
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-8 py-8 text-center">
+        <div className="max-w-[620px]">
+          <p className="mb-4 font-mono text-[11px] tracking-[0.12em] text-white/35 uppercase">
+            [01] Подключение
+          </p>
+
+          <h1 className="text-[30px] leading-[1.06] font-medium tracking-[-0.035em] text-balance sm:text-[40px]">
+            {phase === 'waiting' ? (
+              session?.codeInQr ? (
+                <>
+                  Отсканируйте <em className="text-primary not-italic">QR-код</em>
+                </>
+              ) : (
+                <>
+                  Введите <em className="text-primary not-italic">код</em> в панели
+                </>
+              )
+            ) : phase === 'exchanging' ? (
+              'Подключение подтверждено'
+            ) : phase === 'paired' ? (
+              'Экран подключён'
+            ) : phase === 'expired' ? (
+              'Код истёк'
+            ) : phase === 'error' ? (
+              'Не удалось привязать экран'
             ) : (
-              <div className="size-[320px] animate-pulse rounded-[8px] bg-[color:var(--surface-3)]" />
+              'Экран ожидает подключения'
             )}
-          </div>
+          </h1>
 
-          <div className="flex flex-col items-center gap-3">
-            {session.codeInQr ? (
-              <p className="text-[20px] text-[color:var(--text-muted)]">
-                Отсканируйте код камерой телефона
-              </p>
-            ) : (
-              <>
-                <p className="text-[18px] text-[color:var(--text-muted)]">
-                  Откройте панель SHAWTY → «Подключить экран» и введите этот код
-                </p>
-                <div className="font-mono text-[56px] font-semibold tracking-[0.12em] text-text">
-                  {session.code}
-                </div>
-                <p className="max-w-[620px] text-[15px] text-[color:var(--text-subtle)]">
-                  Код сам обновится, когда истечёт. Ничего нажимать на телевизоре не нужно.
-                </p>
-              </>
-            )}
-          </div>
-
-          <div className="flex flex-col items-center gap-2">
-            <div className="h-1 w-[320px] overflow-hidden rounded-full bg-[color:var(--surface-3)]">
-              <div
-                className="h-full bg-[color:var(--text)] transition-[width] duration-1000 ease-linear"
-                style={{ width: `${Math.min(100, (remaining / (5 * 60_000)) * 100)}%` }}
-              />
-            </div>
-            <div className="text-[18px] tabular-nums text-[color:var(--text-subtle)]">
-              Код действует {minutes}:{String(seconds).padStart(2, '0')}
-            </div>
-          </div>
-        </>
-      ) : null}
-
-      {phase === 'exchanging' ? (
-        <p className="text-[22px] text-[color:var(--text-muted)]">Подключение подтверждено…</p>
-      ) : null}
-
-      {phase === 'paired' ? (
-        <p className="text-[22px] text-[color:var(--success)]">Экран подключён</p>
-      ) : null}
-
-      {phase === 'expired' ? (
-        <div className="flex flex-col items-center gap-3">
-          <p className="text-[22px] text-[color:var(--text-muted)]">Код истёк — готовим новый…</p>
-          <p className="text-[16px] text-[color:var(--text-subtle)]">
-            Экран обновится автоматически через пару секунд.
+          <p className="mx-auto mt-4 max-w-[56ch] text-[14px] leading-relaxed text-white/45 sm:text-[15.5px]">
+            {phase === 'waiting' && session?.codeInQr
+              ? 'Наведите камеру телефона. Код сам обновится, когда истечёт.'
+              : phase === 'waiting'
+                ? 'Панель → «Подключить экран». Код обновится сам, нажимать на телевизоре ничего не нужно.'
+                : phase === 'exchanging'
+                  ? 'Получаем учётные данные экрана.'
+                  : phase === 'paired'
+                    ? 'Открываем показ.'
+                    : phase === 'expired'
+                      ? 'Экран обновится автоматически через пару секунд.'
+                      : phase === 'error'
+                        ? 'Проверьте подключение к сети и повторите попытку.'
+                        : 'Готовим код привязки.'}
           </p>
         </div>
-      ) : null}
 
-      {phase === 'error' ? (
-        <div className="flex flex-col items-center gap-6">
-          <p className="text-[22px] text-[color:var(--danger)]">{error}</p>
-          <button
-            type="button"
+        {phase === 'starting' ? (
+          <div className="flex items-center gap-2.5 font-mono text-[12px] tracking-[0.1em] text-white/45 uppercase">
+            <span className="block size-2 animate-pulse bg-primary" />
+            Подготовка…
+          </div>
+        ) : null}
+
+        {phase === 'waiting' && session ? (
+          <>
+            <div className="border border-white/20 bg-white p-4 sm:p-5">
+              {qrDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={qrDataUrl}
+                  alt="QR-код для подключения экрана"
+                  className="size-[min(66vw,300px)] sm:size-[320px]"
+                />
+              ) : (
+                <div className="size-[min(66vw,300px)] animate-pulse bg-[#e8e8e5] sm:size-[320px]" />
+              )}
+            </div>
+
+            {session.codeInQr ? null : (
+              <div className="flex flex-col items-center gap-4">
+                <div className="tnum font-mono text-[46px] leading-none font-normal tracking-[0.18em] text-white sm:text-[58px]">
+                  {session.code}
+                </div>
+
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-1.5 w-[min(72vw,360px)] overflow-hidden bg-white/12">
+                    <div
+                      className="h-full bg-primary transition-[width] duration-1000 ease-linear"
+                      style={{ width: `${Math.min(100, (remaining / (5 * 60_000)) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="tnum font-mono text-[11.5px] tracking-[0.1em] text-white/40 uppercase">
+                    Код действует {minutes}:{String(seconds).padStart(2, '0')}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        ) : null}
+
+        {phase === 'exchanging' ? (
+          <div className="flex items-center gap-2.5 font-mono text-[12px] tracking-[0.1em] text-primary uppercase">
+            <span className="block size-2 animate-pulse bg-primary" />
+            Подключение подтверждено…
+          </div>
+        ) : null}
+
+        {phase === 'paired' ? (
+          <div className="flex items-center gap-2.5 border border-white/15 px-4 py-2.5 font-mono text-[12px] tracking-[0.1em] text-white uppercase">
+            <span className="block size-2 bg-white" />
+            Экран подключён
+          </div>
+        ) : null}
+
+        {phase === 'expired' ? (
+          <div className="flex items-center gap-2.5 font-mono text-[12px] tracking-[0.1em] text-white/45 uppercase">
+            <span className="block size-2 border border-white/40" />
+            Готовим новый код…
+          </div>
+        ) : null}
+
+        {phase === 'error' ? (
+          <div className="w-full max-w-[560px] border border-white bg-white px-5 py-4 text-left text-[#0a0a0a]">
+            <div className="mb-1 font-mono text-[10px] tracking-[0.12em] uppercase opacity-50">
+              Ошибка
+            </div>
+            <p className="text-[14.5px] leading-relaxed">{error}</p>
+          </div>
+        ) : null}
+
+        {phase === 'error' ? (
+          <Button
+            variant="primary"
+            size="lg"
             disabled={retryLeftMs > 0}
             onClick={() => {
               setPhase('starting')
               void startSession()
             }}
-            className="rounded-[8px] bg-[color:var(--primary)] px-8 py-3.5 text-[18px] font-medium text-[color:var(--primary-text)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {retryLeftMs > 0 ? `Повторить через ${retryLabel}` : 'Повторить'}
-          </button>
-        </div>
-      ) : null}
+          </Button>
+        ) : null}
 
-      {storageWarning ? (
-        <p className="max-w-[640px] text-[16px] text-[color:var(--warn)]">
-          Устройство не поддерживает надёжное долговременное хранение. Очистка данных
-          браузера потребует повторной привязки.
-        </p>
-      ) : null}
+        {storageWarning ? (
+          <p className="max-w-[560px] border-l-[3px] border-l-white/40 bg-white/[0.04] px-4 py-3 text-left text-[12px] leading-relaxed text-white/55">
+            Устройство не поддерживает надёжное долговременное хранение. Очистка данных браузера
+            потребует повторной привязки.
+          </p>
+        ) : null}
+      </div>
 
-      <button
-        type="button"
-        onClick={async () => {
-          await clearCredential()
-          forgetDeviceNonce()
-          window.location.reload()
-        }}
-        className="text-[14px] text-[color:var(--text-subtle)] underline underline-offset-4"
-      >
-        Сбросить привязку
-      </button>
+      <footer className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4 font-mono text-[10.5px] tracking-[0.1em] text-white/40 uppercase sm:text-[11px]">
+        <span>Экран не требует нажатий · код обновляется сам</span>
+
+        <button
+          type="button"
+          onClick={async () => {
+            await clearCredential()
+            forgetDeviceNonce()
+            window.location.reload()
+          }}
+          className="tracking-[0.1em] underline underline-offset-4 transition-colors hover:text-white/70"
+        >
+          Сбросить привязку
+        </button>
+      </footer>
     </main>
   )
 }

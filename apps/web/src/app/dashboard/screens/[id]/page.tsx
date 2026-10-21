@@ -293,11 +293,11 @@ export default async function ScreenDetailPage({ params }: { params: Promise<{ i
                     <img
                       src={`/api/dashboard/media/file?companyId=${membership.companyId}&assetId=${item.assetId}&variant=poster`}
                       alt=""
-                      className="h-9 w-16 shrink-0 rounded-[var(--radius-sm)] bg-surface-2 object-cover"
+                      className="h-9 w-16 shrink-0 bg-surface-2 object-cover"
                       loading="lazy"
                     />
                   ) : (
-                    <span className="flex h-9 w-16 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-surface-2 text-[10px] text-text-subtle">
+                    <span className="flex h-9 w-16 shrink-0 items-center justify-center bg-surface-2 text-[10px] text-text-subtle">
                       {item.kind === 'video' ? '▶ видео' : 'изображение'}
                     </span>
                   )}
@@ -368,7 +368,7 @@ export default async function ScreenDetailPage({ params }: { params: Promise<{ i
         <CardBody className="flex flex-col gap-3 text-[13px] text-text-muted">
           <p>
             Откройте на телевизоре адрес{' '}
-            <span className="rounded-[var(--radius-xs)] bg-surface-2 px-1.5 py-0.5 font-mono text-[12.5px] text-text">
+            <span className=" bg-surface-2 px-1.5 py-0.5 font-mono text-[12.5px] text-text">
               /player/display
             </span>{' '}
             — страница сама найдёт сохранённые учётные данные и начнёт показ. Код привязки вводить повторно не нужно.

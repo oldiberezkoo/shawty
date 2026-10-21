@@ -88,7 +88,7 @@ export function ConfirmForm(props: {
   const expired = remaining <= 0
 
   return (
-    <form onSubmit={onSubmit} className="card flex flex-col gap-5 px-6 py-6">
+    <form onSubmit={onSubmit} className="card flex flex-col gap-5 p-5 sm:p-6">
       {error ? <FormError>{error}</FormError> : null}
 
       {props.codeRequired ? (
@@ -104,7 +104,7 @@ export function ConfirmForm(props: {
           description="Восемь символов. Похожие буквы легко спутать при чтении с расстояния."
         />
       ) : (
-        <div className="rounded-[var(--radius-md)] border border-border bg-surface-2 px-3 py-2 text-[13px] text-text-muted">
+        <div className="border border-border-strong border-l-[3px] border-l-border-strong bg-surface-2 px-3.5 py-3 text-[12.5px] leading-relaxed text-text-muted">
           Код подтверждения содержится в QR — вводить его вручную не нужно.
         </div>
       )}
@@ -122,7 +122,7 @@ export function ConfirmForm(props: {
       )}
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="branchId" className="text-[13px] font-medium text-text">
+        <label htmlFor="branchId" className="text-[12px] font-medium text-text">
           Филиал
         </label>
         <select
@@ -131,7 +131,7 @@ export function ConfirmForm(props: {
           value={branchId}
           onChange={(event) => setBranchId(event.target.value)}
           required
-          className="h-10 w-full rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm"
+          className="field"
         >
           {props.branches.map((branch) => (
             <option key={branch.id} value={branch.id}>
@@ -142,7 +142,7 @@ export function ConfirmForm(props: {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="groupId" className="text-[13px] font-medium text-text">
+        <label htmlFor="groupId" className="text-[12px] font-medium text-text">
           Группа экранов <span className="font-normal text-text-subtle">— необязательно</span>
         </label>
         <select
@@ -150,7 +150,7 @@ export function ConfirmForm(props: {
           name="groupId"
           value={groupId}
           onChange={(event) => setGroupId(event.target.value)}
-          className="h-10 w-full rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm"
+          className="field"
         >
           <option value="">Без группы</option>
           {props.groups.map((group) => (
@@ -171,7 +171,7 @@ export function ConfirmForm(props: {
       />
 
       <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
-        <span className="tnum text-[12px] text-text-subtle">
+        <span className="tnum font-mono text-[11px] tracking-[0.06em] text-text-subtle uppercase">
           {expired ? 'Срок кода истёк' : `Осталось ${minutes}:${String(seconds).padStart(2, '0')}`}
         </span>
         <Button type="submit" variant="primary" disabled={pending || expired}>

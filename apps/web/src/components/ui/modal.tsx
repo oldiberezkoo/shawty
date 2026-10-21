@@ -7,8 +7,10 @@ import { X } from 'lucide-react'
 /**
  * Модальный диалог.
  *
- * Base UI даёт ловушку фокуса, возврат по Escape и блокировку прокрутки —
- * то есть всё, что в самодельном диалоге обычно забывают. Вид наш.
+ * Base UI даёт ловушку фокуса, возврат по Escape и блокировку прокрутки — то
+ * есть всё, что в самодельном диалоге обычно забывают. Вид наш: диалог — это
+ * окно, а не всплывающая карточка. Титульная строка с акцентной биркой
+ * отделяет его от страницы и объясняет, откуда он взялся.
  *
  * Диалог применяется только там, где решение необратимо или требует
  * подтверждения. Обычные формы живут на странице: лишний слой поверх формы
@@ -42,30 +44,35 @@ export function Modal({
             Без него длинный диалог на телефоне вылезал бы за края. */}
         <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
           <Dialog.Popup
-            className={`w-full ${width} max-h-[calc(100dvh-2rem)] overflow-auto rounded-[20px] border border-border bg-surface shadow-[var(--shadow-lg)] transition-transform duration-150 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0`}
+            className={`w-full ${width} max-h-[calc(100dvh-2rem)] overflow-auto border border-border-strong bg-bg transition-opacity duration-150 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0`}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
-              <div className="min-w-0">
-                <Dialog.Title className="text-[16px] font-semibold tracking-[-0.02em]">{title}</Dialog.Title>
-                {description ? (
-                  <Dialog.Description className="mt-1 text-[13px] leading-relaxed text-text-muted">
-                    {description}
-                  </Dialog.Description>
-                ) : null}
-              </div>
+            <div className="flex items-center gap-3 border-b border-border px-4 py-2.5">
+              <span className="shrink-0 bg-primary px-1 py-px font-sans text-[10px] leading-[1.35] font-medium text-primary-text uppercase">
+                SHAWTY
+              </span>
+
+              <Dialog.Title className="min-w-0 flex-1 truncate font-mono text-[11px] tracking-[0.02em] text-text-subtle">
+                {title}
+              </Dialog.Title>
 
               <Dialog.Close
                 aria-label="Закрыть"
-                className="-mt-1 -mr-1 flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-text-subtle transition-colors hover:bg-surface-2 hover:text-text"
+                className="-mr-1 flex size-7 shrink-0 items-center justify-center text-text-subtle transition-colors hover:bg-surface-2 hover:text-text"
               >
-                <X className="size-4" strokeWidth={1.9} />
+                <X className="size-4" strokeWidth={1.7} />
               </Dialog.Close>
             </div>
 
-            {children ? <div className="px-6 py-5">{children}</div> : null}
+            {description ? (
+              <Dialog.Description className="border-b border-border px-5 py-3 text-[12.5px] leading-relaxed text-text-muted">
+                {description}
+              </Dialog.Description>
+            ) : null}
+
+            {children ? <div className="px-5 py-5">{children}</div> : null}
 
             {footer ? (
-              <div className="flex justify-end gap-2 border-t border-border px-6 py-4">{footer}</div>
+              <div className="flex justify-end gap-2 border-t border-border px-5 py-4">{footer}</div>
             ) : null}
           </Dialog.Popup>
         </Dialog.Viewport>

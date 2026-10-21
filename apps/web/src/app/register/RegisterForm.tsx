@@ -4,8 +4,8 @@ import { useCallback, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Card, CardBody } from '@/components/ui/card'
 import { FormField, FormError } from '@/components/ui/form'
+import { Window } from '@/components/visual/window'
 import { CSRF_COOKIE } from '@/lib/cookie-names'
 
 function readCsrf(): string {
@@ -57,59 +57,66 @@ export function RegisterForm({ token }: { token: string }) {
   )
 
   return (
-    <Card>
-      <CardBody>
-        <form onSubmit={submit} className="flex flex-col gap-4">
-          {error ? <FormError>{error}</FormError> : null}
+    <Window title="register" bodyClassName="p-5">
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        {error ? <FormError>{error}</FormError> : null}
 
-          <FormField
-            label="Имя"
-            name="name"
-            value={name}
-            onValueChange={setName}
-            placeholder="Как к вам обращаться"
-            required
-            autoComplete="name"
-            autoFocus
-          />
+        <FormField
+          label="Имя"
+          name="name"
+          value={name}
+          onValueChange={setName}
+          placeholder="Как к вам обращаться"
+          required
+          autoComplete="name"
+          autoFocus
+        />
 
-          <FormField
-            label="Почта"
-            name="email"
-            type="email"
-            value={email}
-            onValueChange={token ? undefined : setEmail}
-            readOnly={Boolean(token)}
-            placeholder="you@example.uz"
-            required
-            autoComplete="email"
-            description={token ? 'Адрес из приглашения изменить нельзя.' : undefined}
-          />
+        <FormField
+          label="Почта"
+          name="email"
+          type="email"
+          value={email}
+          onValueChange={token ? undefined : setEmail}
+          readOnly={Boolean(token)}
+          placeholder="you@example.uz"
+          required
+          autoComplete="email"
+          description={token ? 'Адрес из приглашения изменить нельзя.' : undefined}
+        />
 
-          <FormField
-            label="Пароль"
-            name="password"
-            type="password"
-            value={password}
-            onValueChange={setPassword}
-            required
-            minLength={8}
-            autoComplete="new-password"
-            description="Не короче 8 символов."
-          />
+        <FormField
+          label="Пароль"
+          name="password"
+          type="password"
+          value={password}
+          onValueChange={setPassword}
+          required
+          minLength={8}
+          autoComplete="new-password"
+          description="Не короче 8 символов."
+        />
 
-          <Button type="submit" variant="primary" disabled={busy || !name || !email || !password} className="w-full">
-            Создать учётную запись
-          </Button>
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          disabled={busy || !name || !email || !password}
+          className="mt-1 w-full"
+        >
+          Создать учётную запись
+        </Button>
 
-          <p className="text-center text-[13px] text-text-muted">
-            Уже есть доступ?{' '}
-            <Link href={token ? `/login?next=/join?token=${encodeURIComponent(token)}` : '/login'} className="underline underline-offset-4">
-              Войти
-            </Link>
-          </p>
-        </form>
-      </CardBody>
-    </Card>
+        <p className="text-center text-[12.5px] text-text-muted">
+          Уже есть доступ?{' '}
+          <Link
+            href={token ? `/login?returnTo=${encodeURIComponent(`/join?token=${token}`)}` : '/login'}
+            className="font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary-hover hover:decoration-primary-hover"
+          >
+            Войти
+          </Link>
+        </p>
+      </form>
+    </Window>
   )
 }

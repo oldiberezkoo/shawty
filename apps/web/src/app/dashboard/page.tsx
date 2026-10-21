@@ -263,7 +263,7 @@ function QuickAction({ href, icon, children }: { href: string; icon: React.React
   return (
     <Link
       href={href}
-      className="group -mx-1 flex items-center gap-2.5 rounded-[var(--radius-md)] px-2 py-2 text-[13px] text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
+      className="group -mx-1 flex items-center gap-2.5 px-2 py-2 text-[13px] text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
     >
       <span className="text-text-subtle transition-colors group-hover:text-text-muted">{icon}</span>
       <span className="min-w-0 flex-1 truncate">{children}</span>

@@ -561,7 +561,7 @@ export function PlaylistList(props: {
                       max={600}
                       value={Math.round(defaultDuration / 1000)}
                       onChange={(event) => setDefaultDuration(Number(event.target.value) * 1000)}
-                      className="h-8 w-16 rounded-[var(--radius-sm)] border border-border bg-surface px-2 text-[12px]"
+                      className="h-8 w-16 border border-border bg-surface px-2 text-[12px]"
                     />
                   </label>
                 </div>
@@ -765,11 +765,11 @@ function ItemRow(props: {
         <img
           src={`/api/dashboard/media/file?companyId=${props.companyId}&assetId=${item.assetId}&variant=poster&v=${encodeURIComponent(item.posterSha256 ?? item.id)}`}
           alt=""
-          className="h-9 w-16 shrink-0 rounded-[var(--radius-sm)] bg-surface-2 object-cover"
+          className="h-9 w-16 shrink-0 bg-surface-2 object-cover"
           loading="lazy"
         />
       ) : (
-        <span className="flex h-9 w-16 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-surface-2 text-[10px] text-text-subtle">
+        <span className="flex h-9 w-16 shrink-0 items-center justify-center bg-surface-2 text-[10px] text-text-subtle">
           {item.kind === 'video' ? '▶ видео' : 'изображение'}
         </span>
       )}
@@ -803,7 +803,7 @@ function ItemRow(props: {
             if (event.key === 'Enter') event.currentTarget.blur()
           }}
           aria-label="Длительность показа в секундах"
-          className="h-8 w-24 shrink-0 rounded-[var(--radius-sm)] border border-border bg-surface px-2 text-right text-[12px] tnum"
+          className="h-8 w-24 shrink-0 border border-border bg-surface px-2 text-right text-[12px] tnum"
         />
       ) : (
         <span className="tnum w-24 shrink-0 text-right text-[12px] text-text-subtle">
@@ -900,8 +900,8 @@ function AssetPicker(props: {
         const files = Array.from(event.dataTransfer.files)
         if (files.length > 0) props.onUpload(files)
       }}
-      className={`flex flex-col gap-3 rounded-[var(--radius-lg)] border border-dashed p-3 transition-colors ${
-        dragActive ? 'border-primary bg-primary-soft/40' : 'border-border'
+      className={`flex flex-col gap-3 border border-dashed p-3 transition-colors ${
+        dragActive ? 'border-primary bg-surface-2' : 'border-border'
       }`}
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -959,7 +959,7 @@ function AssetPicker(props: {
               type="button"
               onClick={() => toggle(asset.id)}
               title={asset.fileName ?? asset.mime}
-              className={`relative h-[72px] w-[92px] shrink-0 overflow-hidden rounded-[var(--radius-md)] border-2 ${
+              className={`relative h-[72px] w-[92px] shrink-0 overflow-hidden border-2 ${
                 selected.has(asset.id) ? 'border-primary' : 'border-transparent'
               }`}
             >

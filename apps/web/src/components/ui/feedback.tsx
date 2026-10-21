@@ -42,11 +42,17 @@ export function toast(text: string, options: { tone?: ToastTone; action?: ToastI
   })
 }
 
+/**
+ * Тон тоста.
+ *
+ * Ошибка — инверсная плашка: белая на тёмном. Это громче любого оттенка и не
+ * тратит акцент на состояние.
+ */
 const TONE_CLASS: Record<ToastTone, string> = {
-  neutral: 'border-border bg-surface text-text',
-  success: 'border-success-border bg-success-bg text-success',
-  warn: 'border-warn-border bg-warn-bg text-warn',
-  danger: 'border-danger-border bg-danger-bg text-danger',
+  neutral: 'border-border-strong border-l-border-strong bg-surface text-text',
+  success: 'border-border-strong border-l-text bg-surface-2 text-text',
+  warn: 'border-border-strong border-l-text-muted bg-surface-2 text-text',
+  danger: 'border-text border-l-bg bg-text text-bg',
 }
 
 const AUTO_HIDE_MS = 4500
@@ -86,9 +92,9 @@ export function Toaster() {
         <div
           key={item.id}
           role={item.tone === 'danger' ? 'alert' : 'status'}
-          className={`pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-[var(--radius-lg)] border px-4 py-3 shadow-[var(--shadow-md)] fade-in ${TONE_CLASS[item.tone]}`}
+          className={`pointer-events-auto flex w-full max-w-md items-center gap-3 border border-l-[3px] px-4 py-3 fade-in ${TONE_CLASS[item.tone]}`}
         >
-          <span className="flex-1 text-[13px] leading-relaxed">{item.text}</span>
+          <span className="flex-1 text-[12.5px] leading-relaxed">{item.text}</span>
 
           {item.action ? (
             <button
@@ -97,7 +103,7 @@ export function Toaster() {
                 item.action?.onClick()
                 dismiss(item.id)
               }}
-              className="shrink-0 text-[13px] font-medium underline underline-offset-4"
+              className="shrink-0 font-mono text-[10px] tracking-[0.08em] uppercase underline underline-offset-4"
             >
               {item.action.label}
             </button>
@@ -107,7 +113,7 @@ export function Toaster() {
             type="button"
             onClick={() => dismiss(item.id)}
             aria-label="Скрыть"
-            className="shrink-0 rounded px-1 text-[16px] leading-none opacity-60 transition-opacity hover:opacity-100"
+            className="shrink-0 px-1 text-[16px] leading-none opacity-60 transition-opacity hover:opacity-100"
           >
             ×
           </button>
@@ -120,8 +126,8 @@ export function Toaster() {
 /**
  * Подтверждение опасного действия.
  *
- * Текст говорит, что произойдёт и что нельзя отменить. «Вы уверены?» —
- * худшая формулировка на свете: она не говорит ни о чём.
+ * Текст говорит, что произойдёт и что нельзя отменить. «Вы уверены?» — худшая
+ * формулировка на свете: она не говорит ни о чём.
  */
 export function ConfirmButton({
   onConfirm,
@@ -148,11 +154,11 @@ export function ConfirmButton({
         type="button"
         disabled={disabled}
         onClick={() => setOpen(true)}
-        className={
+        className={`inline-flex h-8 shrink-0 items-center border px-2.5 font-mono text-[10px] tracking-[0.06em] uppercase transition-colors disabled:pointer-events-none disabled:opacity-40 ${
           variant === 'danger'
-            ? 'inline-flex h-8 shrink-0 items-center rounded-[var(--radius-sm)] border border-danger-border px-2.5 text-[13px] font-medium text-danger transition-colors hover:bg-danger-bg disabled:pointer-events-none disabled:opacity-45'
-            : 'inline-flex h-8 shrink-0 items-center rounded-[var(--radius-sm)] border border-border px-2.5 text-[13px] font-medium text-text transition-colors hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-45'
-        }
+            ? 'border-border-strong text-text hover:border-text hover:bg-text hover:text-bg'
+            : 'border-border text-text-muted hover:border-border-strong hover:text-text'
+        }`}
       >
         {children}
       </button>
@@ -198,7 +204,7 @@ function ConfirmDialog({
           <Button size="sm" onClick={onCancel}>
             Отмена
           </Button>
-          <Button size="sm" variant="primary" onClick={onConfirm}>
+          <Button size="sm" variant="danger" onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </>
