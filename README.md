@@ -62,7 +62,7 @@
 pnpm install
 pnpm db:migrate          # применить миграции
 pnpm db:seed             # демо-данные
-pnpm dev                 # http://localhost:3000
+pnpm dev                 # http://localhost:3000 (и watcher контрактов)
 ```
 
 Демо-вход: `owner@shawty.uz` / `demo1234`
@@ -71,7 +71,7 @@ pnpm dev                 # http://localhost:3000
 
 ```bash
 pnpm check               # типы + все тесты
-pnpm test                # 310 тестов: домен и интеграция с настоящей базой
+pnpm test                # домен и интеграция с настоящей базой
 pnpm smoke:pairing       # сквозной протокол привязки: HTTP + WebSocket + база
 pnpm smoke:schedule      # сквозная проверка кампаний и расписания
 pnpm smoke:pages         # все страницы дашборда отдаются с живыми данными
@@ -83,18 +83,18 @@ pnpm smoke:pages         # все страницы дашборда отдают
 ## Структура
 
 ```
-server/index.ts        один процесс: Next + WebSocket на одном порту
-src/domain/            чистый домен: права, привязка, планирование
-src/db/                схема и подключение к SQLite
-src/server/            транспорт: HTTP-обработчики, WebSocket, сервисы
-src/app/dashboard/     панель управления
-src/app/player/        плеер для телевизора
-src/app/pair/          подтверждение привязки по QR
-tests/                 доменные и интеграционные тесты
+apps/web/              Next.js: страницы, компоненты, клиент API
+apps/web/src/          пока здесь же исторический бэкенд (переедет в apps/api)
+apps/web/server/       текущий композитный сервер: Next + WebSocket на одном порту
+apps/api/              Hono + ws + Drizzle + SQLite (Фаза 2)
+packages/contracts/    общие схемы, DTO и кадры WebSocket
+infra/                 reverse-proxy и упаковка (Фаза 5)
+data/                  SQLite, медиа и секреты (gitignored)
 ```
 
 Правило: `src/domain` не знает про Next и базу. Там чистые функции, которые
-тестируются без моков.
+тестируются без моков. После разделения `apps/web` не сможет импортировать
+код бэкенда — только `@shawty/contracts`.
 
 ## Настройки окружения
 

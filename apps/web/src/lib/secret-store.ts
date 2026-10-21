@@ -1,9 +1,10 @@
 import { existsSync, chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
-import { dirname, resolve } from 'node:path'
+import { dirname } from 'node:path'
+import { dataPath } from '@/config/paths'
 
 // turbopackIgnore: секрет — файл на диске, а не артефакт сборки, трассировать его не нужно.
-const SECRET_PATH = resolve(/* turbopackIgnore: true */ process.cwd(), 'data', '.secret')
+const SECRET_PATH = dataPath('.secret')
 const SECRET_BYTES = 32
 
 let cached: string | null = null

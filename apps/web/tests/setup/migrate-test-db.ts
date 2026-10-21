@@ -12,8 +12,9 @@ import { dirname, resolve } from 'node:path'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+import { dataPath } from '../../src/config/paths'
 
-const TEST_DB = resolve(process.cwd(), 'data', 'test.db')
+const TEST_DB = dataPath('test.db')
 
 export default async function setup(): Promise<void> {
   process.env.DATABASE_URL = TEST_DB

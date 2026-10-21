@@ -1,8 +1,14 @@
 /** Полный сброс локальной разработки: база и медиа удаляются, затем создаются заново. */
 import { rmSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { dataPath } from '../src/config/paths'
 
-const targets = [resolve(process.cwd(), 'data', 'shawty.db'), resolve(process.cwd(), 'data', 'shawty.db-wal'), resolve(process.cwd(), 'data', 'shawty.db-shm'), resolve(process.cwd(), 'data', 'media'), resolve(process.cwd(), 'data', 'tmp')]
+const targets = [
+  dataPath('shawty.db'),
+  dataPath('shawty.db-wal'),
+  dataPath('shawty.db-shm'),
+  dataPath('media'),
+  dataPath('tmp'),
+]
 
 for (const target of targets) {
   rmSync(target, { recursive: true, force: true })

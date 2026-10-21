@@ -4,8 +4,9 @@ import { createHash } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import type { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { dataPath } from '@/config/paths'
 
-const MEDIA_ROOT = join(process.cwd(), 'data', 'media')
+const MEDIA_ROOT = dataPath('media')
 
 /**
  * Хранилище файлов, адресуемое по содержимому.
@@ -26,7 +27,7 @@ const MEDIA_ROOT = join(process.cwd(), 'data', 'media')
 export function blobPath(sha256: string, extension: string): string {
   const folder = sha256.slice(0, 2)
   const subfolder = sha256.slice(2, 4)
-  return join(MEDIA_ROOT, folder, subfolder, `${sha256}.${extension}`)
+  return join(/* turbopackIgnore: true */ MEDIA_ROOT, folder, subfolder, `${sha256}.${extension}`)
 }
 
 export async function ensureDir(path: string): Promise<void> {

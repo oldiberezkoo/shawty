@@ -1,7 +1,7 @@
 import { unlink } from 'node:fs/promises'
 import { and, desc, eq, inArray, like, ne, or, sql } from 'drizzle-orm'
-import { join } from 'node:path'
 import { db } from '@/db/client'
+import { dataPath } from '@/config/paths'
 import {
   mediaAssets,
   mediaFolders,
@@ -38,7 +38,7 @@ import { getMediaQueue } from '@/media/queue'
 import { HttpError } from '@/server/http/errors'
 import { logger } from '@/lib/logger'
 
-export const TMP_ROOT = join(process.cwd(), 'data', 'tmp')
+export const TMP_ROOT = dataPath('tmp')
 
 export function mediaLimits(): MediaLimits {
   return {

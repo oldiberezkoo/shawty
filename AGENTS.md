@@ -7,3 +7,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Monorepo layout
+
+- `apps/web` — Next.js. Документация Next: `apps/web/node_modules/next/dist/docs/`.
+- `apps/api` — Hono + ws + Drizzle + SQLite (перенос в Фазе 2).
+- `packages/contracts` — общие схемы, DTO и кадры WS; единственный импорт между приложениями.
+- `data/` — SQLite, медиа и секреты в корне (gitignored).
+- Команды запускать из корня: `pnpm dev`, `pnpm check`, `pnpm test`.

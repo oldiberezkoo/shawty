@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import Database from 'better-sqlite3'
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
+import { workspaceRoot } from '@/config/paths'
 import * as schema from './schema'
 
 export type Database_ = BetterSQLite3Database<typeof schema>
@@ -13,7 +14,7 @@ function resolveDbPath(): string {
   // turbopackIgnore обязателен: динамический process.cwd() заставил бы сборщик
   // трассировать весь проект в выходные файлы. База данных не является артефактом
   // сборки и лежит вне неё, поэтому включать её в бандл неправильно.
-  return configured === ':memory:' ? configured : resolve(/* turbopackIgnore: true */ process.cwd(), configured)
+  return configured === ':memory:' ? configured : resolve(/* turbopackIgnore: true */ workspaceRoot(), configured)
 }
 
 function openConnection(): Database.Database {

@@ -17,9 +17,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { join, relative, resolve } from 'node:path'
 import { db, sqlite } from '../src/db/client'
 import { mediaAssets } from '../src/db/schema'
+import { dataPath } from '../src/config/paths'
 
-const PROJECT_ROOT = process.cwd()
-const MEDIA_ROOT = join(PROJECT_ROOT, 'data', 'media')
+const MEDIA_ROOT = dataPath('media')
 
 function timestamp(): string {
   return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
@@ -32,7 +32,7 @@ function humanBytes(bytes: number): string {
 }
 
 function main(): void {
-  const target = resolve(process.argv[2] ?? join(PROJECT_ROOT, 'data', 'backups'))
+  const target = resolve(process.argv[2] ?? dataPath('backups'))
   const stamp = timestamp()
   const dir = join(target, stamp)
 
