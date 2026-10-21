@@ -1,14 +1,24 @@
 import type { NextConfig } from 'next'
 
+const apiInternalUrl = (process.env.API_INTERNAL_URL ?? 'http://localhost:4000').replace(/\/+$/, '')
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
-  // Кастомный сервер (server/index.ts) поднимает Next и WebSocket на одном порту.
-  // Режим standalone с кастомным сервером несовместим — вывод собираем обычный.
-  output: undefined,
+  // Контракты лежат в workspace и экспортируют TypeScript-исходники.
+  // Next транспилирует их вместе с приложением, отдельная сборка не нужна.
+  transpilePackages: ['@shawty/contracts'],
 
-  // Нативные модули не бандлим: better-sqlite3 должен остаться внешним.
-  serverExternalPackages: ['better-sqlite3'],
+  // Браузер видит только веб-оригин. Запросы к /api/* проксируются в API,
+  // поэтому cookie сессии и CSRF остаются same-origin, как и раньше.
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${apiInternalUrl}/api/:path*`,
+      },
+    ]
+  },
 
   // Плеер живёт на телевизорах — не хотим тянуть туда лишние полифилы и dev-обвязку.
   productionBrowserSourceMaps: false,

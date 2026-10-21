@@ -1,1 +1,0 @@
-$ tsx watch --clear-screen=false src/main.ts
