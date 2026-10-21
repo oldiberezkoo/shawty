@@ -1,4 +1,15 @@
 # pnpm 11: настройки читаются отсюда, поле "pnpm" в package.json игнорируется.
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Линкуем только то, что объявлено через workspace: — без неявных подмен.
+linkWorkspacePackages: false
+# pnpm add @shawty/contracts → "workspace:*"
+saveWorkspaceProtocol: rolling
+# Опечатка в --filter должна падать, а не молча ничего не делать.
+failIfNoMatch: true
+
 allowBuilds:
   # Нативный модуль SQLite: без prebuild-сборки драйвер не загрузится.
   better-sqlite3: true
