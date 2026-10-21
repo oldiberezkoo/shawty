@@ -44,10 +44,11 @@
 
 | Слой | Решение |
 |---|---|
-| Фреймворк | Next.js 16 (App Router), React 19, TypeScript 5.9 |
+| Веб | Next.js 16 (App Router), React 19, TypeScript 5.9 |
+| API | Hono + `ws`, отдельный процесс на `:4000` |
 | База | SQLite через `better-sqlite3` + Drizzle ORM, режим WAL |
 | Интерфейс | Tailwind CSS 4, headless-компоненты Base UI (`@base-ui/react`) |
-| Канал | `ws`, один порт вместе с Next |
+| Контракты | `@shawty/contracts` — общие типы, DTO и кадры WebSocket |
 | Медиа | ffmpeg / ffprobe |
 
 ## Требования
@@ -62,45 +63,54 @@
 pnpm install
 pnpm db:migrate          # применить миграции
 pnpm db:seed             # демо-данные
-pnpm dev                 # http://localhost:3000 (и watcher контрактов)
+pnpm dev                 # API :4000 + веб :3000
 ```
+
+Веб: http://localhost:3000, API: http://localhost:4000.
+Браузер ходит в `/api/*` на веб-оригине, Next проксирует запросы в API,
+поэтому cookie сессии и CSRF остаются same-origin. WebSocket плеера
+подключается к API напрямую (в dev — `ws://localhost:4000/ws/device`).
 
 Демо-вход: `owner@shawty.uz` / `demo1234`
 
 ## Проверки
 
 ```bash
-pnpm check               # типы + все тесты
-pnpm test                # домен и интеграция с настоящей базой
+pnpm check               # типы, тесты API и production-сборка веба
+pnpm test                # домен и интеграция API с настоящей базой
+pnpm smoke:http          # вход, сессия и данные дашборда через API
 pnpm smoke:pairing       # сквозной протокол привязки: HTTP + WebSocket + база
 pnpm smoke:schedule      # сквозная проверка кампаний и расписания
 pnpm smoke:pages         # все страницы дашборда отдаются с живыми данными
 ```
 
 Сквозные проверки требуют запущенного `pnpm dev` и самостоятельно убирают
-за собой тестовые экраны.
+за собой тестовые экраны. `smoke:pages` и `smoke:pair-code` проверяют веб,
+остальные — API.
 
 ## Структура
 
 ```
 apps/web/              Next.js: страницы, компоненты, клиент API
-apps/web/src/          пока здесь же исторический бэкенд (переедет в apps/api)
-apps/web/server/       текущий композитный сервер: Next + WebSocket на одном порту
-apps/api/              Hono + ws + Drizzle + SQLite (Фаза 2)
+apps/api/              Hono + ws + Drizzle + SQLite, HTTP и WebSocket
 packages/contracts/    общие схемы, DTO и кадры WebSocket
 infra/                 reverse-proxy и упаковка (Фаза 5)
 data/                  SQLite, медиа и секреты (gitignored)
 ```
 
-Правило: `src/domain` не знает про Next и базу. Там чистые функции, которые
-тестируются без моков. После разделения `apps/web` не сможет импортировать
-код бэкенда — только `@shawty/contracts`.
+Правило: `apps/web` не импортирует код API — только `@shawty/contracts`.
+Веб получает данные через HTTP API; серверные страницы передают cookie сессии
+в API и не читают базу. Чистые функции (`domain/playlist`, `domain/release`,
+`domain/monitoring`) остаются в вебе, потому что исполняются в браузере плеера.
 
 ## Настройки окружения
 
 | Переменная | По умолчанию | Назначение |
 |---|---|---|
-| `PORT` | `3000` | Порт сервера |
+| `PORT` | `4000` | Порт API |
+| `API_INTERNAL_URL` | `http://localhost:4000` | Куда Next проксирует `/api/*` |
+| `NEXT_PUBLIC_WS_URL` | `ws://<host>:4000/ws/device` | Адрес WebSocket для плеера |
+| `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Публичный адрес веба для ссылок плеера |
 | `PUBLIC_URL` | `http://localhost:3000` | Адрес, попадающий в QR. **На телевизоре должен быть доступен из сети.** |
 | `SERVER_SECRET` | создаётся в `data/.secret` | Ключ HMAC для кодов привязки и секретов устройств. В продакшене задать явно |
 | `PAIRING_QR_CARRIES_CODE` | `false` | `true` — код попадёт прямо в QR (быстрее, слабее) |
@@ -111,7 +121,7 @@ data/                  SQLite, медиа и секреты (gitignored)
 | `PLAYER_PREFETCH_BEFORE_MS` | `600000` | За сколько до смены программы экран готовит публикацию |
 | `DEVICE_ACCESS_TOKEN_TTL_MS` | `900000` | Срок токена устройства |
 
-Полный список — в `src/config/server.ts`.
+Полный список — в `apps/api/src/config/server.ts`.
 
 Важно: это зона **филиала**. Компания одна, а филиалы в разных зонах — окно
 «с 09:00» в них наступает в разное время.

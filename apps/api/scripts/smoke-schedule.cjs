@@ -10,8 +10,8 @@
  */
 const { WebSocket } = require('ws')
 const Database = require('better-sqlite3')
-const BASE = process.env.SMOKE_BASE ?? 'http://localhost:3000'
-const DB = new Database(process.env.DATABASE_URL ?? './data/shawty.db')
+const BASE = process.env.SMOKE_BASE ?? 'http://localhost:4000'
+const DB = new Database(process.env.DATABASE_URL ?? require('node:path').resolve(__dirname, '../../../data/shawty.db'))
 const COMPANY = 'cmp_demo_retail'
 
 let cookies = ''
@@ -390,7 +390,7 @@ function createDeviceForSmoke() {
   const { resolve } = require('node:path')
 
   const serverSecret =
-    process.env.SERVER_SECRET ?? readFileSync(resolve(process.cwd(), 'data', '.secret'), 'utf8').trim()
+    process.env.SERVER_SECRET ?? readFileSync(resolve(__dirname, '../../../data', '.secret'), 'utf8').trim()
 
   const hashSecret = (value) => createHmac('sha256', serverSecret).update(value).digest('hex')
   const deviceSecret = randomBytes(32).toString('base64url')

@@ -2,12 +2,8 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { Clock, MonitorCheck, ShieldAlert } from 'lucide-react'
-import { loadSessionContext, accessFor } from '@/server/services/auth-service'
-import { readSessionCookie } from '@/server/http/cookies'
-import { hasScopeAccess, ROLE_LABELS } from '@/domain/authz/permissions'
-import { watchPairing } from '@/server/services/pairing-service'
-import { getBranchOptions, getGroupOptions } from '@/server/services/screen-service'
-import { PERMISSIONS } from '@/domain/authz/permissions'
+import { accessFor, hasScopeAccess, ROLE_LABELS, PERMISSIONS } from '@/domain/authz/permissions'
+import { apiGet, ApiError } from '@/server/api'
 import { Card, CardBody } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ConfirmForm } from './ConfirmForm'
@@ -67,16 +63,22 @@ export default async function PairConfirmPage({
   const { sessionId } = await params
   const { c: codeFromQr } = await searchParams
 
-  const token = await readSessionCookie()
-  const context = token ? loadSessionContext(token) : null
+  const returnTo = `/pair/${sessionId}${codeFromQr ? `?c=${codeFromQr}` : ''}`
 
   // Человек пришёл по QR без входа: отправляем на форму входа и возвращаем
   // обратно ровно на эту страницу, чтобы код не пришлось запоминать.
-  if (!context) {
-    redirect(`/login?returnTo=${encodeURIComponent(`/pair/${sessionId}${codeFromQr ? `?c=${codeFromQr}` : ''}`)}`)
+  let data: any
+
+  try {
+    data = await apiGet<any>(`/api/pairing/sessions/${sessionId}`)
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      redirect(`/login?returnTo=${encodeURIComponent(returnTo)}`)
+    }
+    throw error
   }
 
-  const state = watchPairing(sessionId)
+  const state = data
 
   if (state.state === 'expired') {
     return (
@@ -116,8 +118,8 @@ export default async function PairConfirmPage({
     )
   }
 
-  const memberships = context.companies.filter((membership) =>
-    accessFor(context, membership.companyId).can(PERMISSIONS.screensPair),
+  const memberships = data.companies.filter((membership: any) =>
+    accessFor({ companies: data.companies }, membership.companyId).can(PERMISSIONS.screensPair),
   )
 
   if (memberships.length === 0) {
@@ -137,15 +139,15 @@ export default async function PairConfirmPage({
   const firstMembership = memberships[0]
   if (!firstMembership) return null
 
-  const firstAccess = accessFor(context, firstMembership.companyId)
+  const firstAccess = accessFor({ companies: data.companies }, firstMembership.companyId)
 
   // Филиалы вне области доступа не показываем: сотрудник не должен видеть
   // список филиалов, к которым у него нет доступа.
-  const branches = getBranchOptions(firstMembership.companyId).filter((branch) =>
+  const branches = data.branches.filter((branch: any) =>
     hasScopeAccess(firstAccess.scopes, { branchId: branch.id }),
   )
 
-  const groups = getGroupOptions(firstMembership.companyId)
+  const groups = data.groups
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[540px] flex-col justify-center px-5 py-12">
@@ -162,13 +164,13 @@ export default async function PairConfirmPage({
         codeFromQr={codeFromQr ?? null}
         codeRequired={!state.codeInQr}
         expiresAt={new Date(Date.now() + (state.state === 'pending' ? state.remainingMs : 0)).toISOString()}
-        companies={memberships.map((membership) => ({
+        companies={memberships.map((membership: any) => ({
           id: membership.companyId,
           name: membership.companyName,
         }))}
         defaultCompanyId={firstMembership.companyId}
-        branches={branches.map((branch) => ({ id: branch.id, name: branch.name }))}
-        groups={groups.map((group) => ({ id: group.id, name: group.name }))}
+        branches={branches.map((branch: any) => ({ id: branch.id, name: branch.name }))}
+        groups={groups.map((group: any) => ({ id: group.id, name: group.name }))}
       />
     </main>
   )

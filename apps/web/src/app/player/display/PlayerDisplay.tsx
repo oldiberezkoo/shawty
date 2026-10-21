@@ -13,6 +13,7 @@ import {
 } from '@/player/engine'
 import { verifyManifest } from '@/domain/release/verify'
 import { logger } from '@/lib/logger'
+import { deviceSocketUrl } from '@/lib/ws-url'
 import { clearCredential, loadCredential } from '@/player/credential-store'
 import type { DeviceCredential } from '@/player/credential-store'
 
@@ -614,8 +615,7 @@ export function PlayerDisplay() {
       const token = await ensureToken()
       if (!token || cancelled) return
 
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-      const socket = new WebSocket(`${protocol}://${window.location.host}/ws/device`)
+      const socket = new WebSocket(deviceSocketUrl())
 
       socket.onopen = () => {
         attempt = 0

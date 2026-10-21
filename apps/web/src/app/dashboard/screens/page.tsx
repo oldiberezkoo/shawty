@@ -3,9 +3,8 @@ import Link from 'next/link'
 import { MonitorSmartphone } from 'lucide-react'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
-import { serverConfig } from '@/config/server'
-import { listScreens } from '@/server/services/screen-service'
-import { listPublishedVersions } from '@/server/services/playlist-service'
+import { publicConfig } from '@/config/public'
+import { apiGet } from '@/server/api'
 import { Card, EmptyState } from '@/components/ui/card'
 import { Notice } from '@/components/ui/status-badge'
 import { Button } from '@/components/ui/button'
@@ -37,7 +36,10 @@ export default async function ScreensPage() {
   if (!membership) return null
 
   const access = createAccess(membership.role, membership.scopes)
-  const screens = listScreens(membership.companyId)
+  const { screens, versions } = await apiGet<{ screens: any[]; versions: any[] }>(
+    '/api/dashboard/screens',
+    membership.companyId,
+  )
 
   if (screens.length === 0) {
     return (
@@ -64,7 +66,6 @@ export default async function ScreensPage() {
     )
   }
 
-  const versions = listPublishedVersions(membership.companyId)
   const branches = new Set(screens.map((screen) => screen.branchName ?? 'Без филиала')).size
 
   return (
@@ -90,7 +91,7 @@ export default async function ScreensPage() {
       <Notice>
         Новый телевизор: откройте на нём{' '}
         <code className="rounded bg-surface px-1.5 py-0.5 font-mono text-[12px]">
-          {serverConfig.publicUrl}/player/pairing
+          {publicConfig.appUrl}/player/pairing
         </code>{' '}
         и введите показанный код на странице «Подключить экран».
       </Notice>

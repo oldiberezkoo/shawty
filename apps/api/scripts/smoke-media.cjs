@@ -10,8 +10,8 @@ const { mkdtempSync, writeFileSync, rmSync, existsSync } = require('node:fs')
 const { tmpdir } = require('node:os')
 const { join } = require('node:path')
 
-const BASE = process.env.SMOKE_BASE ?? 'http://localhost:3000'
-const DB = new Database(process.env.DATABASE_URL ?? './data/shawty.db')
+const BASE = process.env.SMOKE_BASE ?? 'http://localhost:4000'
+const DB = new Database(process.env.DATABASE_URL ?? require('node:path').resolve(__dirname, '../../../data/shawty.db'))
 const COMPANY = 'cmp_demo_retail'
 
 let cookies = ''

@@ -1,44 +1,20 @@
 import { redirect } from 'next/navigation'
-import { readSessionCookie } from '@/server/http/cookies'
-import { HttpError } from '@/server/http/errors'
-import { loadSessionContext, type SessionContext } from '@/server/services/auth-service'
+import type { SessionView } from '@shawty/contracts'
+import { apiGet, ApiError } from '@/server/api'
 
 /**
- * Доступ к серверному компоненту только для вошедших.
- * `returnTo` сохраняется, чтобы после входа пользователь вернулся
- * на страницу подтверждения привязки, открытую по QR.
+ * Сессия для серверных страниц.
+ *
+ * Проверка идёт через API: веб не читает базу и не знает, как устроены
+ * сессии. На 401 браузер уводится на страницу входа.
  */
-export async function requireSession(): Promise<SessionContext> {
-  const token = await readSessionCookie()
-
-  if (!token) {
-    redirect('/login')
+export async function requireSession(): Promise<SessionView> {
+  try {
+    return await apiGet<SessionView>('/api/auth/session')
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      redirect('/login')
+    }
+    throw error
   }
-
-  const context = loadSessionContext(token)
-
-  if (!context) {
-    redirect('/login')
-  }
-
-  return context
-}
-
-/**
- * То же, но для обработчиков API: бросает 401 вместо перенаправления.
- * Редирект в fetch приводит к тому, что клиент получает HTML вместо JSON.
- */
-export async function requireSessionForApi(): Promise<SessionContext> {
-  const token = await readSessionCookie()
-
-  if (!token) {
-    throw HttpError.unauthorized('Требуется вход')
-  }
-
-  const context = loadSessionContext(token)
-  if (!context) {
-    throw HttpError.unauthorized('Сессия истекла или была отозвана')
-  }
-
-  return context
 }

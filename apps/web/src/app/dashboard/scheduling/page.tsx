@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
-import { listPublishedVersions } from '@/server/services/playlist-service'
+import { apiGet } from '@/server/api'
 import { ScheduleBoard } from './ScheduleBoard'
 
 export const dynamic = 'force-dynamic'
@@ -14,7 +14,7 @@ export default async function SchedulingPage() {
   if (!membership) return null
 
   const access = createAccess(membership.role, membership.scopes)
-  const versions = listPublishedVersions(membership.companyId)
+  const { versions } = await apiGet<{ versions: any[] }>('/api/dashboard/playlists', membership.companyId)
 
   return (
     <div className="flex flex-col gap-6">

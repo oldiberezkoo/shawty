@@ -9,8 +9,8 @@
  */
 const { WebSocket } = require('ws')
 const Database = require('better-sqlite3')
-const BASE = process.env.SMOKE_BASE ?? 'http://localhost:3000'
-const DB_PATH = process.env.DATABASE_URL ?? './data/shawty.db'
+const BASE = process.env.SMOKE_BASE ?? 'http://localhost:4000'
+const DB_PATH = process.env.DATABASE_URL ?? require('node:path').resolve(__dirname, '../../../data/shawty.db')
 const NONCE = 'n'.repeat(43)
 
 const db = new Database(DB_PATH)

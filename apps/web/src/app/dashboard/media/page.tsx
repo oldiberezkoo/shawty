@@ -2,13 +2,18 @@ import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { PERMISSIONS } from '@/domain/authz/permissions'
 import { createAccess } from '@/domain/authz/permissions'
-import { listMedia, listFolders, storageUsage, formatBytes } from '@/server/services/media-service'
+import { apiGet } from '@/server/api'
 import { MediaLibrary } from './MediaLibrary'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = { title: 'Медиатека' }
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(0)} МБ`
+  return `${(bytes / 1024 ** 3).toFixed(1)} ГБ`
+}
 
 function plural(value: number, one: string, few: string, many: string): string {
   const mod10 = value % 10
@@ -29,9 +34,11 @@ export default async function MediaPage() {
   const canUpload = access.can(PERMISSIONS.mediaWrite)
   const canDelete = access.can(PERMISSIONS.mediaDelete)
 
-  const assets = listMedia(membership.companyId)
-  const folders = listFolders(membership.companyId)
-  const usage = storageUsage(membership.companyId)
+  const { assets, folders, usage } = await apiGet<{
+    assets: any[]
+    folders: any[]
+    usage: { files: number; usedBytes: number; limitBytes: number }
+  }>('/api/dashboard/media', membership.companyId)
 
   const percent = usage.limitBytes > 0 ? Math.min(100, (usage.usedBytes / usage.limitBytes) * 100) : 0
 
@@ -94,7 +101,7 @@ export default async function MediaPage() {
             error: asset.error,
             hasPoster: Boolean(asset.posterSha256),
             posterSha256: asset.posterSha256,
-            createdAt: asset.createdAt.toISOString(),
+            createdAt: new Date(asset.createdAt).toISOString(),
           }))}
       />
     </div>

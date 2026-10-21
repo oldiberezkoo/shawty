@@ -4,14 +4,13 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, MonitorPlay } from 'lucide-react'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
-import { describePlatform, getBranchOptions, getGroupOptions, getScreenDetail, listScreens } from '@/server/services/screen-service'
-import { listPublishedVersions, versionItems } from '@/server/services/playlist-service'
+import { apiGet, ApiError } from '@/server/api'
+import { describePlatform, formatDeviceId } from '@/lib/screen-format'
 import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Badge } from '@/components/ui/status-badge'
 import { Button } from '@/components/ui/button'
 import { formatDuration } from '@/domain/playlist/rules'
-import { formatDeviceId } from '@/lib/ids'
 import { ScreenActions } from './ScreenActions'
 import { Sparkline } from './Sparkline'
 
@@ -60,17 +59,30 @@ export default async function ScreenDetailPage({ params }: { params: Promise<{ i
   if (!membership) return null
 
   const { id } = await params
-  const screens = listScreens(membership.companyId)
-
-  if (!screens.some((screen) => screen.id === id)) notFound()
-
   const access = createAccess(membership.role, membership.scopes)
-  const detail = getScreenDetail(membership.companyId, id)
-  const branches = getBranchOptions(membership.companyId)
-  const groups = getGroupOptions(membership.companyId)
-  const versions = listPublishedVersions(membership.companyId)
 
-  const items = detail.planned ? versionItems(detail.planned.id) : []
+  let screenData: { screen: any; items: any[] }
+
+  try {
+    screenData = await apiGet<{ screen: any; items: any[] }>(
+      `/api/dashboard/screens/${id}`,
+      membership.companyId,
+    )
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) notFound()
+    throw error
+  }
+
+  const [structure, playlistsData] = await Promise.all([
+    apiGet<{ branches: any[]; groups: any[] }>('/api/dashboard/structure', membership.companyId),
+    apiGet<{ versions: any[] }>('/api/dashboard/playlists', membership.companyId),
+  ])
+
+  const detail = screenData.screen
+  const branches = structure.branches
+  const groups = structure.groups
+  const versions = playlistsData.versions
+  const items = screenData.items
   const history = [...detail.telemetryHistory].reverse()
   const capabilities = detail.capabilities ?? {}
   const userAgent = typeof capabilities.userAgent === 'string' ? capabilities.userAgent : null
@@ -310,7 +322,7 @@ export default async function ScreenDetailPage({ params }: { params: Promise<{ i
               <p className="px-6 py-6 text-[13px] text-text-muted">За всё время инцидентов не было.</p>
             ) : (
               <ul>
-                {detail.incidents.map((incident) => (
+                {detail.incidents.map((incident: any) => (
                   <li key={incident.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-6 py-3 last:border-0">
                     <span className="text-[13px] font-medium">{incident.type}</span>
                     {incident.closedAt ? <Badge tone="success">закрыт</Badge> : <Badge tone="warn">открыт</Badge>}
@@ -333,8 +345,8 @@ export default async function ScreenDetailPage({ params }: { params: Promise<{ i
               <p className="px-6 py-6 text-[13px] text-text-muted">Экран не сообщал об ошибках.</p>
             ) : (
               <ul>
-                {detail.errors.map((error) => (
-                  <li key={`${error.code}-${error.at.toISOString()}`} className="border-b border-border px-6 py-3 last:border-0">
+                {detail.errors.map((error: any) => (
+                  <li key={`${error.code}-${String(error.at)}`} className="border-b border-border px-6 py-3 last:border-0">
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-mono text-[12px] text-danger">{error.code}</span>
                       <span className="text-[12px] text-text-subtle">{formatMoment(error.at)}</span>

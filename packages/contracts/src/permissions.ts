@@ -187,7 +187,7 @@ export function isScopeType(value: string): value is ScopeType {
 
 /** Права участника в конкретной компании. */
 export function accessFor(
-  session: { companies: readonly MembershipContext[] },
+  session: { companies: readonly Pick<MembershipContext, 'companyId' | 'role' | 'scopes'>[] },
   companyId: string,
 ): Access {
   const membership = session.companies.find((item) => item.companyId === companyId)

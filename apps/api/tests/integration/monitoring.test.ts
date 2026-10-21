@@ -200,7 +200,8 @@ describe('инциденты', () => {
 
 describe('отчёт о недоступности', () => {
   it('отвечает на вопрос «где и когда»: экран, интервалы и длительность', () => {
-    const from = new Date(Date.now() - 24 * 60 * 60_000)
+    const now = new Date()
+    const from = new Date(now.getTime() - 24 * 60 * 60_000)
 
     seedScreen('scr_a', null, { lastSeenAt: new Date(from.getTime() + 10 * 60_000) })
     seedScreen('scr_b', 5)
@@ -224,13 +225,13 @@ describe('отчёт о недоступности', () => {
         screenId: 'scr_b',
         companyId: COMPANY,
         type: 'offline',
-        openedAt: new Date(Date.now() - 60 * 60_000),
+        openedAt: new Date(now.getTime() - 60 * 60_000),
         closedAt: null,
         detail: null,
       })
       .run()
 
-    const report = availabilityReport({ companyId: COMPANY, from, to: new Date() })
+    const report = availabilityReport({ companyId: COMPANY, from, to: now })
 
     expect(report.screens).toHaveLength(2)
 

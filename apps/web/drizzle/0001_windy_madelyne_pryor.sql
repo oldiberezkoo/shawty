@@ -1,1 +1,0 @@
-CREATE INDEX `delivery_receipts_state_updated_idx` ON `delivery_receipts` (`state`,`updated_at`);

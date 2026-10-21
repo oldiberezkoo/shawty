@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
-import { listPlaylists } from '@/server/services/playlist-service'
-import { listMedia } from '@/server/services/media-service'
-import { serverConfig } from '@/config/server'
+import { publicConfig } from '@/config/public'
+import { apiGet } from '@/server/api'
 import { PlaylistList } from './PlaylistList'
 
 export const dynamic = 'force-dynamic'
@@ -16,8 +15,12 @@ export default async function PlaylistsPage() {
   if (!membership) return null
 
   const access = createAccess(membership.role, membership.scopes)
-  const playlists = listPlaylists(membership.companyId)
-  const assets = listMedia(membership.companyId, { state: 'ready' })
+  const [playlistsData, mediaData] = await Promise.all([
+    apiGet<{ playlists: any[] }>('/api/dashboard/playlists', membership.companyId),
+    apiGet<{ assets: any[] }>('/api/dashboard/media?state=ready', membership.companyId),
+  ])
+  const playlists = playlistsData.playlists
+  const assets = mediaData.assets
 
   return (
     <div className="flex flex-col gap-6">
@@ -33,7 +36,7 @@ export default async function PlaylistsPage() {
         companyId={membership.companyId}
         canWrite={access.can(PERMISSIONS.playlistsWrite)}
         canUpload={access.can(PERMISSIONS.mediaWrite)}
-        defaultImageDurationMs={serverConfig.media.defaultImageDurationMs}
+        defaultImageDurationMs={publicConfig.defaultImageDurationMs}
         initialPlaylists={playlists.map((playlist) => ({
           id: playlist.id,
           name: playlist.name,

@@ -1,8 +1,11 @@
 /**
- * Сквозная проверка входа и страниц дашборда.
+ * Проверка HTTP-контура API: вход, сессия, данные дашборда и старт привязки.
  * Использование: node scripts/smoke-http.cjs
+ *
+ * Веб проверяется отдельно — scripts/smoke-pages.cjs.
  */
-const BASE = process.env.SMOKE_BASE ?? 'http://localhost:3000'
+const BASE = process.env.SMOKE_BASE ?? 'http://localhost:4000'
+const COMPANY = 'cmp_demo_retail'
 
 async function main() {
   let cookies = ''
@@ -21,16 +24,15 @@ async function main() {
     return res
   }
 
-  const health = await req('/login')
-  console.log('GET /login ->', health.status)
+  const health = await req('/health')
+  console.log('GET /health ->', health.status, (await health.text()).slice(0, 80))
 
   const login = await req('/api/auth/login', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ email: 'owner@shawty.uz', password: 'demo1234' }),
   })
-  const loginBody = await login.text()
-  console.log('POST /api/auth/login ->', login.status, loginBody.slice(0, 120))
+  console.log('POST /api/auth/login ->', login.status, (await login.text()).slice(0, 120))
   console.log('cookies received:', cookies ? cookies.split(';').length : 0)
 
   const bad = await req('/api/auth/login', {
@@ -40,13 +42,22 @@ async function main() {
   })
   console.log('POST /api/auth/login (wrong password) ->', bad.status, (await bad.text()).slice(0, 80))
 
-  const dash = await req('/dashboard')
-  const dashBody = await dash.text()
-  console.log('GET /dashboard ->', dash.status, 'has title:', dashBody.includes('Обзор сети'))
+  const session = await req('/api/auth/session', { headers: { 'x-company-id': COMPANY } })
+  console.log('GET /api/auth/session ->', session.status, (await session.text()).slice(0, 120))
 
-  const screens = await req('/dashboard/screens')
-  const screensBody = await screens.text()
-  console.log('GET /dashboard/screens ->', screens.status, 'has Demo Retail:', screensBody.includes('Demo Retail'))
+  const screens = await req('/api/dashboard/screens', { headers: { 'x-company-id': COMPANY } })
+  const screensBody = await screens.json()
+  console.log(
+    'GET /api/dashboard/screens ->',
+    screens.status,
+    'screens:',
+    Array.isArray(screensBody.screens) ? screensBody.screens.length : 'invalid',
+  )
+
+  const subscription = await req('/api/dashboard/subscription', {
+    headers: { 'x-company-id': COMPANY },
+  })
+  console.log('GET /api/dashboard/subscription ->', subscription.status)
 
   const pairingStart = await req('/api/player/pairing/start', {
     method: 'POST',

@@ -1,9 +1,7 @@
 import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
-import { deliverySummary, listAssignments, listRecentReleases, receiptsForRelease } from '@/server/services/release-service'
-import { listBranches, listGroups } from '@/server/services/screen-service'
-import { listPlaylists, listVersions } from '@/server/services/playlist-service'
+import { apiGet } from '@/server/api'
 import { DeliveryBoard } from './DeliveryBoard'
 
 export const dynamic = 'force-dynamic'
@@ -19,33 +17,30 @@ export default async function ReleasesPage() {
   const canPublish = access.can(PERMISSIONS.releasesPublish)
 
   const companyId = membership.companyId
-  const summary = deliverySummary(companyId)
-  const releases = listRecentReleases(companyId)
-  const assignments = listAssignments(companyId)
+  const [releasesData, structure, playlistsData] = await Promise.all([
+    apiGet<{ assignments: any[]; releases: any[]; summary: any; receipts: any[] }>(
+      '/api/dashboard/releases',
+      companyId,
+    ),
+    apiGet<{ branches: any[]; groups: any[] }>('/api/dashboard/structure', companyId),
+    apiGet<{ playlists: any[]; versions: any[] }>('/api/dashboard/playlists', companyId),
+  ])
 
-  const branches = listBranches(companyId)
-  const groups = listGroups(companyId)
-  const playlists = listPlaylists(companyId)
+  const { summary, releases, assignments } = releasesData
+  const branches = structure.branches
+  const groups = structure.groups
 
   // В форме назначения — только текущая версия плейлиста: выбора версий
   // в продукте больше нет.
-  const versions = playlists.flatMap((playlist) => {
-    const current = listVersions(companyId, playlist.id).find((entry) => entry.isCurrent)
-
-    return current
-      ? [
-          {
-            playlistId: playlist.id,
-            name: playlist.name,
-            version: playlist.version,
-            versions: [{ id: current.id, version: current.version }],
-          },
-        ]
-      : []
-  })
+  const versions = playlistsData.versions.map((version) => ({
+    playlistId: version.playlistId,
+    name: version.playlistName,
+    version: version.version,
+    versions: [{ id: version.id, version: version.version }],
+  }))
 
   const latest = releases[0]
-  const receipts = latest ? receiptsForRelease(latest.id) : []
+  const receipts = releasesData.receipts
 
   return (
     <div className="flex flex-col gap-6">
@@ -65,7 +60,7 @@ export default async function ReleasesPage() {
           latest
             ? {
                 version: latest.manifestVersion,
-                createdAt: latest.createdAt.toISOString(),
+                createdAt: new Date(latest.createdAt).toISOString(),
                 itemCount: latest.itemCount,
               }
             : null
@@ -74,7 +69,7 @@ export default async function ReleasesPage() {
           screenId: receipt.screenId,
           screenName: receipt.screenName,
           state: receipt.state,
-          ackedAt: receipt.ackedAt ? receipt.ackedAt.toISOString() : null,
+          ackedAt: receipt.ackedAt ? new Date(receipt.ackedAt).toISOString() : null,
           errorCode: receipt.errorCode,
         }))}
         assignments={assignments.map((assignment) => ({

@@ -1,10 +1,7 @@
 import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
-import { listCampaigns } from '@/server/services/campaign-service'
-import { companyToday } from '@/server/services/schedule-service'
-import { listBranches, listGroups, listScreens } from '@/server/services/screen-service'
-import { listPlaylists, listVersions } from '@/server/services/playlist-service'
+import { apiGet } from '@/server/api'
 import { Notice } from '@/components/ui/status-badge'
 import { CampaignsBoard } from './CampaignsBoard'
 
@@ -20,7 +17,12 @@ export default async function CampaignsPage() {
   const access = createAccess(membership.role, membership.scopes)
   const companyId = membership.companyId
 
-  const playlists = listPlaylists(companyId)
+  const [campaignsData, structure, screensData, playlistsData] = await Promise.all([
+    apiGet<{ campaigns: any[]; today: string }>('/api/dashboard/campaigns', companyId),
+    apiGet<{ branches: any[]; groups: any[] }>('/api/dashboard/structure', companyId),
+    apiGet<{ screens: any[] }>('/api/dashboard/screens', companyId),
+    apiGet<{ playlists: any[]; versions: any[] }>('/api/dashboard/playlists', companyId),
+  ])
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,8 +46,8 @@ export default async function CampaignsPage() {
         canWrite={access.can(PERMISSIONS.campaignsWrite)}
         canApprove={access.can(PERMISSIONS.campaignsApprove)}
         canPublish={access.can(PERMISSIONS.releasesPublish)}
-        today={companyToday(companyId)}
-        campaigns={listCampaigns(companyId).map((campaign) => ({
+        today={campaignsData.today}
+        campaigns={campaignsData.campaigns.map((campaign) => ({
           id: campaign.id,
           name: campaign.name,
           kind: campaign.kind,
@@ -53,8 +55,8 @@ export default async function CampaignsPage() {
           status: campaign.status,
           startsOn: campaign.startsOn,
           endsOn: campaign.endsOn,
-          startsAt: campaign.startsAt?.toISOString() ?? null,
-          endsAt: campaign.endsAt?.toISOString() ?? null,
+          startsAt: campaign.startsAt ?? null,
+          endsAt: campaign.endsAt ?? null,
           approvalRequired: campaign.approvalRequired,
           playlistVersionId: campaign.playlistVersionId,
           playlistName: campaign.playlistName,
@@ -65,13 +67,13 @@ export default async function CampaignsPage() {
           windows: campaign.windows,
           withinDates: campaign.withinDates,
         }))}
-        branches={listBranches(companyId).map((branch) => ({ id: branch.id, name: branch.name }))}
-        groups={listGroups(companyId).map((group) => ({ id: group.id, name: group.name }))}
-        screens={listScreens(companyId).map((screen) => ({ id: screen.id, name: screen.name }))}
-        playlistVersions={playlists.flatMap((playlist) => {
-          const current = listVersions(companyId, playlist.id).find((entry) => entry.isCurrent)
-          return current ? [{ id: current.id, label: playlist.name }] : []
-        })}
+        branches={structure.branches.map((branch) => ({ id: branch.id, name: branch.name }))}
+        groups={structure.groups.map((group) => ({ id: group.id, name: group.name }))}
+        screens={screensData.screens.map((screen) => ({ id: screen.id, name: screen.name }))}
+        playlistVersions={playlistsData.versions.map((version) => ({
+          id: version.id,
+          label: version.playlistName,
+        }))}
       />
     </div>
   )

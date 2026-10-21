@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { clearCredential, forgetDeviceNonce, getDeviceNonce, loadCredential, saveCredential } from '@/player/credential-store'
+import { deviceSocketUrl } from '@/lib/ws-url'
 
 type Phase =
   | 'starting'
@@ -217,8 +218,7 @@ export function PairingScreen() {
     const start = sessionRef.current
     if (!start || !nonceRef.current || phase !== 'waiting') return
 
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const socket = new WebSocket(`${protocol}://${window.location.host}/ws/device`)
+    const socket = new WebSocket(deviceSocketUrl())
     socketRef.current = socket
 
     socket.onopen = () => {

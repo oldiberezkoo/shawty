@@ -1,8 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight, CalendarClock, Megaphone, MonitorSmartphone, RefreshCw, Send, Wifi, WifiOff } from 'lucide-react'
 import { requireSession } from '@/server/auth/require-session'
-import { listBranches, listScreens, summarizeScreens } from '@/server/services/screen-service'
-import { getSubscription } from '@/server/services/billing-service'
+import { apiGet } from '@/server/api'
 import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card'
 import { Notice, StatusBadge } from '@/components/ui/status-badge'
 import { MetricTile, UsageBar } from '@/components/ui/metric'
@@ -50,10 +49,16 @@ export default async function DashboardPage() {
   if (!membership) return null
 
   const companyId = membership.companyId
-  const summary = summarizeScreens(companyId)
-  const screens = listScreens(companyId)
-  const branches = listBranches(companyId)
-  const subscription = getSubscription(companyId)
+
+  const [screensData, structure, subscription] = await Promise.all([
+    apiGet<{ screens: any[]; summary: any }>('/api/dashboard/screens', companyId),
+    apiGet<{ branches: any[] }>('/api/dashboard/structure', companyId),
+    apiGet<any>('/api/dashboard/subscription', companyId),
+  ])
+
+  const screens = screensData.screens
+  const summary = screensData.summary
+  const branches = structure.branches
 
   const offlineScreens = screens.filter((screen) => screen.onlineState === 'offline')
   const unpairedScreens = screens.filter((screen) => screen.recordStatus === 'unpaired')
@@ -194,7 +199,7 @@ export default async function DashboardPage() {
             <CardBody className="flex flex-col gap-4">
               {subscription.plan ? (
                 <>
-                  {subscription.usage.map((line) => (
+                  {subscription.usage.map((line: any) => (
                     <UsageBar
                       key={line.key}
                       label={line.label}

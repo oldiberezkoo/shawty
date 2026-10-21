@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
 
   experimental: {
-    optimizePackageImports: ['@base-ui-components/react'],
+    optimizePackageImports: ['@base-ui/react'],
   },
 }
 

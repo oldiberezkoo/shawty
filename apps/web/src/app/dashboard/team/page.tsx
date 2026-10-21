@@ -1,8 +1,7 @@
 import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
-import { createAccess, PERMISSIONS, ROLE_LABELS, ROLE_PERMISSIONS } from '@/domain/authz/permissions'
-import { listInvitations, listMembers } from '@/server/services/team-service'
-import { listBranches, listGroups, listScreens } from '@/server/services/screen-service'
+import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
+import { apiGet } from '@/server/api'
 import { TeamBoard } from './TeamBoard'
 
 export const dynamic = 'force-dynamic'
@@ -16,6 +15,12 @@ export default async function TeamPage() {
 
   const access = createAccess(membership.role, membership.scopes)
   const companyId = membership.companyId
+
+  const [team, structure, screensData] = await Promise.all([
+    apiGet<{ members: any[]; invitations: any[]; roles: any[] }>('/api/dashboard/team', companyId),
+    apiGet<{ branches: any[]; groups: any[] }>('/api/dashboard/structure', companyId),
+    apiGet<{ screens: any[] }>('/api/dashboard/screens', companyId),
+  ])
 
   return (
     <div className="flex flex-col gap-6">
@@ -31,32 +36,28 @@ export default async function TeamPage() {
         companyId={companyId}
         currentUserId={session.userId}
         canWrite={access.can(PERMISSIONS.teamWrite)}
-        members={listMembers(companyId).map((member) => ({
+        members={team.members.map((member) => ({
           membershipId: member.membershipId,
           userId: member.userId,
           name: member.name,
           email: member.email,
           role: member.role,
-          roleLabel: ROLE_LABELS[member.role],
+          roleLabel: member.roleLabel,
           status: member.status,
-          scopes: member.scopes.map((scope) => ({ scopeType: scope.scopeType, scopeId: scope.scopeId })),
+          scopes: member.scopes.map((scope: any) => ({ scopeType: scope.scopeType, scopeId: scope.scopeId })),
         }))}
-        invitations={listInvitations(companyId).map((invitation) => ({
+        invitations={team.invitations.map((invitation) => ({
           id: invitation.id,
           email: invitation.email,
           role: invitation.role,
-          expiresAt: invitation.expiresAt.toISOString(),
+          expiresAt: new Date(invitation.expiresAt).toISOString(),
           invitedBy: invitation.invitedBy,
           expired: invitation.expired,
         }))}
-        roles={Object.entries(ROLE_LABELS).map(([role, label]) => ({
-          role,
-          label,
-          permissions: ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS] ?? [],
-        }))}
-        branches={listBranches(companyId).map((branch) => ({ id: branch.id, name: branch.name }))}
-        groups={listGroups(companyId).map((group) => ({ id: group.id, name: group.name }))}
-        screens={listScreens(companyId).map((screen) => ({
+        roles={team.roles}
+        branches={structure.branches.map((branch) => ({ id: branch.id, name: branch.name }))}
+        groups={structure.groups.map((group) => ({ id: group.id, name: group.name }))}
+        screens={screensData.screens.map((screen) => ({
           id: screen.id,
           name: screen.name,
           branchId: screen.branchId,

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { ArrowLeft, Tv } from 'lucide-react'
 import { requireSession } from '@/server/auth/require-session'
-import { serverConfig } from '@/config/server'
+import { publicConfig } from '@/config/public'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Notice } from '@/components/ui/status-badge'
 import { CodeLookupForm } from './CodeLookupForm'
@@ -30,7 +30,7 @@ export const metadata: Metadata = { title: 'Подключение экрана'
 export default async function PairStartPage() {
   await requireSession()
 
-  const playerUrl = `${serverConfig.publicUrl}/player/pairing`
+  const playerUrl = `${publicConfig.appUrl}/player/pairing`
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[560px] flex-col justify-center gap-6 px-4 py-12 md:px-6">

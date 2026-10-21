@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { CSRF_COOKIE, SESSION_COOKIE } from '@shawty/contracts'
 import { requireSession } from '@/server/auth/require-session'
 import { ROLE_LABELS } from '@/domain/authz/permissions'
-import { getSubscription } from '@/server/services/billing-service'
+import { apiGet, apiSend } from '@/server/api'
 import { AppShell } from './AppShell'
 
 export const dynamic = 'force-dynamic'
@@ -23,22 +25,27 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   const membership = session.companies[0]
-  const subscription = membership ? getSubscription(membership.companyId) : null
+  const subscription = membership
+    ? await apiGet<{ notice: { tone: 'warn' | 'danger'; title: string; hint: string } | null }>(
+        '/api/dashboard/subscription',
+        membership.companyId,
+      )
+    : null
 
   async function signOut() {
     'use server'
 
-    const { clearAuthCookies, readSessionCookie } = await import('@/server/http/cookies')
-    const { loadSessionContext, revokeSession } = await import('@/server/services/auth-service')
+    const store = await cookies()
+    const csrf = store.get(CSRF_COOKIE)?.value
 
-    const token = await readSessionCookie()
-
-    if (token) {
-      const context = loadSessionContext(token)
-      if (context) revokeSession(context.sessionId)
+    try {
+      await apiSend('/api/auth/logout', { method: 'POST', csrfToken: csrf })
+    } catch {
+      // Сессии могло уже не быть: выход всё равно должен увести на вход.
     }
 
-    await clearAuthCookies()
+    store.delete(SESSION_COOKIE)
+    store.delete(CSRF_COOKIE)
     redirect('/login')
   }
 

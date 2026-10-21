@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
-import { getSubscription, listPlans } from '@/server/services/billing-service'
+import { apiGet } from '@/server/api'
 import { BillingBoard } from './BillingBoard'
 
 export const dynamic = 'force-dynamic'
@@ -15,7 +15,11 @@ export default async function BillingPage() {
 
   const access = createAccess(membership.role, membership.scopes)
   const companyId = membership.companyId
-  const subscription = getSubscription(companyId)
+  const { subscription, usage, plans } = await apiGet<{
+    subscription: any
+    usage: any[]
+    plans: any[]
+  }>('/api/dashboard/billing', companyId)
 
   return (
     <div className="flex flex-col gap-6">
@@ -34,12 +38,12 @@ export default async function BillingPage() {
           plan: subscription.plan,
           status: subscription.status,
           daysLeft: subscription.daysLeft,
-          currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
-          trialEndsAt: subscription.trialEndsAt?.toISOString() ?? null,
+          currentPeriodEnd: subscription.currentPeriodEnd ?? null,
+          trialEndsAt: subscription.trialEndsAt ?? null,
           notice: subscription.notice,
         }}
-        usage={subscription.usage}
-        plans={listPlans()}
+        usage={usage}
+        plans={plans}
       />
     </div>
   )

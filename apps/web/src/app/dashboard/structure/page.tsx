@@ -1,8 +1,7 @@
 import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
-import { listScreens } from '@/server/services/screen-service'
-import { listBranchViews, listGroupViews } from '@/server/services/structure-service'
+import { apiGet } from '@/server/api'
 import { StructureBoard } from './StructureBoard'
 
 export const dynamic = 'force-dynamic'
@@ -22,8 +21,12 @@ export default async function StructurePage() {
   if (!membership) return null
 
   const access = createAccess(membership.role, membership.scopes)
-  const branches = listBranchViews(membership.companyId)
-  const groups = listGroupViews(membership.companyId)
+  const [structure, screensData] = await Promise.all([
+    apiGet<{ branches: any[]; groups: any[] }>('/api/dashboard/structure', membership.companyId),
+    apiGet<{ screens: any[] }>('/api/dashboard/screens', membership.companyId),
+  ])
+  const branches = structure.branches
+  const groups = structure.groups
 
   return (
     <div className="flex flex-col gap-6">
@@ -39,7 +42,7 @@ export default async function StructurePage() {
         companyId={membership.companyId}
         branches={branches}
         groups={groups}
-        screens={listScreens(membership.companyId).map((screen) => ({
+        screens={screensData.screens.map((screen) => ({
           id: screen.id,
           name: screen.name,
           branchId: screen.branchId,

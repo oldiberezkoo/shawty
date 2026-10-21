@@ -6,6 +6,7 @@ import { route, jsonResponse, readJsonBody, type RouteContext } from '@/server/h
 import { PERMISSIONS } from '@/domain/authz/permissions'
 import { requireDashboardMutation, requireDashboardRequest } from '@/server/http/dashboard-request'
 import { getScreenDetail, updateScreen } from '@/server/services/screen-service'
+import { versionItems } from '@/server/services/playlist-service'
 import { HttpError } from '@/server/http/errors'
 
 const patchSchema = z.object({
@@ -34,7 +35,12 @@ export const GET = route(async (request: Request, context: Context) => {
     throw HttpError.forbidden('Нет доступа к этому экрану')
   }
 
-  return jsonResponse({ screen: getScreenDetail(companyId, id) })
+  const detail = getScreenDetail(companyId, id)
+
+  return jsonResponse({
+    screen: detail,
+    items: detail.planned ? versionItems(detail.planned.id) : [],
+  })
 })
 
 export const PATCH = route(async (request: Request, context: Context) => {
