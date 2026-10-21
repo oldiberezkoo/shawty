@@ -5,7 +5,7 @@ import { route } from '@/server/http/request'
 import { authenticateAccessToken } from '@/server/services/device-service'
 import { assetPaths } from '@/server/services/media-service'
 import { verifyMediaTicket } from '@/domain/release/media-ticket'
-import { serveFile } from '@/app/api/dashboard/media/file/route'
+import { serveFile } from '@/routes/dashboard/media/file/route'
 import { HttpError } from '@/server/http/errors'
 import { enforceRateLimit, keyOf } from '@/server/http/rate-limit'
 

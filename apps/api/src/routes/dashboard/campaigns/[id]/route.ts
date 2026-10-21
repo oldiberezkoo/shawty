@@ -2,7 +2,7 @@ import { route, jsonResponse, readJsonBody, type RouteContext } from '@/server/h
 import { PERMISSIONS } from '@/domain/authz/permissions'
 import { requireDashboardMutation, requireDashboardRequest, requirePermission } from '@/server/http/dashboard-request'
 import { deleteCampaign, getCampaign, updateCampaign } from '@/server/services/campaign-service'
-import { campaignSchema } from '@/app/api/dashboard/campaigns/route'
+import { campaignSchema } from '@/routes/dashboard/campaigns/route'
 import { HttpError } from '@/server/http/errors'
 
 export const GET = route(async (request: Request, context: RouteContext<{ id: string }>) => {

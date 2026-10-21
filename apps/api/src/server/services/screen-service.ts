@@ -12,11 +12,13 @@ import {
   screens,
 } from '@/db/schema'
 import { computeHealth, silentSeconds, type ScreenHealth } from '@/domain/monitoring/health'
-import type { ScreenState } from '@/components/ui/status-badge'
 import { HttpError } from '@/server/http/errors'
 import { recordAudit } from '@/server/services/audit-service'
 import { describePlaylistVersion, planForScreen } from '@/server/services/schedule-service'
 import { requireBranch, requireGroup } from '@/server/services/structure-service'
+
+/** Состояние экрана в терминах интерфейса: онлайн, синхронизация, ошибка и т.д. */
+export type ScreenState = 'online' | 'syncing' | 'offline' | 'error' | 'unpaired' | 'disabled' | 'revoked'
 
 export type ScreenListItem = {
   id: string
