@@ -653,6 +653,593 @@
   pointer-events: none;
 }
 
+/* ============================================================
+   Промо-страница
+
+   Ниже — только композиция лендинга. Токены, типографика и состояния
+   остаются общими: страница должна читаться как часть той же системы,
+   что панель и экран привязки.
+   ============================================================ */
+
+.landing-frame {
+  position: relative;
+  width: min(100% - 2 * var(--gutter), var(--frame));
+  margin-inline: auto;
+  border-inline: 1px solid var(--border);
+}
+
+.landing-skip {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 60;
+  transform: translateY(-200%);
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+}
+
+.landing-skip:focus {
+  transform: none;
+}
+
+/* Sticky nav: фон с шириной frame, blur — только подложка. */
+.landing-nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in srgb, var(--bg) 88%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.landing-nav-inner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 3.75rem;
+  padding-inline: var(--pad);
+}
+
+.landing-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  margin-inline: auto;
+}
+
+.landing-nav-links a {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--label-tracking);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 120ms linear;
+}
+
+.landing-nav-links a:hover {
+  color: var(--text);
+}
+
+.landing-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 64rem) {
+  .landing-nav-links {
+    display: none;
+  }
+
+  .landing-nav-actions {
+    margin-inline-start: auto;
+  }
+}
+
+@media (max-width: 30rem) {
+  .landing-nav-actions {
+    gap: 0.375rem;
+  }
+}
+
+.landing-main section[id] {
+  scroll-margin-top: 4.5rem;
+}
+
+/* Строка раздела: номер тусклее названия, как в справочнике. */
+.landing-section-head {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin: 0;
+  padding: 0.875rem var(--pad);
+  border-block: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.landing-section-head b {
+  font-weight: 400;
+  color: var(--text-subtle);
+}
+
+.landing-section-meta {
+  margin-inline-start: auto;
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+
+.landing-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: var(--rhythm) var(--pad) clamp(2rem, 4vw, 3rem);
+}
+
+.landing-h1 {
+  max-width: 13ch;
+  font-size: clamp(2.5rem, 1.35rem + 3.2vw, 3.5rem);
+  font-weight: 500;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+.landing-h2 {
+  max-width: 24ch;
+  font-size: clamp(1.75rem, 1.2rem + 1.9vw, 2.75rem);
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.landing-lede {
+  max-width: 52ch;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+@media (min-width: 48rem) {
+  .landing-lede {
+    font-size: 16px;
+  }
+}
+
+/* Hero */
+.landing-hero {
+  position: relative;
+}
+
+.landing-hero-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 29rem);
+  align-items: center;
+  gap: clamp(2.5rem, 5vw, 4.5rem);
+  padding: clamp(2.5rem, 5.5vw, 4.5rem) var(--pad) clamp(3.5rem, 8vw, 6.5rem);
+}
+
+.landing-hero-art {
+  position: relative;
+  min-width: 0;
+  padding-bottom: 2rem;
+}
+
+.landing-hero-tv {
+  position: absolute;
+  right: -0.75rem;
+  bottom: -2.5rem;
+  z-index: 2;
+  width: 47%;
+}
+
+.landing-hero-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.875rem;
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 64rem) {
+  .landing-hero-top {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.75rem;
+  }
+
+  .landing-hero-art {
+    width: 100%;
+    max-width: 38rem;
+    margin-inline: auto;
+    padding-bottom: 0;
+  }
+
+  .landing-hero-tv {
+    position: static;
+    width: 70%;
+    margin-top: 0.75rem;
+    margin-inline-start: auto;
+  }
+}
+
+@media (max-width: 48rem) {
+  .landing-h1 {
+    max-width: 12ch;
+  }
+
+  .landing-hero-top {
+    padding-top: 2.25rem;
+    padding-bottom: 3.5rem;
+  }
+
+  .landing-hero-tv {
+    width: 82%;
+  }
+}
+
+/* Ячейки-таблица: gap 1px на фоне линии даёт hairline без скруглений. */
+.landing-cells {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  border-block: 1px solid var(--border);
+  background: var(--border);
+  list-style: none;
+}
+
+.landing-cells > * {
+  min-width: 0;
+  background: var(--bg);
+}
+
+.landing-cells--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.landing-cells--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.landing-cells--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.landing-features,
+.landing-faq {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.landing-plans {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.landing-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  min-width: 0;
+  padding: var(--pad);
+}
+
+.landing-cell-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+@media (max-width: 64rem) {
+  .landing-cells--4,
+  .landing-features,
+  .landing-faq {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .landing-plans {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 48rem) {
+  .landing-cells--2,
+  .landing-cells--3,
+  .landing-cells--4,
+  .landing-features,
+  .landing-faq,
+  .landing-plans {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Marquee */
+.landing-marquee {
+  position: relative;
+  overflow: hidden;
+  border-block: 1px solid var(--border);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.landing-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: landing-marquee 42s linear infinite;
+}
+
+.landing-marquee:hover .landing-marquee-track {
+  animation-play-state: paused;
+}
+
+.landing-marquee-run {
+  display: flex;
+}
+
+.landing-marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.landing-marquee-item i {
+  width: 6px;
+  height: 6px;
+  background: var(--primary);
+}
+
+@keyframes landing-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Split «текст — прибор» */
+.landing-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(2rem, 6vw, 5rem);
+  padding: var(--rhythm) var(--pad);
+}
+
+.landing-split-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+
+/* В двухколоночной сцене заголовок на ступень ниже: иначе первая строка
+   ломается посреди фразы и акцент начинается с предлога. */
+.landing-split .landing-h2 {
+  font-size: clamp(1.7rem, 1.25rem + 1.35vw, 2.4rem);
+}
+
+.landing-fact-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border-top: 1px solid var(--border);
+}
+
+.landing-fact {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 0;
+}
+
+@media (max-width: 48rem) {
+  .landing-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Сцена плеера */
+.landing-stage {
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+  padding: var(--rhythm) var(--pad);
+}
+
+.landing-stage-art {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.landing-stage > :not(.landing-stage-art) {
+  position: relative;
+  z-index: 1;
+}
+
+.landing-player-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 4.5rem);
+}
+
+.landing-player-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+  padding-top: 1rem;
+}
+
+.landing-player-screen {
+  width: 100%;
+}
+
+.landing-pair-window {
+  position: relative;
+  z-index: 2;
+  width: 54%;
+  margin-top: -1.75rem;
+  margin-inline-end: 2rem;
+}
+
+@media (max-width: 48rem) {
+  .landing-player-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .landing-player-visual {
+    padding-top: 0;
+  }
+
+  .landing-pair-window {
+    width: 78%;
+    margin-top: 0.75rem;
+    margin-inline-end: 0;
+  }
+}
+
+/* Тарифы */
+.landing-plan {
+  gap: 1rem;
+}
+
+.landing-plan-price {
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.5rem, 1.1rem + 1.2vw, 1.875rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.landing-plan-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.landing-plan-row span:last-child {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.landing-plan-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  padding: 0.875rem var(--pad);
+}
+
+/* Финал */
+.landing-finale {
+  margin-top: clamp(3rem, 8vw, 6rem);
+  container-type: inline-size;
+}
+
+.landing-cta-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: clamp(4.5rem, 9vw, 7rem);
+  background: var(--primary);
+  color: var(--primary-text);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  letter-spacing: var(--label-tracking);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: background-color 120ms linear;
+}
+
+.landing-cta-bar:hover {
+  background: var(--primary-hover);
+}
+
+.landing-giant {
+  margin: 0;
+  padding: 7cqi 0 5cqi;
+  color: var(--primary);
+  font-size: 25.5cqi;
+  font-weight: 500;
+  line-height: 0.8;
+  letter-spacing: -0.055em;
+  text-align: center;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Footer */
+.landing-footer {
+  border-top: 1px solid var(--border);
+}
+
+.landing-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 2rem;
+  min-height: 4rem;
+  padding: 0.75rem var(--pad);
+}
+
+.landing-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.landing-footer a {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--label-tracking);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 120ms linear;
+}
+
+.landing-footer a:hover {
+  color: var(--text);
+}
+
+@media (max-width: 48rem) {
+  .landing-footer-inner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 /*
  * Уважаем системную настройку: если пользователь просил меньше анимации,
  * сокращения и переходы не нужны.
