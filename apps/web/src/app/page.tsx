@@ -5,20 +5,27 @@ import { Lockup } from '@/components/visual/lockup'
 import { Mark } from '@/components/visual/mark'
 import { PixelIcon } from '@/components/visual/pixel-icon'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { ChainMock } from '@/components/landing/chain-mock'
 import { LandingCta } from '@/components/landing/cta'
 import { DashboardMock } from '@/components/landing/dashboard-mock'
 import { DeliveryMock } from '@/components/landing/delivery-mock'
+import { NetworkStats } from '@/components/landing/network-stats'
 import { PairWindow } from '@/components/landing/pair-window'
 import { PlayerMock } from '@/components/landing/player-mock'
+import { StreetScreen } from '@/components/landing/street-screen'
+import { SyncWall } from '@/components/landing/sync-wall'
 import {
   DELIVERY_FACTS,
   FAQ,
   FEATURES,
   MARQUEE,
+  MECHANISMS,
   NAV_LINKS,
   PLANS,
   PLAYER_FACTS,
+  SCENARIOS,
   STEPS,
+  SYNC_FACTS,
 } from '@/components/landing/content'
 
 export const metadata: Metadata = {
@@ -56,7 +63,8 @@ function Marquee() {
     >
       <p className="sr-only">
         Публикация, расписание, кампании, подтверждение доставки, мониторинг,
-        медиатека, филиалы, роли, журнал действий и плеер.
+        медиатека, филиалы, роли, журнал действий, плеер, синхронизация,
+        работа без флешек и старый телевизор с браузерной приставкой.
       </p>
       <div className="landing-marquee-track">
         {run('first')}
@@ -251,8 +259,60 @@ export default function HomePage() {
           </ol>
         </section>
 
+        <section id="sync" aria-labelledby="sync-title">
+          <SectionHead num="02" meta="4 экрана · 1 версия">
+            Без флешек
+          </SectionHead>
+
+          <div className="landing-sync">
+            <div className="landing-sync-copy">
+              <p className="landing-kicker">2026 · сеть вместо флешки</p>
+
+              <h2 id="sync-title" className="landing-h2">
+                Эра флешек закончилась. <em>Экраны обновляются вместе.</em>
+              </h2>
+
+              <p className="landing-lede">
+                Подключите четыре экрана — и обновляйте их одной публикацией.
+                В панели видно, кто уже принял новую версию, а кто ещё на связи.
+                Не нужно обходить зал с флешкой и проверять каждый телевизор вручную.
+              </p>
+
+              <FactList items={SYNC_FACTS} />
+
+              <Link
+                href="/pair"
+                className="inline-flex items-center gap-2 font-mono text-[9px] tracking-[0.08em] text-text uppercase transition-colors hover:text-primary"
+              >
+                Подключить экран <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+
+            <SyncWall />
+          </div>
+        </section>
+
+        <section id="chain" aria-labelledby="chain-title">
+          <SectionHead num="03" meta="Команда">
+            Цепочка
+          </SectionHead>
+
+          <div className="landing-intro">
+            <h2 id="chain-title" className="landing-h2">
+              От монтажёра до экрана. <em>Без лишних слоёв.</em>
+            </h2>
+            <p className="landing-lede">
+              Медиатека, кампания, расписание и доставка живут в одной панели.
+              Менеджеру не нужно собирать файлы из чатов, записывать флешки
+              и обзванивать точки.
+            </p>
+          </div>
+
+          <ChainMock />
+        </section>
+
         <section id="product" aria-labelledby="product-title">
-          <SectionHead num="02" meta="Панель">
+          <SectionHead num="04" meta="Панель">
             В одной панели
           </SectionHead>
 
@@ -287,7 +347,7 @@ export default function HomePage() {
         </section>
 
         <section id="delivery" aria-labelledby="delivery-title">
-          <SectionHead num="03" meta="Журнал">
+          <SectionHead num="05" meta="Журнал">
             Подтверждение
           </SectionHead>
 
@@ -318,7 +378,7 @@ export default function HomePage() {
         </section>
 
         <section id="player" aria-labelledby="player-title">
-          <SectionHead num="04" meta="Браузер">
+          <SectionHead num="06" meta="Браузер">
             Плеер
           </SectionHead>
 
@@ -364,8 +424,167 @@ export default function HomePage() {
           </div>
         </section>
 
+        <section id="mechanisms" aria-labelledby="mechanisms-title">
+          <SectionHead num="07" meta="Платформа">
+            Уже решено
+          </SectionHead>
+
+          <div className="landing-intro">
+            <h2 id="mechanisms-title" className="landing-h2">
+              Синхронизация, хранение и плеер. <em>Уже внутри.</em>
+            </h2>
+            <p className="landing-lede">
+              Вам не нужно собирать стек из сервисов, писать интеграции и нанимать
+              отдел разработки. Основа уже работает — остаётся подключить экраны
+              и загрузить контент.
+            </p>
+          </div>
+
+          <ul className="landing-cells landing-mechanisms">
+            {MECHANISMS.map((item, index) => (
+              <li key={item.title} className="landing-cell landing-mechanism">
+                <div className="landing-cell-top">
+                  <span className="section-title">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <PixelIcon name={item.icon} size={22} className="text-primary" />
+                </div>
+
+                <h3 className="text-[14px] leading-snug font-medium tracking-[-0.02em] text-text">
+                  {item.title}
+                </h3>
+
+                <p className="text-[12.5px] leading-relaxed text-text-muted">{item.text}</p>
+
+                <p className="landing-mechanism-foot">{item.foot}</p>
+              </li>
+            ))}
+          </ul>
+
+          <div className="landing-street">
+            <StreetScreen />
+
+            <div className="landing-street-copy">
+              <p className="landing-kicker">Старый ТВ → уличный экран</p>
+
+              <h3 className="landing-street-title">
+                Витрина, которую не надо обходить с флешкой.
+              </h3>
+
+              <p className="landing-lede">
+                Если у телевизора есть HDMI, а у приставки — браузер, экран открывает
+                плеер SHAWTY. Подойдёт для витрины, зала или уличного экрана, если
+                корпус и яркость рассчитаны на улицу.
+              </p>
+
+              <ul className="landing-street-list">
+                <li>
+                  <span>01</span>
+                  <p>
+                    <strong>Телевизор с HDMI</strong>
+                    <small>Подойдёт старый экран, который уже висит в зале.</small>
+                  </p>
+                </li>
+                <li>
+                  <span>02</span>
+                  <p>
+                    <strong>Приставка с браузером</strong>
+                    <small>Например, Xiaomi или другая модель с рабочим браузером.</small>
+                  </p>
+                </li>
+                <li>
+                  <span>03</span>
+                  <p>
+                    <strong>Стабильный интернет</strong>
+                    <small>
+                      Для тяжёлого контента рекомендуем от 100 Мбит/с — без гарантии
+                      скорости канала.
+                    </small>
+                  </p>
+                </li>
+              </ul>
+
+              <p className="landing-street-note">
+                Без установки приложения: плеер открывается по ссылке в браузере
+                приставки. Совместимость зависит от модели и браузера.
+              </p>
+
+              <Link
+                href="/pair"
+                className="inline-flex items-center gap-2 font-mono text-[9px] tracking-[0.08em] text-text uppercase transition-colors hover:text-primary"
+              >
+                Подключить старый ТВ <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section id="scenarios" aria-labelledby="scenarios-title">
+          <SectionHead num="08" meta="Примеры">
+            Задачи
+          </SectionHead>
+
+          <div className="landing-intro">
+            <h2 id="scenarios-title" className="landing-h2">
+              Задачи, под которые <em>уже всё есть.</em>
+            </h2>
+            <p className="landing-lede">
+              Сценарии собраны из готовых возможностей платформы: без названий
+              клиентов и вымышленных метрик.
+            </p>
+          </div>
+
+          <div className="landing-cells landing-scenarios">
+            {SCENARIOS.map((scenario, index) => (
+              <article key={scenario.title} className="landing-cell landing-scenario">
+                <div className="landing-cell-top">
+                  <span className="section-title">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <PixelIcon name={scenario.icon} size={22} className="text-primary" />
+                </div>
+
+                <span className="landing-scenario-tag">{scenario.tag}</span>
+
+                <h3 className="text-[14px] leading-snug font-medium tracking-[-0.02em] text-text">
+                  {scenario.title}
+                </h3>
+
+                <p className="text-[12.5px] leading-relaxed text-text-muted">
+                  {scenario.text}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="network" aria-labelledby="network-title">
+          <SectionHead num="09" meta="Live">
+            Сеть
+          </SectionHead>
+
+          <div className="landing-intro">
+            <h2 id="network-title" className="landing-h2">
+              Сколько экранов работает. <em>Прямо сейчас.</em>
+            </h2>
+            <p className="landing-lede">
+              Считаем устройства на обслуживании, экраны на связи и суммарный канал
+              по данным heartbeat. Если данных нет, остаётся «—», а не
+              демонстрационное число.
+            </p>
+          </div>
+
+          <div className="landing-network">
+            <NetworkStats />
+            <p className="landing-network-note">
+              Публичные агрегаты: без названий компаний, экранов и сотрудников.
+              Обновление — раз в 30 секунд.
+            </p>
+          </div>
+        </section>
+
         <section id="pricing" aria-labelledby="pricing-title">
-          <SectionHead num="05" meta="UZS">
+          <SectionHead num="10" meta="UZS">
             Тарифы
           </SectionHead>
 
@@ -442,7 +661,7 @@ export default function HomePage() {
         </section>
 
         <section id="faq" aria-labelledby="faq-title">
-          <SectionHead num="06" meta="FAQ">
+          <SectionHead num="11" meta="FAQ">
             Вопросы
           </SectionHead>
 
