@@ -1,12 +1,14 @@
 import Link from 'next/link'
 import { ArrowRight, CalendarClock, Megaphone, MonitorSmartphone, RefreshCw, Send, Wifi, WifiOff } from 'lucide-react'
 import { requireSession } from '@/server/auth/require-session'
+import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
 import { apiGet } from '@/server/api'
 import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card'
 import { Notice, StatusBadge } from '@/components/ui/status-badge'
 import { MetricTile, UsageBar } from '@/components/ui/metric'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/page-header'
+import { PlanOnboardingModal, type PlanOption } from './PlanOnboardingModal'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,11 +51,22 @@ export default async function DashboardPage() {
   if (!membership) return null
 
   const companyId = membership.companyId
+  const access = createAccess(membership.role, membership.scopes)
+  // Тариф — решение владельца. Остальным ролям не нужно ни модальное окно,
+  // ни лишний запрос к биллингу: у редактора на него нет права.
+  const canManagePlan = access.can(PERMISSIONS.billingWrite)
 
-  const [screensData, structure, subscription] = await Promise.all([
+  const [screensData, structure, subscription, billing] = await Promise.all([
     apiGet<{ screens: any[]; summary: any }>('/api/dashboard/screens', companyId),
     apiGet<{ branches: any[] }>('/api/dashboard/structure', companyId),
     apiGet<any>('/api/dashboard/subscription', companyId),
+    canManagePlan
+      ? apiGet<{
+          subscription: { plan: { id: string } | null }
+          plans: PlanOption[]
+          onboardingCompleted: boolean
+        }>('/api/dashboard/billing', companyId)
+      : Promise.resolve(null),
   ])
 
   const screens = screensData.screens
@@ -65,6 +78,15 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-7">
+      {billing && !billing.onboardingCompleted ? (
+        <PlanOnboardingModal
+          companyId={companyId}
+          companyName={membership.companyName}
+          plans={billing.plans}
+          currentPlanId={billing.subscription.plan?.id ?? null}
+        />
+      ) : null}
+
       <PageHeader
         title="Обзор сети"
         description={`${membership.companyName} · ${branches.length} ${plural(branches.length, 'филиал', 'филиала', 'филиалов')} · ${summary.total} ${plural(summary.total, 'экран', 'экрана', 'экранов')}`}

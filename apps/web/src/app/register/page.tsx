@@ -12,11 +12,16 @@ export default async function RegisterPage({
   searchParams: Promise<{ token?: string }>
 }) {
   const { token } = await searchParams
+  const invited = Boolean(token)
 
   return (
     <AuthShell
-      title="Создание учётной записи"
-      description="Заполните данные — после этого вы сможете войти в панель."
+      title={invited ? 'Создание учётной записи' : 'Создание сети'}
+      description={
+        invited
+          ? 'Заполните данные — и сразу попадёте в компанию, которая вас пригласила.'
+          : 'Назовите сеть и создайте владельца — панель откроется сразу, а тариф выберете на первом входе.'
+      }
     >
       <RegisterForm token={token ?? ''} />
     </AuthShell>

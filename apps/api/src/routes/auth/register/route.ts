@@ -6,6 +6,7 @@ import { auditLog, invitations, memberships, users } from '@/db/schema'
 import { hashPassword } from '@/lib/crypto'
 import { route, clientIp, clientUserAgent, readJsonBody, jsonResponse } from '@/server/http/request'
 import { createSession } from '@/server/services/auth-service'
+import { createCompanyInTx } from '@/server/services/company-service'
 import { setAuthCookies } from '@/server/http/cookies'
 import { enforceRateLimit, ipKey } from '@/server/http/rate-limit'
 import { HttpError } from '@/server/http/errors'
@@ -23,6 +24,13 @@ const registerSchema = z.object({
   email: z.string().min(3).max(320),
   password: z.string().min(MIN_PASSWORD, 'Пароль должен быть не короче 8 символов').max(200),
   name: z.string().min(1).max(120),
+  /**
+   * Название сети.
+   *
+   * Нужно только при самостоятельной регистрации: приглашённый попадает в уже
+   * существующую компанию, и его название здесь ни при чём.
+   */
+  companyName: z.string().max(120).optional(),
   /**
    * Токен приглашения.
    *
@@ -57,6 +65,14 @@ export const POST = route(async (request) => {
   }
 
   const email = body.data.email.trim().toLowerCase()
+  const companyName = body.data.companyName?.trim() ?? ''
+
+  // Без приглашения компанию создаёт сама регистрация. Без названия сети
+  // аккаунт остался бы без компании — то есть с сессией, из которой некуда
+  // попасть: панель требует компанию, а создать её в интерфейсе негде.
+  if (!body.data.token && companyName.length < 2) {
+    throw HttpError.badRequest('invalid_input', 'Укажите название компании')
+  }
 
   // Приглашение проверяется до создания аккаунта: иначе человек заведёт
   // учётную запись, узнав, что приглашение было просрочено, и не сможет войти
@@ -101,7 +117,7 @@ export const POST = route(async (request) => {
 
   const userId = crypto.randomUUID()
 
-  withImmediateTransaction((tx) => {
+  const createdCompany = withImmediateTransaction((tx) => {
     tx.insert(users)
       .values({
         id: userId,
@@ -147,7 +163,13 @@ export const POST = route(async (request) => {
           at: new Date(),
         })
         .run()
+
+      return null
     }
+
+    // Самостоятельная регистрация: сеть и владелец появляются одной
+    // транзакцией с пользователем. Иначе аккаунт существует, а компании нет.
+    return createCompanyInTx(tx, { userId, name: companyName })
   })
 
   // Сессия создаётся сразу: после регистрации человек не должен искать,
@@ -163,7 +185,7 @@ export const POST = route(async (request) => {
     {
       ok: true,
       user: session.user,
-      companyId: invitation?.companyId ?? null,
+      companyId: createdCompany?.companyId ?? invitation?.companyId ?? null,
     },
     { status: 201 },
   )

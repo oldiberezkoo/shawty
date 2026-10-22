@@ -19,6 +19,7 @@ import {
   users,
 } from '../src/db/schema'
 import { hashPassword } from '../src/lib/crypto'
+import { DEFAULT_PLANS } from '../src/domain/billing/plans'
 
 const DEMO_EMAIL = 'owner@shawty.uz'
 const DEMO_PASSWORD = 'demo1234'
@@ -38,38 +39,12 @@ function upsertById(
 }
 
 sqlite.transaction(() => {
-  upsertById(plans, 'plan-starter', {
-    name: 'Start',
-    screensLimit: 5,
-    branchesLimit: 2,
-    storageBytesLimit: 5 * 1024 ** 3,
-    seatsLimit: 3,
-    eventRetentionDays: 14,
-    monthlyPriceCents: 0,
-    currency: 'UZS',
-  })
-
-  upsertById(plans, 'plan-growth', {
-    name: 'Growth',
-    screensLimit: 80,
-    branchesLimit: 25,
-    storageBytesLimit: 100 * 1024 ** 3,
-    seatsLimit: 10,
-    eventRetentionDays: 60,
-    monthlyPriceCents: 450_000,
-    currency: 'UZS',
-  })
-
-  upsertById(plans, 'plan-pro', {
-    name: 'Pro',
-    screensLimit: 500,
-    branchesLimit: 200,
-    storageBytesLimit: 1024 * 1024 ** 3,
-    seatsLimit: 50,
-    eventRetentionDays: 180,
-    monthlyPriceCents: 1_800_000,
-    currency: 'UZS',
-  })
+  // Набор тарифов общий с регистрацией: демо и новая сеть не должны видеть
+  // разные лимиты одного и того же плана.
+  for (const plan of DEFAULT_PLANS) {
+    const { id, ...values } = plan
+    upsertById(plans, id, values)
+  }
 
   const existingUser = db.select().from(users).where(eq(users.email, DEMO_EMAIL)).get()
 
@@ -97,6 +72,9 @@ sqlite.transaction(() => {
       timezone: 'Asia/Tashkent',
       locale: 'ru',
       status: 'active',
+      // Демо-сеть уже настроена: модалка первого входа нужна новым сетям,
+      // а не аккаунту, который открывают, чтобы посмотреть панель.
+      onboardingCompletedAt: new Date(),
     })
     .onConflictDoNothing()
     .run()

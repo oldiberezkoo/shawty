@@ -191,15 +191,15 @@ function LoginForm() {
             </form>
           </Window>
 
-          {/* Ссылка на регистрацию есть не всегда: обычно сотрудника зовут по
-              приглашению, и тогда он приходит по своей ссылке. */}
+          {/* Регистрация открыта не только по приглашению: владелец может
+              создать сеть сам, и ссылка должна называть это действие. */}
           <p className="mt-5 text-center text-[12.5px] text-text-muted">
-            Получили приглашение?{' '}
+            Нужна своя сеть?{' '}
             <Link
               href="/register"
               className="font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary-hover hover:decoration-primary-hover"
             >
-              Создать учётную запись
+              Создать сеть
             </Link>
           </p>
         </div>

@@ -21,7 +21,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const session = await requireSession()
 
   if (session.companies.length === 0) {
-    redirect('/login?error=no_company')
+    // Сессия валидна, но компании нет — это не повод отправлять на вход:
+    // пароль верный, а создать сеть в интерфейсе входа негде. Онбординг
+    // доводит аккаунт до рабочего состояния.
+    redirect('/onboarding')
   }
 
   const membership = session.companies[0]

@@ -3,6 +3,7 @@ import { route, jsonResponse, readJsonBody } from '@/server/http/request'
 import { PERMISSIONS } from '@/domain/authz/permissions'
 import { requireDashboardMutation, requireDashboardRequest, requirePermission } from '@/server/http/dashboard-request'
 import { changePlan, getSubscription, listPlans } from '@/server/services/billing-service'
+import { isOnboardingCompleted } from '@/server/services/company-service'
 import { HttpError } from '@/server/http/errors'
 
 /**
@@ -29,6 +30,8 @@ export const GET = route(async (request: Request) => {
     usage: subscription.usage,
     plans: listPlans(),
     canChangePlan: access.can(PERMISSIONS.billingWrite),
+    /** Первый вход: тариф ещё не выбран, панель показывает модалку. */
+    onboardingCompleted: isOnboardingCompleted(companyId),
   })
 })
 

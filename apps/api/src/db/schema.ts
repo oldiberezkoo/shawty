@@ -66,6 +66,14 @@ export const companies = sqliteTable(
     timezone: text('timezone').notNull().default('Asia/Tashkent'),
     locale: text('locale').notNull().default('ru'),
     status: text('status', { enum: ['active', 'suspended'] }).notNull().default('active'),
+    /**
+     * Когда владелец выбрал тариф на первом входе.
+     *
+     * `null` — сеть только что создана, и панель обязана показать выбор
+     * тарифа. Отдельный флаг нужен вместо «подписки нет»: подписка на Start
+     * создаётся сразу, иначе панель открывается с ошибкой «тариф не настроен».
+     */
+    onboardingCompletedAt: integer('onboarding_completed_at', { mode: 'timestamp_ms' }),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('companies_slug_idx').on(t.slug)],

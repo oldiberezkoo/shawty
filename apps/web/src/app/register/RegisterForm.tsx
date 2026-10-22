@@ -23,6 +23,7 @@ function readCsrf(): string {
 export function RegisterForm({ token }: { token: string }) {
   const router = useRouter()
   const [name, setName] = useState('')
+  const [companyName, setCompanyName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -38,7 +39,13 @@ export function RegisterForm({ token }: { token: string }) {
         const response = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-csrf-token': readCsrf() },
-          body: JSON.stringify({ name, email, password, token: token || undefined }),
+          body: JSON.stringify({
+            name,
+            email,
+            password,
+            companyName: token ? undefined : companyName,
+            token: token || undefined,
+          }),
         })
 
         if (!response.ok) {
@@ -61,6 +68,22 @@ export function RegisterForm({ token }: { token: string }) {
       <form onSubmit={submit} className="flex flex-col gap-4">
         {error ? <FormError>{error}</FormError> : null}
 
+        {/* Приглашённый попадает в готовую сеть: спрашивать её название
+            бессмысленно и опасно — человек решил бы, что заводит вторую. */}
+        {token ? null : (
+          <FormField
+            label="Название сети"
+            name="companyName"
+            value={companyName}
+            onValueChange={setCompanyName}
+            placeholder="Например, Coffee House"
+            required
+            autoComplete="organization"
+            autoFocus
+            description="Так сеть будет называться в панели."
+          />
+        )}
+
         <FormField
           label="Имя"
           name="name"
@@ -69,7 +92,7 @@ export function RegisterForm({ token }: { token: string }) {
           placeholder="Как к вам обращаться"
           required
           autoComplete="name"
-          autoFocus
+          autoFocus={Boolean(token)}
         />
 
         <FormField
@@ -101,10 +124,10 @@ export function RegisterForm({ token }: { token: string }) {
           type="submit"
           variant="primary"
           size="lg"
-          disabled={busy || !name || !email || !password}
+          disabled={busy || !name || !email || !password || (!token && companyName.trim().length < 2)}
           className="mt-1 w-full"
         >
-          Создать учётную запись
+          {token ? 'Создать учётную запись' : 'Создать сеть'}
         </Button>
 
         <p className="text-center text-[12.5px] text-text-muted">
