@@ -29,7 +29,10 @@ export type PlaylistVersionView = {
   versions: { id: string; version: number }[]
 }
 
-export type ScopeOption = { id: string; name: string }
+export type { ScopeOption } from '@/shared/lib/scope-label'
+
+/** Пункт селекта плейлиста: идентификатор версии и готовая подпись. */
+export type VersionSelectOption = { id: string; label: string }
 
 /** Живые числа доставки, которые доска получает опросом. */
 export type DeliverySnapshot = {

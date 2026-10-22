@@ -32,7 +32,7 @@ export type CampaignView = {
   withinDates: boolean
 }
 
-export type ScopeOption = { id: string; name: string }
+export type { ScopeOption } from '@/shared/lib/scope-label'
 export type PlaylistVersionOption = { id: string; label: string }
 
 /** Площадка, которую можно выбрать в форме: «вся компания» задаётся отдельным флагом. */

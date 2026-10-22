@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/modal'
 import { FormError } from '@/components/ui/form'
 import { Badge, Notice } from '@/components/ui/status-badge'
 import { UsageBar, SettingRow } from '@/components/ui/metric'
-import { readCsrfToken } from '@/shared/lib/csrf'
+import { dashboardRequest } from '@/shared/api/dashboard-client'
 import { plural } from '@/shared/lib/plural'
 
 export type UsageLine = {
@@ -96,28 +96,22 @@ export function BillingBoard({
       setError(null)
       setBusy(true)
 
-      try {
-        const response = await fetch('/api/dashboard/billing', {
-          method: 'PATCH',
-          headers: {
-            'content-type': 'application/json',
-            'x-company-id': companyId,
-            'x-csrf-token': readCsrfToken(),
-          },
-          body: JSON.stringify({ planId }),
-        })
+      const result = await dashboardRequest(
+        '/api/dashboard/billing',
+        { method: 'PATCH', body: JSON.stringify({ planId }) },
+        companyId,
+        'Не удалось сменить тариф',
+      )
 
-        if (!response.ok) {
-          const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null
-          setError(payload?.error?.message ?? 'Не удалось сменить тариф')
-          return
-        }
+      setBusy(false)
 
-        setConfirming(null)
-        router.refresh()
-      } finally {
-        setBusy(false)
+      if (!result.ok) {
+        setError(result.message)
+        return
       }
+
+      setConfirming(null)
+      router.refresh()
     },
     [companyId, router],
   )

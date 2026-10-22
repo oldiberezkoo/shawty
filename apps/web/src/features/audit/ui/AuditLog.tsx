@@ -4,29 +4,9 @@ import { Notice } from '@/components/ui/status-badge'
 import { useCallback, useEffect, useState } from 'react'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { readCsrfToken } from '@/shared/lib/csrf'
-
-type AuditRow = {
-  id: string
-  action: string
-  actionLabel: string
-  targetType: string | null
-  targetId: string | null
-  meta: Record<string, unknown> | null
-  ip: string | null
-  at: string
-  actorName: string | null
-}
-
-type ActorRow = { actorUserId: string | null; actorName: string | null; actions: number; lastActionAt: string }
-type Group = { label: string; prefix: string }
-type AuditResponse = {
-  rows: AuditRow[]
-  total: number
-  actors: { actorUserId: string | null; actorName: string | null }[]
-  byActor: ActorRow[]
-  groups: Group[]
-}
+import { downloadAudit, fetchAudit } from '../api'
+import { describeAuditRow, formatAuditTime } from '../format'
+import type { AuditResponse } from '../model'
 
 const PERIODS = [
   { label: 'Сутки', days: 1 },
@@ -34,44 +14,6 @@ const PERIODS = [
   { label: 'Месяц', days: 30 },
   { label: 'Всё время', days: 3650 },
 ]
-
-/**
- * Как выглядит действие в журнале.
- *
- * Подпись собирается из метаданных, а не из сырого идентификатора: «Экран
- * отвязан» без имени экрана бесполезны для того, кто разбирает инцидент.
- */
-function describe(row: AuditRow): string {
-  const meta = row.meta ?? {}
-  const name = typeof meta.name === 'string' ? meta.name : null
-
-  if (row.action === 'release.published' && typeof meta.version === 'number') {
-    return `версия ${meta.version} для ${meta.screens ?? '?'} экранов`
-  }
-
-  if (row.action.startsWith('campaign.') && typeof meta.from === 'string') {
-    return `${meta.from} → ${meta.to}`
-  }
-
-  if (row.action.startsWith('campaign.') && typeof meta.status === 'string') {
-    return `состояние: ${meta.status}`
-  }
-
-  if (row.action === 'assignment.changed') {
-    return `${row.targetType} · ${String(meta.screens ?? '?')} экранов`
-  }
-
-  return name ?? row.targetId ?? '—'
-}
-
-function formatTime(value: string): string {
-  return new Date(value).toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
 
 /**
  * Журнал действий сотрудников.
@@ -94,36 +36,19 @@ export function AuditLog({ companyId }: { companyId: string }) {
       setError(null)
       setBusy(true)
 
-      try {
-        const to = new Date()
-        const from = new Date(to.getTime() - periodDays * 24 * 60 * 60_000)
+      const to = new Date()
+      const from = new Date(to.getTime() - periodDays * 24 * 60 * 60_000)
 
-        const params = new URLSearchParams({
-          from: from.toISOString(),
-          to: to.toISOString(),
-          limit: '200',
-        })
+      const result = await fetchAudit(companyId, { from, to, group: groupPrefix, actorUserId: actor })
 
-        if (groupPrefix) params.set('group', groupPrefix)
-        if (actor) params.set('actorUserId', actor)
+      setBusy(false)
 
-        const response = await fetch(`/api/dashboard/audit?${params.toString()}`, {
-          headers: { 'x-company-id': companyId },
-          cache: 'no-store',
-        })
-
-        if (!response.ok) {
-          const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null
-          setError(payload?.error?.message ?? 'Не удалось загрузить журнал')
-          return
-        }
-
-        setData((await response.json()) as AuditResponse)
-      } catch {
-        setError('Журнал недоступен')
-      } finally {
-        setBusy(false)
+      if (!result.ok) {
+        setError(result.message)
+        return
       }
+
+      setData(result.data)
     },
     [companyId],
   )
@@ -148,18 +73,14 @@ export function AuditLog({ companyId }: { companyId: string }) {
     const to = new Date()
     const from = new Date(to.getTime() - days * 24 * 60 * 60_000)
 
-    const response = await fetch('/api/dashboard/audit', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-company-id': companyId, 'x-csrf-token': readCsrfToken() },
-      body: JSON.stringify({ from: from.toISOString(), to: to.toISOString(), group: group || null }),
-    })
+    const result = await downloadAudit(companyId, { from, to, group })
 
-    if (!response.ok) {
-      setError('Не удалось выгрузить журнал')
+    if (!result.ok) {
+      setError(result.message)
       return
     }
 
-    const payload = (await response.json()) as { csv: string; rows: number; truncated: boolean }
+    const payload = result.data
 
     // BOM добавляется здесь: без него Excel открывает кириллицу в cp1251.
     const blob = new Blob([`﻿${payload.csv}`], { type: 'text/csv;charset=utf-8' })
@@ -244,7 +165,7 @@ export function AuditLog({ companyId }: { companyId: string }) {
                   <span className="text-text">{actor.actorName}</span>
                   <span className="tnum text-text-muted">
                     {actor.actions} {actor.actions === 1 ? 'действие' : 'действий'} ·{' '}
-                    {formatTime(actor.lastActionAt)}
+                    {formatAuditTime(actor.lastActionAt)}
                   </span>
                 </div>
               ))}
@@ -270,10 +191,10 @@ export function AuditLog({ companyId }: { companyId: string }) {
               <tbody>
                 {(data?.rows ?? []).map((row) => (
                   <tr key={row.id} className="border-b border-border last:border-0">
-                    <td data-primary className="py-2 text-text-subtle">{formatTime(row.at)}</td>
+                    <td data-primary className="py-2 text-text-subtle">{formatAuditTime(row.at)}</td>
                     <td data-label="Кто" className="py-2">{row.actorName ?? 'Система'}</td>
                     <td data-label="Действие" className="py-2 font-medium">{row.actionLabel}</td>
-                    <td data-label="Подробности" className="py-2 text-text-muted">{describe(row)}</td>
+                    <td data-label="Подробности" className="py-2 text-text-muted">{describeAuditRow(row)}</td>
                   </tr>
                 ))}
               </tbody>

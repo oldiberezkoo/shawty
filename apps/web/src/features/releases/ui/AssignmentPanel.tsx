@@ -4,11 +4,11 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { scopeName } from '../format'
-import type { AssignmentView, ScopeOption } from '../model'
+import type { AssignmentView, ScopeOption, VersionSelectOption } from '../model'
 
 /** Назначение плейлиста области и публикация на сеть. */
 export function AssignmentPanel(props: {
-  versionOptions: { id: string; label: string }[]
+  versionOptions: VersionSelectOption[]
   assignments: AssignmentView[]
   branches: ScopeOption[]
   groups: ScopeOption[]

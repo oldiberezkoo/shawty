@@ -9,7 +9,9 @@ import { Card, EmptyState } from '@/components/ui/card'
 import { Notice } from '@/components/ui/status-badge'
 import { Button } from '@/components/ui/button'
 import { ScreensBoard } from '@/features/screens/ui/ScreensBoard'
+import type { ScreenRow } from '@/features/screens/model'
 import { plural } from '@/shared/lib/plural'
+import type { PlaylistVersionChoice } from '@/shared/lib/playlist-version'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,10 +31,10 @@ export default async function ScreensPage() {
   if (!membership) return null
 
   const access = createAccess(membership.role, membership.scopes)
-  const { screens, versions } = await apiGet<{ screens: any[]; versions: any[] }>(
-    '/api/dashboard/screens',
-    membership.companyId,
-  )
+  const { screens, versions } = await apiGet<{
+    screens: ScreenRow[]
+    versions: PlaylistVersionChoice[]
+  }>('/api/dashboard/screens', membership.companyId)
 
   if (screens.length === 0) {
     return (
@@ -93,28 +95,8 @@ export default async function ScreensPage() {
         companyId={membership.companyId}
         canAssign={access.can(PERMISSIONS.releasesPublish)}
         canPublish={access.can(PERMISSIONS.releasesPublish)}
-        versions={versions.map((version) => ({
-          id: version.id,
-          playlistName: version.playlistName,
-          version: version.version,
-          itemCount: version.itemCount,
-          totalDurationMs: version.totalDurationMs,
-          isCurrent: version.isCurrent,
-        }))}
-        screens={screens.map((screen) => ({
-          id: screen.id,
-          name: screen.name,
-          onlineState: screen.onlineState,
-          branchId: screen.branchId,
-          branchName: screen.branchName,
-          groupId: screen.groupId,
-          groupName: screen.groupName,
-          deviceId: screen.deviceId,
-          lastSeenSecondsAgo: screen.lastSeenSecondsAgo,
-          playerVersion: screen.playerVersion,
-          desiredVersion: screen.desiredVersion,
-          appliedVersion: screen.appliedVersion,
-        }))}
+        versions={versions}
+        screens={screens}
       />
     </div>
   )

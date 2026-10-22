@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { FormError } from '@/components/ui/form'
 import { Modal } from '@/components/ui/modal'
 import { Badge } from '@/components/ui/status-badge'
-import { readCsrfToken } from '@/shared/lib/csrf'
+import { dashboardRequest } from '@/shared/api/dashboard-client'
 import { plural } from '@/shared/lib/plural'
 
 export type PlanOption = {
@@ -80,30 +80,22 @@ export function PlanOnboardingModal({
     setError(null)
     setBusy(true)
 
-    try {
-      const response = await fetch('/api/dashboard/onboarding', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-company-id': companyId,
-          'x-csrf-token': readCsrfToken(),
-        },
-        body: JSON.stringify({ planId: selected.id }),
-      })
+    const result = await dashboardRequest(
+      '/api/dashboard/onboarding',
+      { method: 'POST', body: JSON.stringify({ planId: selected.id }) },
+      companyId,
+      'Не удалось выбрать тариф',
+    )
 
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null
-        setError(payload?.error?.message ?? 'Не удалось выбрать тариф')
-        return
-      }
+    setBusy(false)
 
-      setOpen(false)
-      router.refresh()
-    } catch {
-      setError('Сервер недоступен. Проверьте соединение.')
-    } finally {
-      setBusy(false)
+    if (!result.ok) {
+      setError(result.status === 0 ? 'Сервер недоступен. Проверьте соединение.' : result.message)
+      return
     }
+
+    setOpen(false)
+    router.refresh()
   }, [companyId, router, selected])
 
   if (plans.length === 0) return null

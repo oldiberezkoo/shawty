@@ -3,6 +3,7 @@ import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
 import { apiGet } from '@/server/api'
 import { ScheduleBoard } from '@/features/scheduling/ui/ScheduleBoard'
+import type { PlaylistVersionChoice } from '@/shared/lib/playlist-version'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,10 @@ export default async function SchedulingPage() {
   if (!membership) return null
 
   const access = createAccess(membership.role, membership.scopes)
-  const { versions } = await apiGet<{ versions: any[] }>('/api/dashboard/playlists', membership.companyId)
+  const { versions } = await apiGet<{ versions: PlaylistVersionChoice[] }>(
+    '/api/dashboard/playlists',
+    membership.companyId,
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -31,14 +35,7 @@ export default async function SchedulingPage() {
         companyId={membership.companyId}
         canAssign={access.can(PERMISSIONS.releasesPublish)}
         canPublish={access.can(PERMISSIONS.releasesPublish)}
-        versions={versions.map((version) => ({
-          id: version.id,
-          playlistName: version.playlistName,
-          version: version.version,
-          itemCount: version.itemCount,
-          totalDurationMs: version.totalDurationMs,
-          isCurrent: version.isCurrent,
-        }))}
+        versions={versions}
       />
     </div>
   )
