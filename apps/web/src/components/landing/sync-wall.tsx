@@ -91,6 +91,7 @@ export function SyncWall({ className = '' }: { className?: string }) {
         className="sync-wall"
         role="group"
         aria-label="Демонстрация синхронизации четырёх экранов"
+        aria-busy={updating}
       >
         <div className="sync-wall-bar">
           <span className="sync-wall-brand">

@@ -55,22 +55,26 @@ export function getPublicNetworkStats(): PublicNetworkStats {
   }
 
   // Последний сэмпл на экран. Оконные функции SQLite здесь не нужны: таблица
-  // небольшая, а коррелированный max(at) читается заметно проще.
-  const latestRows = db
-    .select({
-      screenId: deviceTelemetrySamples.screenId,
-      downlinkKbps: deviceTelemetrySamples.downlinkKbps,
-      at: deviceTelemetrySamples.at,
-    })
-    .from(deviceTelemetrySamples)
-    .where(
-      sql`${deviceTelemetrySamples.at} = (
-        select max(t.at)
-        from device_telemetry_samples t
-        where t.screen_id = ${deviceTelemetrySamples.screenId}
-      )`,
-    )
-    .all()
+  // небольшая, а коррелированный max(at) читается заметно проще. Если на связи
+  // никого нет, запрос к телеметрии не нужен вовсе.
+  const latestRows =
+    onlineIds.size === 0
+      ? []
+      : db
+          .select({
+            screenId: deviceTelemetrySamples.screenId,
+            downlinkKbps: deviceTelemetrySamples.downlinkKbps,
+            at: deviceTelemetrySamples.at,
+          })
+          .from(deviceTelemetrySamples)
+          .where(
+            sql`${deviceTelemetrySamples.at} = (
+              select max(t.at)
+              from device_telemetry_samples t
+              where t.screen_id = ${deviceTelemetrySamples.screenId}
+            )`,
+          )
+          .all()
 
   let downlinkKbps = 0
   let hasDownlink = false

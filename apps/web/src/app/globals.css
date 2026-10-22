@@ -2002,7 +2002,7 @@ html:has(.landing-nav) {
 
 .landing-street-wire {
   position: absolute;
-  right: 16%;
+  right: calc(16% + 0.5rem);
   bottom: 3.5rem;
   z-index: 0;
   display: block;

@@ -137,7 +137,7 @@ export function NetworkStats({ className = '' }: { className?: string }) {
           >
             <i style={{ width: `${onlinePercent}%` }} />
           </div>
-          <span className="landing-stat-note">{data ? `${onlinePercent}% парка` : 'online / 90 sec'}</span>
+          <span className="landing-stat-note">{data ? `${onlinePercent}% парка` : 'online / heartbeat'}</span>
         </div>
 
         <div className="landing-stat">
@@ -178,8 +178,9 @@ export function NetworkStats({ className = '' }: { className?: string }) {
       </div>
 
       <p className="landing-stats-note">
-        Третий показатель — оценка канала, которую устройства сообщают через
-        Network Information API. Это не объём переданного трафика и не биллинг.
+        Онлайн — экран, который недавно присылал heartbeat. Третий показатель —
+        оценка канала, которую устройства сообщают через Network Information API.
+        Это не объём переданного трафика и не биллинг.
       </p>
     </div>
   )

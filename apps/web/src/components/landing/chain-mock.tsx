@@ -24,6 +24,7 @@ export function ChainMock({ className = '' }: { className?: string }) {
               <i aria-hidden="true" className="landing-chain-dot" />
               <span className="landing-chain-step-label">{step.label}</span>
               <span className="landing-chain-step-detail">{step.detail}</span>
+              {step.dead ? <span className="sr-only">, больше не нужен</span> : null}
             </li>
           ))}
         </ol>
