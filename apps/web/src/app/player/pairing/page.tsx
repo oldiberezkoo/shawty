@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { PairingScreen } from './PairingScreen'
+import { PairingScreen } from '@/features/pairing/ui/PairingScreen'
 
 export const metadata: Metadata = {
   title: 'Подключение экрана',

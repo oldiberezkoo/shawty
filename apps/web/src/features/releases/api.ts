@@ -1,3 +1,4 @@
+import { RELEASES_PATH } from '@/shared/api/releases'
 import type { DeliverySnapshot } from './model'
 
 /**
@@ -8,7 +9,7 @@ import type { DeliverySnapshot } from './model'
  */
 export async function fetchDeliverySnapshot(companyId: string): Promise<DeliverySnapshot | null> {
   try {
-    const response = await fetch('/api/dashboard/releases', {
+    const response = await fetch(RELEASES_PATH, {
       headers: { 'x-company-id': companyId },
       cache: 'no-store',
     })

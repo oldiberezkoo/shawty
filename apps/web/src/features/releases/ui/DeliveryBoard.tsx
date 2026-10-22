@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Notice } from '@/components/ui/status-badge'
 import { dashboardRequest } from '@/shared/api/dashboard-client'
+import { RELEASES_PATH } from '@/shared/api/releases'
 import { fetchDeliverySnapshot } from '../api'
 import type {
   AssignmentView,
@@ -114,7 +115,7 @@ export function DeliveryBoard(props: {
         return
       }
 
-      await call('/api/dashboard/releases', {
+      await call(RELEASES_PATH, {
         method: 'PUT',
         body: JSON.stringify({ scopeType, scopeId: targetId, playlistVersionId: versionId }),
       })
@@ -123,7 +124,7 @@ export function DeliveryBoard(props: {
   )
 
   const publish = useCallback(async () => {
-    const result = await call('/api/dashboard/releases', {
+    const result = await call(RELEASES_PATH, {
       method: 'POST',
       body: JSON.stringify({ reason: null }),
     })

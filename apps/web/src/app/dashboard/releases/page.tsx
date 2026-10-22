@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
 import { apiGet } from '@/server/api'
+import { RELEASES_PATH } from '@/shared/api/releases'
 import { DeliveryBoard } from '@/features/releases/ui/DeliveryBoard'
 
 export const dynamic = 'force-dynamic'
@@ -19,7 +20,7 @@ export default async function ReleasesPage() {
   const companyId = membership.companyId
   const [releasesData, structure, playlistsData] = await Promise.all([
     apiGet<{ assignments: any[]; releases: any[]; summary: any; receipts: any[] }>(
-      '/api/dashboard/releases',
+      RELEASES_PATH,
       companyId,
     ),
     apiGet<{ branches: any[]; groups: any[] }>('/api/dashboard/structure', companyId),

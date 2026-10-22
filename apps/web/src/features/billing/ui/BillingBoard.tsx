@@ -9,6 +9,7 @@ import { FormError } from '@/components/ui/form'
 import { Badge, Notice } from '@/components/ui/status-badge'
 import { UsageBar, SettingRow } from '@/components/ui/metric'
 import { dashboardRequest } from '@/shared/api/dashboard-client'
+import { formatStorageSize } from '@/shared/lib/format'
 import { plural } from '@/shared/lib/plural'
 
 export type UsageLine = {
@@ -44,10 +45,7 @@ export type BillingState = {
 }
 
 function formatValue(value: number, kind: 'count' | 'bytes'): string {
-  if (kind === 'bytes') {
-    if (value < 1024 ** 3) return `${(value / 1024 ** 2).toFixed(0)} МБ`
-    return `${(value / 1024 ** 3).toFixed(1)} ГБ`
-  }
+  if (kind === 'bytes') return formatStorageSize(value)
 
   return `${value} ${plural(value, 'экран', 'экрана', 'экранов')}`
 }

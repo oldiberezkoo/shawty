@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatDuration } from '@/domain/monitoring/incidents'
+import { dashboardRequest } from '@/shared/api/dashboard-client'
 
 type ReportScreen = {
   screenId: string
@@ -60,27 +61,26 @@ export function AvailabilityReport({ companyId }: { companyId: string }) {
       setError(null)
       setBusy(true)
 
-      try {
-        const to = new Date()
-        const from = new Date(to.getTime() - periodDays * 24 * 60 * 60_000)
+      const to = new Date()
+      const from = new Date(to.getTime() - periodDays * 24 * 60 * 60_000)
 
-        const url = `/api/dashboard/reports/availability?groupBy=branch&from=${from.toISOString()}&to=${to.toISOString()}`
+      const url = `/api/dashboard/reports/availability?groupBy=branch&from=${from.toISOString()}&to=${to.toISOString()}`
 
-        const response = await fetch(url, { headers: { 'x-company-id': companyId }, cache: 'no-store' })
+      const result = await dashboardRequest<{ report: Report }>(
+        url,
+        { cache: 'no-store' },
+        companyId,
+        'Не удалось построить отчёт',
+      )
 
-        if (!response.ok) {
-          const data = (await response.json().catch(() => null)) as { error?: { message?: string } } | null
-          setError(data?.error?.message ?? 'Не удалось построить отчёт')
-          return
-        }
+      setBusy(false)
 
-        const data = (await response.json()) as { report: Report }
-        setReport(data.report)
-      } catch {
-        setError('Отчёт недоступен')
-      } finally {
-        setBusy(false)
+      if (!result.ok) {
+        setError(result.status === 0 ? 'Отчёт недоступен' : result.message)
+        return
       }
+
+      setReport(result.data.report)
     },
     [companyId],
   )
