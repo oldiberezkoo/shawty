@@ -126,11 +126,11 @@ export default function HomePage() {
             <ThemeToggle />
             <Link
               href="/login"
-              className="inline-flex h-8 items-center font-mono text-[10px] tracking-[0.08em] text-text-muted uppercase transition-colors hover:text-text"
+              className="hidden h-8 items-center font-mono text-[10px] tracking-[0.08em] text-text-muted uppercase transition-colors hover:text-text min-[30rem]:inline-flex"
             >
               Войти
             </Link>
-            <LandingCta href="/register" size="sm" className="hidden sm:inline-flex">
+            <LandingCta href="/register" size="sm">
               Создать сеть
             </LandingCta>
           </div>
