@@ -3,7 +3,7 @@ import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
 import { publicConfig } from '@/config/public'
 import { apiGet } from '@/server/api'
-import { PlaylistList } from './PlaylistList'
+import { PlaylistList } from '@/features/playlists/ui/PlaylistList'
 
 export const dynamic = 'force-dynamic'
 

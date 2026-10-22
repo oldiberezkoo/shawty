@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { FormError, FormField, SelectField } from '@/components/ui/form'
-import { CSRF_COOKIE } from '@/lib/cookie-names'
+import { readCsrfToken } from '@/shared/lib/csrf'
 
 type Option = { id: string; name: string }
 
@@ -31,8 +31,7 @@ export function ConfirmForm(props: {
   // CSRF-кука намеренно доступна скрипту: значение дублируется в заголовке,
   // а сервер сверяет его с секретом сессии.
   useEffect(() => {
-    const match = document.cookie.match(new RegExp(`(?:^|; )${CSRF_COOKIE}=([^;]+)`))
-    if (match?.[1]) csrfRef.current = decodeURIComponent(match[1])
+    csrfRef.current = readCsrfToken()
   }, [])
 
   useEffect(() => {

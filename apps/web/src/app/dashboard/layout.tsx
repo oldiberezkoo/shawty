@@ -5,7 +5,7 @@ import { CSRF_COOKIE, SESSION_COOKIE } from '@shawty/contracts'
 import { requireSession } from '@/server/auth/require-session'
 import { ROLE_LABELS } from '@/domain/authz/permissions'
 import { apiGet, apiSend } from '@/server/api'
-import { AppShell } from './AppShell'
+import { AppShell } from '@/widgets/dashboard-shell/ui/AppShell'
 
 export const dynamic = 'force-dynamic'
 

@@ -4,12 +4,7 @@ import { useCallback, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { FormError, FormField } from '@/components/ui/form'
 import { Window } from '@/components/visual/window'
-import { CSRF_COOKIE } from '@/lib/cookie-names'
-
-function readCsrf(): string {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${CSRF_COOKIE}=([^;]+)`))
-  return match?.[1] ? decodeURIComponent(match[1]) : ''
-}
+import { readCsrfToken } from '@/shared/lib/csrf'
 
 /**
  * Название сети для уже существующего аккаунта.
@@ -32,7 +27,7 @@ export function CompanyForm() {
       try {
         const response = await fetch('/api/auth/company', {
           method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-csrf-token': readCsrf() },
+          headers: { 'content-type': 'application/json', 'x-csrf-token': readCsrfToken() },
           body: JSON.stringify({ name }),
         })
 

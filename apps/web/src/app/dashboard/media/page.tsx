@@ -3,27 +3,14 @@ import { requireSession } from '@/server/auth/require-session'
 import { PERMISSIONS } from '@/domain/authz/permissions'
 import { createAccess } from '@/domain/authz/permissions'
 import { apiGet } from '@/server/api'
-import { MediaLibrary } from './MediaLibrary'
+import { MediaLibrary } from '@/features/media/ui/MediaLibrary'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
+import { formatStorageSize } from '@/shared/lib/format'
+import { plural } from '@/shared/lib/plural'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = { title: 'Медиатека' }
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(0)} МБ`
-  return `${(bytes / 1024 ** 3).toFixed(1)} ГБ`
-}
-
-function plural(value: number, one: string, few: string, many: string): string {
-  const mod10 = value % 10
-  const mod100 = value % 100
-
-  if (mod10 === 1 && mod100 !== 11) return one
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
-
-  return many
-}
 
 export default async function MediaPage() {
   const session = await requireSession()
@@ -57,7 +44,7 @@ export default async function MediaPage() {
       <Card>
         <CardHeader
           title="Хранилище"
-          description={`${usage.files} ${plural(usage.files, 'файл', 'файла', 'файлов')} · ${formatBytes(usage.usedBytes)} из ${formatBytes(usage.limitBytes)}`}
+          description={`${usage.files} ${plural(usage.files, 'файл', 'файла', 'файлов')} · ${formatStorageSize(usage.usedBytes)} из ${formatStorageSize(usage.limitBytes)}`}
         />
         <CardBody>
           <div className="h-2 w-full overflow-hidden bg-surface-3">

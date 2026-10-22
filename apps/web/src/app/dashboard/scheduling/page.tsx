@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
 import { apiGet } from '@/server/api'
-import { ScheduleBoard } from './ScheduleBoard'
+import { ScheduleBoard } from '@/features/scheduling/ui/ScheduleBoard'
 
 export const dynamic = 'force-dynamic'
 

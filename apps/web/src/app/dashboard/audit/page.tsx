@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
-import { AuditLog } from './AuditLog'
+import { AuditLog } from '@/features/audit/ui/AuditLog'
 
 export const dynamic = 'force-dynamic'
 

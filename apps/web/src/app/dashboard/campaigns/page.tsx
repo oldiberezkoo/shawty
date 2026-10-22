@@ -3,7 +3,7 @@ import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
 import { apiGet } from '@/server/api'
 import { Notice } from '@/components/ui/status-badge'
-import { CampaignsBoard } from './CampaignsBoard'
+import { CampaignsBoard } from '@/features/campaigns/ui/CampaignsBoard'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,7 +42,6 @@ export default async function CampaignsPage() {
 
       <CampaignsBoard
         companyId={companyId}
-        companyName={membership.companyName}
         canWrite={access.can(PERMISSIONS.campaignsWrite)}
         canApprove={access.can(PERMISSIONS.campaignsApprove)}
         canPublish={access.can(PERMISSIONS.releasesPublish)}

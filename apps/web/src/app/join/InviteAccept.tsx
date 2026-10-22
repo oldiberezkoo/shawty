@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardBody } from '@/components/ui/card'
 import { FormError, FormSuccess } from '@/components/ui/form'
 import { Badge } from '@/components/ui/status-badge'
-import { CSRF_COOKIE } from '@/lib/cookie-names'
+import { readCsrfToken } from '@/shared/lib/csrf'
 
 type Invitation = {
   email: string
@@ -17,11 +17,6 @@ type Invitation = {
   expiresAt: string
   accepted: boolean
   expired: boolean
-}
-
-function readCsrf(): string {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${CSRF_COOKIE}=([^;]+)`))
-  return match?.[1] ? decodeURIComponent(match[1]) : ''
 }
 
 /**
@@ -111,7 +106,7 @@ export function InviteAccept({ token }: { token: string }) {
     try {
       const response = await fetch('/api/team/invitation', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-csrf-token': readCsrf() },
+        headers: { 'content-type': 'application/json', 'x-csrf-token': readCsrfToken() },
         body: JSON.stringify({ token }),
       })
 

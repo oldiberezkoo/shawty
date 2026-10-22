@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
-import { MonitoringBoard } from './MonitoringBoard'
-import { AvailabilityReport } from './AvailabilityReport'
-import { CampaignReportCard } from './CampaignReportCard'
+import { MonitoringBoard } from '@/features/monitoring/ui/MonitoringBoard'
+import { AvailabilityReport } from '@/features/monitoring/ui/AvailabilityReport'
+import { CampaignReportCard } from '@/features/monitoring/ui/CampaignReportCard'
 
 export const dynamic = 'force-dynamic'
 

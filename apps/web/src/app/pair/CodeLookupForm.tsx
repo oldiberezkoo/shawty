@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowRight, QrCode } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FormError } from '@/components/ui/form'
-import { CSRF_COOKIE } from '@/lib/cookie-names'
+import { readCsrfToken } from '@/shared/lib/csrf'
 import { normalizeCode } from '@/lib/code-alphabet'
 
 const CODE_LENGTH = 8
@@ -40,7 +40,7 @@ export function CodeLookupForm() {
       try {
         const response = await fetch('/api/dashboard/pairing/lookup', {
           method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-csrf-token': readCsrf() },
+          headers: { 'content-type': 'application/json', 'x-csrf-token': readCsrfToken() },
           body: JSON.stringify({ code }),
         })
 
@@ -171,9 +171,4 @@ export function CodeLookupForm() {
       </p>
     </div>
   )
-}
-
-function readCsrf(): string {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${CSRF_COOKIE}=([^;]+)`))
-  return match?.[1] ? decodeURIComponent(match[1]) : ''
 }

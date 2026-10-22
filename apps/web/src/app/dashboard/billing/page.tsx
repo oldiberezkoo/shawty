@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
 import { apiGet } from '@/server/api'
-import { BillingBoard } from './BillingBoard'
+import { BillingBoard } from '@/features/billing/ui/BillingBoard'
 
 export const dynamic = 'force-dynamic'
 

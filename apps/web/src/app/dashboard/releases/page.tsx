@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { requireSession } from '@/server/auth/require-session'
 import { createAccess, PERMISSIONS } from '@/domain/authz/permissions'
 import { apiGet } from '@/server/api'
-import { DeliveryBoard } from './DeliveryBoard'
+import { DeliveryBoard } from '@/features/releases/ui/DeliveryBoard'
 
 export const dynamic = 'force-dynamic'
 

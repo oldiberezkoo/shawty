@@ -8,34 +8,12 @@ import { Notice, StatusBadge } from '@/components/ui/status-badge'
 import { MetricTile, UsageBar } from '@/components/ui/metric'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/page-header'
-import { PlanOnboardingModal, type PlanOption } from './PlanOnboardingModal'
+import { PlanOnboardingModal, type PlanOption } from '@/features/billing/ui/PlanOnboardingModal'
+import { formatStorageSize } from '@/shared/lib/format'
+import { plural } from '@/shared/lib/plural'
+import { formatSecondsAgo } from '@/shared/lib/relative-time'
 
 export const dynamic = 'force-dynamic'
-
-function relativeTime(seconds: number | null): string {
-  if (seconds === null) return 'ещё ни разу'
-  if (seconds < 60) return `${seconds} сек назад`
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes} мин назад`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} ч назад`
-  return `${Math.floor(hours / 24)} дн назад`
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(0)} МБ`
-  return `${(bytes / 1024 ** 3).toFixed(1)} ГБ`
-}
-
-function plural(value: number, one: string, few: string, many: string): string {
-  const mod10 = value % 10
-  const mod100 = value % 100
-
-  if (mod10 === 1 && mod100 !== 11) return one
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
-
-  return many
-}
 
 /**
  * Обзор сети.
@@ -194,7 +172,7 @@ export default async function DashboardPage() {
                     </div>
 
                     <span className="hidden shrink-0 text-[12px] text-text-muted sm:block">
-                      {relativeTime(screen.lastSeenSecondsAgo)}
+                      {formatSecondsAgo(screen.lastSeenSecondsAgo, 'ещё ни разу')}
                     </span>
 
                     <StatusBadge state={screen.onlineState} />
@@ -229,12 +207,12 @@ export default async function DashboardPage() {
                       limit={line.limit}
                       usedText={
                         line.kind === 'bytes'
-                          ? formatBytes(line.used)
+                          ? formatStorageSize(line.used)
                           : `${line.used} ${plural(line.used, 'экран', 'экрана', 'экранов')}`
                       }
                       limitText={
                         line.kind === 'bytes'
-                          ? formatBytes(line.limit)
+                          ? formatStorageSize(line.limit)
                           : `${line.limit} ${plural(line.limit, 'экран', 'экрана', 'экранов')}`
                       }
                     />

@@ -11,34 +11,18 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { Badge } from '@/components/ui/status-badge'
 import { Button } from '@/components/ui/button'
 import { formatDuration } from '@/domain/playlist/rules'
-import { ScreenActions } from './ScreenActions'
-import { Sparkline } from './Sparkline'
+import { plural } from '@/shared/lib/plural'
+import { formatSecondsAgo } from '@/shared/lib/relative-time'
+import { ScreenActions } from '@/features/screens/ui/ScreenActions'
+import { Sparkline } from '@/features/screens/ui/Sparkline'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = { title: 'Экран' }
 
-function plural(value: number, one: string, few: string, many: string): string {
-  const mod10 = value % 10
-  const mod100 = value % 100
-  if (mod10 === 1 && mod100 !== 11) return one
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
-  return many
-}
-
 function formatMoment(value: Date | string | null): string {
   if (!value) return '—'
   return new Date(value).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })
-}
-
-function relativeTime(seconds: number | null): string {
-  if (seconds === null) return 'ни разу'
-  if (seconds < 60) return `${seconds} сек назад`
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes} мин назад`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} ч назад`
-  return `${Math.floor(hours / 24)} дн назад`
 }
 
 function number(value: number | null, suffix = ''): string {
@@ -111,7 +95,7 @@ export default async function ScreenDetailPage({ params }: { params: Promise<{ i
               <span>·</span>
               <span>{detail.groupName ?? 'Без группы'}</span>
               <span>·</span>
-              <span>связь: {relativeTime(detail.lastSeenSecondsAgo)}</span>
+              <span>связь: {formatSecondsAgo(detail.lastSeenSecondsAgo)}</span>
               {detail.deviceId ? <span className="font-mono text-[12px]">· {formatDeviceId(detail.deviceId)}</span> : null}
             </p>
           </div>
@@ -381,7 +365,7 @@ export default async function ScreenDetailPage({ params }: { params: Promise<{ i
               Если экран напишет «{plural(1, 'Нужна', 'Нужна', 'Нужна')} повторная привязка», значит браузер очистил
               локальные данные — понадобится новый код на <Link href="/pair" className="text-primary hover:underline">странице подключения</Link>.
             </li>
-            <li>Связь с этим экраном: {relativeTime(detail.lastSeenSecondsAgo)}. Плеер {detail.playerVersion ?? 'не сообщил версию'}.</li>
+            <li>Связь с этим экраном: {formatSecondsAgo(detail.lastSeenSecondsAgo)}. Плеер {detail.playerVersion ?? 'не сообщил версию'}.</li>
           </ul>
 
           <div className="flex flex-wrap gap-2 pt-1">
