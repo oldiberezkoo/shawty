@@ -1,7 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, withImmediateTransaction, type Transaction } from '@/db/client'
 import { auditLog, companies, memberships, plans, subscriptions } from '@/db/schema'
-import { DEFAULT_PLANS, STARTER_PLAN_ID } from '@/domain/billing/plans'
+import { DEFAULT_PLANS, FREE_PLAN_ID } from '@/domain/billing/plans'
 import { slugifyCompanyName } from '@/lib/slug'
 import { HttpError } from '@/server/http/errors'
 
@@ -80,7 +80,7 @@ export function createCompanyInTx(
     .values({
       id: crypto.randomUUID(),
       companyId,
-      planId: STARTER_PLAN_ID,
+      planId: FREE_PLAN_ID,
       status: 'active',
       currentPeriodStart: now,
       currentPeriodEnd: new Date(now.getTime() + PERIOD_MS),
@@ -97,7 +97,7 @@ export function createCompanyInTx(
       action: 'company.created',
       targetType: 'company',
       targetId: companyId,
-      metaJson: JSON.stringify({ name, slug, plan: STARTER_PLAN_ID }),
+      metaJson: JSON.stringify({ name, slug, plan: FREE_PLAN_ID }),
       at: now,
     })
     .run()

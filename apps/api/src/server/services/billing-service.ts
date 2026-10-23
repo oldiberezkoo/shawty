@@ -15,6 +15,12 @@ import { plans, screens, subscriptions, mediaAssets } from '@/db/schema'
 import { recordAudit } from '@/server/services/audit-service'
 import { countSeats } from '@/server/services/team-service'
 import { HttpError } from '@/server/http/errors'
+import {
+  ADDON_CATALOG,
+  GIB,
+  addonMonthlyCents,
+  type AddonKind,
+} from '@/domain/billing/plans'
 
 /** Состояние подписки. Отдельный тип, чтобы `noticeFor` видел все варианты. */
 export type SubscriptionStatus = 'trial' | 'active' | 'past_due' | 'suspended' | 'cancelled'

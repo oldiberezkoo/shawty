@@ -166,6 +166,13 @@ export const subscriptions = sqliteTable(
     currentPeriodStart: integer('current_period_start', { mode: 'timestamp_ms' }).notNull(),
     currentPeriodEnd: integer('current_period_end', { mode: 'timestamp_ms' }).notNull(),
     trialEndsAt: integer('trial_ends_at', { mode: 'timestamp_ms' }),
+    /**
+     * Докупаемые лимиты сверх тарифа. Хранятся в подписке, а не отдельной
+     * таблицей покупок: у компании одна активная подписка, а история изменений
+     * уже есть в журнале действий.
+     */
+    extraScreens: integer('extra_screens').notNull().default(0),
+    extraStorageBytes: integer('extra_storage_bytes').notNull().default(0),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
