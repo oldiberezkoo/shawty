@@ -104,7 +104,7 @@
 `.stack-table` (сворачиваются в карточки по ширине контейнера), поля —
 `.field`, заголовок страницы — `.page-title`, метка — `.label`. Полный набор
 токенов и классов — в
-[`apps/web/README.md`](./apps/web/README.md#дизайн-система).
+[`apps/web/README.md`](./apps/web/README.md#04-дизайн-система).
 
 ---
 
