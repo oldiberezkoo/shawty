@@ -37,11 +37,11 @@ export function LandingHero() {
           <div className="landing-hero-facts mt-7">
             <span className="flex items-center gap-1.5 text-text">
               <i aria-hidden="true" className="size-1.5 bg-primary" />
-              Start — бесплатно
+              Free — бесплатно
             </span>
-            <span>5 экранов</span>
-            <span>3 сотрудника</span>
-            <span>5 ГБ</span>
+            <span>2 экрана</span>
+            <span>1 сотрудник</span>
+            <span>256 МБ</span>
           </div>
 
           <Link

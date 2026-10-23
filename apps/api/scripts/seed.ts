@@ -88,12 +88,13 @@ sqlite.transaction(() => {
     .values({
       id: 'sub_demo',
       companyId,
-      planId: 'plan-growth',
+      // В демо шесть экранов и три филиала: по новым лимитам это Pro.
+      planId: 'plan-pro',
       status: 'active',
       currentPeriodStart: new Date(),
       currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60_000),
     })
-    .onConflictDoNothing()
+    .onConflictDoUpdate({ target: subscriptions.companyId, set: { planId: 'plan-pro' } })
     .run()
 
   const branchSeed = [

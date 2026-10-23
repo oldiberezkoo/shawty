@@ -60,6 +60,7 @@ export const AUDIT_ACTIONS = {
   'team.scopes_changed': 'Область доступа изменена',
   'team.owner_transferred': 'Права владельца переданы',
   'billing.plan_changed': 'Тариф изменён',
+  'billing.addon_changed': 'Докупаемая опция изменена',
 } as const
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS

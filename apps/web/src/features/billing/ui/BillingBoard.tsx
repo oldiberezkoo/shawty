@@ -44,16 +44,37 @@ export type BillingState = {
   notice: { tone: 'warn' | 'danger'; title: string; hint: string } | null
 }
 
+export type AddonLine = {
+  kind: 'screens' | 'storage'
+  label: string
+  unitLabel: string
+  quantity: number
+  unitPriceCents: number
+  monthlyPriceCents: number
+  currency: string
+}
+
+export type AddonsView = {
+  screens: AddonLine
+  storage: AddonLine
+  monthlyPriceCents: number
+  currency: string
+}
+
 function formatValue(value: number, kind: 'count' | 'bytes'): string {
   if (kind === 'bytes') return formatStorageSize(value)
 
   return `${value} ${plural(value, 'экран', 'экрана', 'экранов')}`
 }
 
+function formatMoney(cents: number, currency: string): string {
+  return `${(cents / 100).toLocaleString('ru-RU')} ${currency === 'UZS' ? 'сум' : currency}`
+}
+
 function formatPrice(cents: number, currency: string): string {
   if (cents === 0) return 'Бесплатно'
 
-  return `${(cents / 100).toLocaleString('ru-RU')} ${currency === 'UZS' ? 'сум' : currency} / мес`
+  return `${formatMoney(cents, currency)} / мес`
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -76,17 +97,22 @@ export function BillingBoard({
   state,
   usage,
   plans,
+  addons,
+  monthlyTotalCents,
   canChangePlan,
 }: {
   companyId: string
   state: BillingState
   usage: UsageLine[]
   plans: PlanView[]
+  addons: AddonsView
+  monthlyTotalCents: number
   canChangePlan: boolean
 }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [addonBusy, setAddonBusy] = useState<'screens' | 'storage' | null>(null)
   const [confirming, setConfirming] = useState<PlanView | null>(null)
 
   const change = useCallback(
@@ -114,6 +140,38 @@ export function BillingBoard({
     [companyId, router],
   )
 
+  const adjustAddon = useCallback(
+    async (kind: 'screens' | 'storage', delta: number) => {
+      const line = addons[kind]
+      const quantity = Math.max(0, line.quantity + delta)
+
+      if (quantity === line.quantity) return
+
+      setError(null)
+      setAddonBusy(kind)
+
+      const result = await dashboardRequest(
+        '/api/dashboard/billing/addons',
+        { method: 'PATCH', body: JSON.stringify({ kind, quantity }) },
+        companyId,
+        'Не удалось изменить опцию',
+      )
+
+      setAddonBusy(null)
+
+      if (!result.ok) {
+        setError(result.message)
+        return
+      }
+
+      router.refresh()
+    },
+    [addons, companyId, router],
+  )
+
+  const planPrice = state.plan?.monthlyPriceCents ?? 0
+  const planCurrency = state.plan?.currency ?? addons.currency
+
   const periodEnd = state.currentPeriodEnd
     ? new Date(state.currentPeriodEnd).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
     : null
@@ -134,7 +192,10 @@ export function BillingBoard({
             <span className="section-title">Тариф</span>
             <span className="text-[22px] leading-tight font-medium">{state.plan?.name ?? '—'}</span>
             {state.plan ? (
-              <span className="text-[12px] text-text-subtle">{formatPrice(state.plan.monthlyPriceCents, state.plan.currency)}</span>
+              <span className="text-[12px] text-text-subtle">
+                {formatPrice(planPrice, planCurrency)}
+                {addons.monthlyPriceCents > 0 ? ` + ${formatMoney(addons.monthlyPriceCents, addons.currency)} опции` : ''}
+              </span>
             ) : null}
           </CardBody>
         </Card>
@@ -176,6 +237,75 @@ export function BillingBoard({
               limitText={formatValue(line.limit, line.kind)}
             />
           ))}
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Докупаемые опции"
+          description={
+            canChangePlan
+              ? 'Экраны и хранилище сверх тарифа. Цена ГБ включает место, международный трафик доставки и серверное время. Лимит применяется сразу, оплата вносится вручную вместе с тарифом.'
+              : 'Докупать экраны и хранилище может только владелец компании.'
+          }
+        />
+        <CardBody className="flex flex-col gap-5">
+          {(['screens', 'storage'] as const).map((kind) => {
+            const line = addons[kind]
+            const busyLine = addonBusy === kind
+            const quantityText =
+              kind === 'screens'
+                ? `+${line.quantity} ${plural(line.quantity, 'экран', 'экрана', 'экранов')}`
+                : `+${line.quantity} ГБ`
+
+            return (
+              <SettingRow
+                key={kind}
+                label={line.label}
+                hint={`${formatMoney(line.unitPriceCents, line.currency)} за ${line.unitLabel} / мес`}
+              >
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <span className="tnum text-[13px] text-text-muted">{quantityText}</span>
+
+                  {canChangePlan ? (
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busyLine || line.quantity === 0}
+                        onClick={() => void adjustAddon(kind, -1)}
+                        aria-label={`Убрать ${line.unitLabel}`}
+                      >
+                        −
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busyLine}
+                        onClick={() => void adjustAddon(kind, 1)}
+                        aria-label={`Добавить ${line.unitLabel}`}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  <span className="tnum w-24 text-right text-[13px] font-medium">
+                    {line.monthlyPriceCents > 0 ? formatPrice(line.monthlyPriceCents, line.currency) : '—'}
+                  </span>
+                </div>
+              </SettingRow>
+            )
+          })}
+
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
+            <span className="text-[12px] text-text-subtle">
+              Итого по тарифу и опциям — в счёте за месяц.
+            </span>
+            <span className="text-[13px] font-medium">
+              Итого: {formatPrice(monthlyTotalCents, planCurrency)}
+            </span>
+          </div>
         </CardBody>
       </Card>
 

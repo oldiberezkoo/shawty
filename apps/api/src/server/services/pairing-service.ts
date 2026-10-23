@@ -201,7 +201,11 @@ type LimitCheck = { allowed: true } | { allowed: false; used: number; limit: num
  */
 function checkScreenLimit(tx: Transaction, companyId: string): LimitCheck {
   const subscription = tx
-    .select({ status: subscriptions.status, screensLimit: plans.screensLimit })
+    .select({
+      status: subscriptions.status,
+      screensLimit: plans.screensLimit,
+      extraScreens: subscriptions.extraScreens,
+    })
     .from(subscriptions)
     .innerJoin(plans, eq(plans.id, subscriptions.planId))
     .where(eq(subscriptions.companyId, companyId))
@@ -222,13 +226,14 @@ function checkScreenLimit(tx: Transaction, companyId: string): LimitCheck {
     .get()
 
   const current = usedRow?.used ?? 0
+  const limit = subscription.screensLimit + subscription.extraScreens
 
-  if (current >= subscription.screensLimit) {
+  if (current >= limit) {
     return {
       allowed: false,
       used: current,
-      limit: subscription.screensLimit,
-      reason: `Исчерпан лимит тарифа: ${current} из ${subscription.screensLimit} экранов`,
+      limit,
+      reason: `Исчерпан лимит тарифа: ${current} из ${limit} экранов. Докупите экраны или смените тариф`,
     }
   }
 

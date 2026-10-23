@@ -70,7 +70,7 @@ export function DashboardMock({ className = '' }: { className?: string }) {
             </div>
 
             <div className="mt-auto border-t border-border px-1.5 pt-2 font-mono text-[7px] leading-relaxed tracking-[0.06em] text-text-subtle uppercase">
-              Start
+              Growth
               <br />
               5 экранов
             </div>
@@ -81,7 +81,7 @@ export function DashboardMock({ className = '' }: { className?: string }) {
               <div className="min-w-0">
                 <p className="section-title">Экраны</p>
                 <p className="mt-1 truncate font-mono text-[8px] text-text-subtle">
-                  5 экранов · 2 филиала
+                  5 экранов · 3 филиала
                 </p>
               </div>
               <span className="bg-primary px-1.5 py-1 font-mono text-[7px] tracking-[0.06em] text-primary-text uppercase">

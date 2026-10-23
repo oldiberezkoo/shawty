@@ -319,6 +319,40 @@ describe('лимит тарифа', () => {
     expect(stored?.status).toBe('pending')
   })
 
+  it('докупленные экраны расширяют лимит привязки', () => {
+    seedFixture({ screensLimit: 1 })
+
+    db.update(subscriptions).set({ extraScreens: 1 }).where(eq(subscriptions.companyId, COMPANY)).run()
+
+    for (let i = 0; i < 2; i += 1) {
+      const session = startSession(`nonce-addon-${i}`)
+      const result = confirmPairing({
+        sessionId: session.sessionId,
+        code: session.code,
+        companyId: COMPANY,
+        branchId: BRANCH,
+        screenName: `Экран ${i}`,
+        actor: ownerActor(),
+      })
+      expect(result.ok).toBe(true)
+    }
+
+    const overflow = startSession('nonce-addon-overflow')
+
+    expect(() =>
+      confirmPairing({
+        sessionId: overflow.sessionId,
+        code: overflow.code,
+        companyId: COMPANY,
+        branchId: BRANCH,
+        screenName: 'Лишний',
+        actor: ownerActor(),
+      }),
+    ).toThrow(/Исчерпан лимит тарифа/)
+
+    expect(screenCount()).toBe(2)
+  })
+
   it('отвязанные экраны не занимают лимит', () => {
     seedFixture({ screensLimit: 1 })
 

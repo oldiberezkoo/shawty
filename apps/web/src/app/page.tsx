@@ -4,7 +4,7 @@ import { LandingPage } from '@/widgets/landing/ui/landing-page'
 export const metadata: Metadata = {
   title: { absolute: 'SHAWTY — контент на экранах с подтверждением доставки' },
   description:
-    'Публикуйте контент на телевизоры, назначайте кампании по филиалам и получайте подтверждение доставки от каждого экрана. Start — до 5 экранов бесплатно.',
+    'Публикуйте контент на телевизоры, назначайте кампании по филиалам и получайте подтверждение доставки от каждого экрана. Free — до 2 экранов бесплатно.',
   robots: { index: true, follow: true },
   openGraph: {
     type: 'website',

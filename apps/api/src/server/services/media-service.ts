@@ -93,7 +93,10 @@ export type StorageUsage = { usedBytes: number; limitBytes: number; files: numbe
 
 export function storageUsage(companyId: string): StorageUsage {
   const subscription = db
-    .select({ limitBytes: plans.storageBytesLimit })
+    .select({
+      limitBytes: plans.storageBytesLimit,
+      extraBytes: subscriptions.extraStorageBytes,
+    })
     .from(subscriptions)
     .innerJoin(plans, eq(plans.id, subscriptions.planId))
     .where(eq(subscriptions.companyId, companyId))
@@ -110,7 +113,7 @@ export function storageUsage(companyId: string): StorageUsage {
 
   return {
     usedBytes: Number(row?.used ?? 0),
-    limitBytes: subscription?.limitBytes ?? 0,
+    limitBytes: subscription ? subscription.limitBytes + subscription.extraBytes : 0,
     files: Number(row?.files ?? 0),
   }
 }

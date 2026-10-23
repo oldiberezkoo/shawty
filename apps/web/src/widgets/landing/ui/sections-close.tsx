@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { PixelIcon } from '@/components/visual/pixel-icon'
 import { NetworkStats } from '@/components/landing/network-stats'
 import { LandingCta } from '@/components/landing/cta'
-import { FAQ, PLANS, SCENARIOS } from '@/components/landing/content'
+import { ADDON_OPTIONS, FAQ, PLANS, SCENARIOS } from '@/components/landing/content'
 import { SectionHead } from './landing-chrome'
 
 export function ScenariosSection() {
@@ -82,10 +82,10 @@ export function PricingSection() {
 
       <div className="landing-intro">
         <h2 id="pricing-title" className="landing-h2">
-          Начните с пяти экранов. <em>Растите без переезда.</em>
+          Начните с двух экранов. <em>Растите без переезда.</em>
         </h2>
         <p className="landing-lede">
-          Start бесплатен. Growth и Pro подключаются в панели; оплата вносится
+          Free бесплатен. Growth и Pro подключаются в панели; оплата вносится
           вручную.
         </p>
       </div>
@@ -141,11 +141,34 @@ export function PricingSection() {
         ))}
       </div>
 
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <span className="section-title">Докупить отдельно</span>
+        <span className="font-mono text-[9px] tracking-[0.06em] text-text-subtle uppercase">
+          сверх лимита тарифа
+        </span>
+      </div>
+
+      <div className="landing-cells landing-cells--2 mt-3">
+        {ADDON_OPTIONS.map((option) => (
+          <article key={option.title} className="landing-cell">
+            <div className="landing-cell-top">
+              <h3 className="text-[14px] leading-snug font-medium tracking-[-0.02em] text-text">
+                {option.title}
+              </h3>
+              <span className="shrink-0 font-mono text-[10px] tracking-[0.04em] text-primary uppercase">
+                {option.price}
+              </span>
+            </div>
+            <p className="text-[12px] leading-relaxed text-text-muted">{option.text}</p>
+          </article>
+        ))}
+      </div>
+
       <div className="landing-plan-note">
-        <span className="section-title">Start — 0 сум</span>
+        <span className="section-title">Free — 0 сум</span>
         <p className="text-[11.5px] leading-relaxed text-text-muted">
-          Тариф меняется в панели владельцем компании. Оплата Growth и Pro
-          вносится вручную.
+          Тариф меняется в панели владельцем компании. Оплата Growth, Pro и
+          докупленных опций вносится вручную.
         </p>
       </div>
     </section>

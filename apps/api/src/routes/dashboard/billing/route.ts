@@ -27,6 +27,9 @@ export const GET = route(async (request: Request) => {
       trialEndsAt: subscription.trialEndsAt?.toISOString() ?? null,
       notice: subscription.notice,
     },
+    addons: subscription.addons,
+    /** Тариф плюс докупленные опции — то, что владелец увидит в счёте. */
+    monthlyTotalCents: (subscription.plan?.monthlyPriceCents ?? 0) + subscription.addons.monthlyPriceCents,
     usage: subscription.usage,
     plans: listPlans(),
     canChangePlan: access.can(PERMISSIONS.billingWrite),
@@ -56,6 +59,7 @@ export const PATCH = route(async (request: Request) => {
     // потребления допустимо, но интерфейс обязан показать, что именно перестанет
     // работать. Молча обрезать сеть было бы хуже, чем показать предупреждение.
     overLimit: result.blocked,
+    addons: subscription.addons,
     usage: subscription.usage,
     notice: subscription.notice,
   })

@@ -23,9 +23,9 @@ export type PlanOption = {
 }
 
 const TAGLINES: Record<string, string> = {
-  'plan-starter': 'Для первого экрана и проверки сценария.',
-  'plan-growth': 'Для сети, которой нужен запас по экранам и филиалам.',
-  'plan-pro': 'Для большой сети с длинной историей и широкой командой.',
+  'plan-starter': 'Для проверки сценария на двух экранах.',
+  'plan-growth': 'Для небольшой сети с запасом по экранам.',
+  'plan-pro': 'Для сети до восьми экранов и команды из пяти человек.',
 }
 
 function formatPrice(cents: number): string {
@@ -132,7 +132,7 @@ export function PlanOnboardingModal({
           </h2>
 
           <p className="max-w-[72ch] text-[12.5px] leading-relaxed text-text-muted">
-            Start бесплатен: пяти экранов хватает, чтобы проверить сценарий целиком. Тариф можно сменить в
+            Free бесплатен: двух экранов хватает, чтобы проверить сценарий целиком. Тариф можно сменить в
             любой момент в разделе «Тариф» — данные и настройки при переходе сохраняются.
           </p>
         </div>
@@ -213,7 +213,7 @@ export function PlanOnboardingModal({
         <ul className="flex flex-wrap gap-x-5 gap-y-2 border-t border-border pt-4 text-[11.5px] text-text-subtle">
           <li className="flex items-center gap-1.5">
             <ShieldCheck className="size-3.5 shrink-0 text-primary" strokeWidth={1.7} />
-            Карта не нужна для Start
+            Карта не нужна для Free
           </li>
           <li className="flex items-center gap-1.5">
             <RefreshCw className="size-3.5 shrink-0 text-primary" strokeWidth={1.7} />

@@ -6,8 +6,9 @@
  * тогда покажет счётчик, — «всё хорошо» при исчерпанном лимите. Считать
  * по факту дороже на одну выборку и единственно верно.
  *
- * Деньги здесь не считаются: платёжный провайдер — отдельное решение (P8),
- * а тариф меняется вручную и пишется в журнал действий.
+ * Платёж здесь не проводится: провайдер — отдельное решение (P8), а тариф и
+ * докупаемые опции меняются вручную и пишутся в журнал действий. Цены и
+ * effective-лимиты считаются здесь, чтобы панель и счёт видели одно и то же.
  */
 import { and, asc, eq, ne, sql } from 'drizzle-orm'
 import { db } from '@/db/client'
@@ -35,6 +36,29 @@ export type PlanView = {
   eventRetentionDays: number
   monthlyPriceCents: number
   currency: string
+}
+
+/** Докупаемая опция: сколько единиц куплено и сколько это стоит в месяц. */
+export type AddonLine = {
+  kind: AddonKind
+  label: string
+  unitLabel: string
+  quantity: number
+  unitPriceCents: number
+  monthlyPriceCents: number
+  currency: string
+}
+
+export type AddonsView = {
+  screens: AddonLine
+  storage: AddonLine
+  monthlyPriceCents: number
+  currency: string
+}
+
+export type ExtraLimits = {
+  screens: number
+  storageBytes: number
 }
 
 export type UsageLine = {
@@ -65,6 +89,8 @@ export type SubscriptionView = {
   currentPeriodEnd: Date | null
   trialEndsAt: Date | null
   daysLeft: number | null
+  /** Докупаемые лимиты сверх тарифа. */
+  addons: AddonsView
   /** Причина, по которой подписка требует внимания. `null` — всё в порядке. */
   notice: { tone: 'warn' | 'danger'; title: string; hint: string } | null
   usage: UsageLine[]
@@ -77,6 +103,76 @@ export function listPlans(): PlanView[] {
     .where(eq(plans.isActive, true))
     .orderBy(asc(plans.monthlyPriceCents))
     .all()
+}
+
+/**
+ * Докупаемые опции компании.
+ *
+ * Хранилище в базе лежит байтами, а продаётся гигабайтами: интерфейс и счёт
+ * считаются в целых ГБ, поэтому остаток от деления отбрасывается. Купить
+ * дробный гигабайт нельзя — API принимает только целое количество.
+ */
+export function getAddons(companyId: string): AddonsView {
+  const row = db
+    .select({
+      extraScreens: subscriptions.extraScreens,
+      extraStorageBytes: subscriptions.extraStorageBytes,
+    })
+    .from(subscriptions)
+    .where(eq(subscriptions.companyId, companyId))
+    .get()
+
+  return buildAddons(row?.extraScreens ?? 0, row?.extraStorageBytes ?? 0)
+}
+
+function buildAddons(extraScreens: number, extraStorageBytes: number): AddonsView {
+  const storageGb = Math.floor(extraStorageBytes / GIB)
+  const screenDefinition = ADDON_CATALOG.screens
+  const storageDefinition = ADDON_CATALOG.storage
+
+  const screens: AddonLine = {
+    kind: 'screens',
+    label: screenDefinition.label,
+    unitLabel: screenDefinition.unitLabel,
+    quantity: extraScreens,
+    unitPriceCents: screenDefinition.unitPriceCents,
+    monthlyPriceCents: addonMonthlyCents('screens', extraScreens),
+    currency: screenDefinition.currency,
+  }
+
+  const storage: AddonLine = {
+    kind: 'storage',
+    label: storageDefinition.label,
+    unitLabel: storageDefinition.unitLabel,
+    quantity: storageGb,
+    unitPriceCents: storageDefinition.unitPriceCents,
+    monthlyPriceCents: addonMonthlyCents('storage', storageGb),
+    currency: storageDefinition.currency,
+  }
+
+  return {
+    screens,
+    storage,
+    monthlyPriceCents: screens.monthlyPriceCents + storage.monthlyPriceCents,
+    currency: storage.currency,
+  }
+}
+
+/** Прибавка к лимитам тарифа от докупленных опций. */
+export function extraLimits(companyId: string): ExtraLimits {
+  const row = db
+    .select({
+      screens: subscriptions.extraScreens,
+      storageBytes: subscriptions.extraStorageBytes,
+    })
+    .from(subscriptions)
+    .where(eq(subscriptions.companyId, companyId))
+    .get()
+
+  return {
+    screens: row?.screens ?? 0,
+    storageBytes: row?.storageBytes ?? 0,
+  }
 }
 
 export function getSubscription(companyId: string): SubscriptionView {
@@ -101,6 +197,7 @@ export function getSubscription(companyId: string): SubscriptionView {
       currentPeriodEnd: null,
       trialEndsAt: null,
       daysLeft: null,
+      addons: buildAddons(0, 0),
       notice: {
         tone: 'danger' as const,
         title: 'Подписка не настроена',
@@ -120,6 +217,7 @@ export function getSubscription(companyId: string): SubscriptionView {
     currentPeriodEnd: row.currentPeriodEnd,
     trialEndsAt: row.trialEndsAt,
     daysLeft,
+    addons: getAddons(companyId),
     notice: noticeFor({ status: row.status, daysLeft, trialEndsAt: row.trialEndsAt, usage, companyId }),
     usage,
   }
@@ -214,7 +312,7 @@ function noticeFor(input: {
     return {
       tone: 'danger',
       title: `Превышен лимит: ${exceeded.label}`,
-      hint: `${formatUsage(exceeded)} при лимите ${formatUsage(exceeded, exceeded.limit)}. Часть функций ограничена до смены тарифа.`,
+      hint: `${formatUsage(exceeded)} при лимите ${formatUsage(exceeded, exceeded.limit)}. Докупите лимит или смените тариф — часть функций ограничена.`,
     }
   }
 
@@ -224,7 +322,7 @@ function noticeFor(input: {
     return {
       tone: 'warn',
       title: `${near.label}: ${formatUsage(near)} из ${near.limit}`,
-      hint: 'Приближается лимит тарифа. Смена тарифа доступна в настройках компании.',
+      hint: 'Приближается лимит тарифа. Докупить лимит или сменить тариф можно в настройках компании.',
     }
   }
 
@@ -239,6 +337,8 @@ function noticeFor(input: {
  * освободить лимит.
  */
 export function usageFor(companyId: string, plan: PlanView): UsageLine[] {
+  const extras = extraLimits(companyId)
+
   const activeScreens = db
     .select({ count: sql<number>`count(*)` })
     .from(screens)
@@ -258,10 +358,16 @@ export function usageFor(companyId: string, plan: PlanView): UsageLine[] {
     .get()
 
   return [
-    line('screens', 'Экраны', Number(activeScreens?.count ?? 0), plan.screensLimit, 'count'),
+    line('screens', 'Экраны', Number(activeScreens?.count ?? 0), plan.screensLimit + extras.screens, 'count'),
     line('branches', 'Филиалы', Number(branches?.count ?? 0), plan.branchesLimit, 'count'),
     line('seats', 'Сотрудники', countSeats(companyId), plan.seatsLimit, 'count'),
-    line('storage', 'Хранилище', Number(storage?.total ?? 0), plan.storageBytesLimit, 'bytes'),
+    line(
+      'storage',
+      'Хранилище',
+      Number(storage?.total ?? 0),
+      plan.storageBytesLimit + extras.storageBytes,
+      'bytes',
+    ),
   ]
 }
 
@@ -357,10 +463,11 @@ export function changePlan(params: {
   }
 
   const usage = usageFor(params.companyId, current.plan)
+  const extras = extraLimits(params.companyId)
   const blocked: string[] = []
 
   for (const item of usage) {
-    const targetLimit = limitOf(target, item.key)
+    const targetLimit = limitOf(target, item.key) + extraOf(extras, item.key)
 
     if (item.used > targetLimit) {
       blocked.push(`${item.label}: ${formatUsage(item, item.used)} при лимите ${formatUsage(item, targetLimit)}`)
@@ -395,7 +502,7 @@ export function changePlan(params: {
     meta: {
       from: current.plan.name,
       to: target.name,
-      // Фиксируется и понижение: по журналу видно, кто и зачем уводил сет��
+      // Фиксируется и понижение: по журналу видно, кто и зачем уводил сеть
       // с дорогого плана, а по одному факту смены это не прочитать.
       direction: upgrading ? 'upgrade' : 'downgrade',
       overLimit: blocked,
@@ -417,6 +524,111 @@ function limitOf(plan: PlanView, key: string): number {
       return plan.storageBytesLimit
     default:
       return Number.MAX_SAFE_INTEGER
+  }
+}
+
+function extraOf(extras: ExtraLimits, key: string): number {
+  switch (key) {
+    case 'screens':
+      return extras.screens
+    case 'storage':
+      return extras.storageBytes
+    default:
+      return 0
+  }
+}
+
+/**
+ * Покупка или отказ от докупаемой опции.
+ *
+ * Количество задаётся абсолютно, а не дельтой: повторный запрос с тем же
+ * числом идемпотентен, а гонка двух вкладок не удваивает покупку. Уменьшение
+ * разрешено и не блокируется потреблением — как и понижение тарифа; usage
+ * покажет, что именно вышло за лимит.
+ */
+export function setAddonQuantity(params: {
+  companyId: string
+  kind: AddonKind
+  quantity: number
+  actorUserId: string
+  now?: Date
+}): { addons: AddonsView; usage: UsageLine[]; monthlyDeltaCents: number } {
+  const definition = ADDON_CATALOG[params.kind]
+
+  if (!definition) {
+    throw HttpError.badRequest('invalid_input', 'Неизвестная опция')
+  }
+
+  if (
+    !Number.isInteger(params.quantity) ||
+    params.quantity < 0 ||
+    params.quantity > definition.maxQuantity
+  ) {
+    throw HttpError.badRequest(
+      'invalid_input',
+      `Количество должно быть целым от 0 до ${definition.maxQuantity}`,
+    )
+  }
+
+  const current = db
+    .select({
+      plan: plans,
+      extraScreens: subscriptions.extraScreens,
+      extraStorageBytes: subscriptions.extraStorageBytes,
+    })
+    .from(subscriptions)
+    .innerJoin(plans, eq(plans.id, subscriptions.planId))
+    .where(eq(subscriptions.companyId, params.companyId))
+    .get()
+
+  if (!current) {
+    throw HttpError.badRequest('no_subscription', 'У компании нет подписки')
+  }
+
+  const before =
+    params.kind === 'screens'
+      ? current.extraScreens
+      : Math.floor(current.extraStorageBytes / GIB)
+
+  if (before === params.quantity) {
+    return {
+      addons: getAddons(params.companyId),
+      usage: usageFor(params.companyId, current.plan),
+      monthlyDeltaCents: 0,
+    }
+  }
+
+  const now = params.now ?? new Date()
+
+  db.update(subscriptions)
+    .set(
+      params.kind === 'screens'
+        ? { extraScreens: params.quantity, updatedAt: now }
+        : { extraStorageBytes: params.quantity * GIB, updatedAt: now },
+    )
+    .where(eq(subscriptions.companyId, params.companyId))
+    .run()
+
+  recordAudit({
+    companyId: params.companyId,
+    actorUserId: params.actorUserId,
+    action: 'billing.addon_changed',
+    targetType: 'addon',
+    targetId: params.kind,
+    meta: {
+      kind: params.kind,
+      from: before,
+      to: params.quantity,
+      unitPriceCents: definition.unitPriceCents,
+      monthlyDeltaCents: (params.quantity - before) * definition.unitPriceCents,
+    },
+    at: now,
+  })
+
+  return {
+    addons: getAddons(params.companyId),
+    usage: usageFor(params.companyId, current.plan),
+    monthlyDeltaCents: (params.quantity - before) * definition.unitPriceCents,
   }
 }
 

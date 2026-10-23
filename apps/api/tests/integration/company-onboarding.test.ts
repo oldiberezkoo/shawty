@@ -15,7 +15,7 @@ import {
   createCompanyForOwner,
   isOnboardingCompleted,
 } from '@/server/services/company-service'
-import { DEFAULT_PLANS, STARTER_PLAN_ID } from '@/domain/billing/plans'
+import { DEFAULT_PLANS, FREE_PLAN_ID } from '@/domain/billing/plans'
 
 const USER = 'usr_company_owner'
 
@@ -45,7 +45,7 @@ beforeEach(() => {
 })
 
 describe('создание компании', () => {
-  it('создаёт владельца, подписку на Start и стартовые тарифы', () => {
+  it('создаёт владельца, подписку на Free и стартовые тарифы', () => {
     const created = createCompanyForOwner({ userId: USER, name: 'Кофейня «Утро»' })
 
     const company = db.select().from(companies).where(eq(companies.id, created.companyId)).get()
@@ -64,7 +64,7 @@ describe('создание компании', () => {
       .from(subscriptions)
       .where(eq(subscriptions.companyId, created.companyId))
       .get()
-    expect(subscription?.planId).toBe(STARTER_PLAN_ID)
+    expect(subscription?.planId).toBe(FREE_PLAN_ID)
     expect(subscription?.status).toBe('active')
 
     // Регистрация не должна зависеть от `pnpm db:seed`: тарифы появляются
